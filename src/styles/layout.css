@@ -5,9 +5,6 @@
   grid-template-rows: 44px minmax(0, 1fr);
   min-height: 100dvh;
 }
-.app-shell.collapsed {
-  --sidebar-width: 50px;
-}
 
 /* Header */
 .header {
@@ -164,21 +161,6 @@
   padding: 0 16px;
   font-weight: 500;
 }
-.user-chip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: 14px;
-  font-size: 12px;
-  white-space: nowrap;
-}
-.avatar {
-  display: grid;
-  place-items: end center;
-  width: 32px;
-  height: 36px;
-  color: #555;
-}
 
 /* Sidebar */
 .sidebar {
@@ -255,25 +237,6 @@
   background: var(--info);
   color: #fff;
 }
-.collapse-button {
-  display: block;
-  margin: 8px auto 20px;
-  width: 22px;
-  height: 18px;
-  padding: 0;
-  border: 1px solid #555;
-  background: #222;
-  color: #ccc;
-  line-height: 0;
-}
-.collapsed .nav-item {
-  justify-content: center;
-  padding-inline: 0;
-}
-.collapsed .nav-item > span,
-.collapsed .nav-item i {
-  display: none;
-}
 
 /* Content */
 .content {
@@ -320,13 +283,6 @@
   flex-direction: column;
   gap: 18px;
   padding: 14px 14px 24px;
-}
-.footer {
-  padding: 8px;
-  background: #000;
-  color: #fff;
-  text-align: center;
-  font-size: 12px;
 }
 .mobile-scrim {
   display: none;

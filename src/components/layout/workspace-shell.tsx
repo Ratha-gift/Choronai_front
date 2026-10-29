@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/icons";
@@ -16,10 +16,24 @@ import { LOGO_KEY, NO_LOGO } from "@/features/settings/change-logo";
 import { useSettings } from "@/features/settings/store";
 import { useLanguage } from "@/i18n";
 import { formatDate } from "@/lib/format";
+import { useSession } from "@/lib/auth";
 import { useStored } from "@/lib/store";
 import { Calculator } from "./calculator";
 import { LanguageMenu } from "./language-menu";
+import { UserMenu } from "./user-menu";
 import { Navigation } from "./navigation";
+
+function useMediaQuery(query: string) {
+  return useSyncExternalStore(
+    (onChange) => {
+      const list = window.matchMedia(query);
+      list.addEventListener("change", onChange);
+      return () => list.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(query).matches,
+    () => false,
+  );
+}
 
 /** Store logo shipped with the app; Settings → Change Logo overrides it. */
 const DEFAULT_LOGO = "/brand/choronai-mark.png";
@@ -30,11 +44,16 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
   const [settings] = useSettings("system");
   const [logo] = useStored(LOGO_KEY, NO_LOGO);
   const { products } = useProducts();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useStored(
+    "choronai-sidebar-collapsed-v1",
+    false,
+  );
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Phones use the slide-in menu, never the icon rail.
+  const isPhone = useMediaQuery("(max-width: 860px)");
+  const rail = collapsed && !isPhone;
   const [calculator, setCalculator] = useState(false);
-  const [now, setNow] = useState("");
-  useEffect(() => setNow(formatDate(new Date().toISOString(), true)), []);
+  const session = useSession();
 
   const segments = pathname.split("/").filter(Boolean);
   const module = resolvePath(segments)?.module ?? DASHBOARD;
@@ -45,7 +64,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
 
   return (
     <div
-      className={`app-shell ${collapsed ? "collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`}
+      className={`app-shell ${rail ? "collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`}
     >
       <header className="header">
         <button
@@ -60,13 +79,23 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
           <span className="brand-logo">
             <img src={logo || DEFAULT_LOGO} alt={siteName} />
           </span>
-          {!collapsed && (
+          {!rail && (
             <span className="brand-text">
               <b>{siteName}</b>
               <small>{l(["Back office", "ផ្ទាំងគ្រប់គ្រង"])}</small>
             </span>
           )}
         </Link>
+        <button
+          type="button"
+          className="sidebar-toggle"
+          onClick={() => setCollapsed(!collapsed)}
+          aria-label={collapsed ? t.expandMenu : t.collapseMenu}
+          aria-expanded={!collapsed}
+          title={collapsed ? t.expandMenu : t.collapseMenu}
+        >
+          <Icon name={collapsed ? "sidebarOpen" : "sidebarClose"} size={20} />
+        </button>
         <div className="header-actions">
           <Link
             href="/"
@@ -121,29 +150,15 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
           >
             <Icon name="list" />
           </Link>
-          <div className="user-chip">
-            <span className="avatar">
-              <Icon name="user" size={22} />
-            </span>
-            <span>{t.welcome} admin021</span>
-          </div>
+          <UserMenu />
         </div>
       </header>
       <aside className="sidebar">
         <Navigation
           current={module.id}
-          collapsed={collapsed}
+          collapsed={rail}
           onNavigate={() => setMobileOpen(false)}
-          onExpandSidebar={() => setCollapsed(false)}
         />
-        <button
-          className="collapse-button"
-          onClick={() => setCollapsed((value) => !value)}
-          aria-label={collapsed ? t.expandMenu : t.collapseMenu}
-          title={collapsed ? t.expandMenu : t.collapseMenu}
-        >
-          <Icon name={collapsed ? "chevronsRight" : "chevronsLeft"} size={14} />
-        </button>
       </aside>
       <div className="content">
         <div className="breadcrumb-bar">
@@ -172,13 +187,11 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
             )}
           </ol>
           <span className="session-info">
-            {t.signedIn} admin021{now && ` ( ${t.lastVisit}: ${now} )`}
+            {session &&
+              `${t.signedIn} ${session.username} ( ${t.lastVisit}: ${formatDate(session.signedInAt, true)} )`}
           </span>
         </div>
         <main className="page">{children}</main>
-        <footer className="footer">
-          © {new Date().getFullYear()} {siteName}
-        </footer>
       </div>
       <div className="mobile-scrim" onClick={() => setMobileOpen(false)} />
       <ProductDialogs />

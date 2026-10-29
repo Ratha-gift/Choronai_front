@@ -1,3 +1,4 @@
+import { AuthGate } from "@/components/layout/auth-gate";
 import { WorkspaceShell } from "@/components/layout/workspace-shell";
 
 export default function WorkspaceLayout({
@@ -5,5 +6,9 @@ export default function WorkspaceLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <WorkspaceShell>{children}</WorkspaceShell>;
+  return (
+    <AuthGate>
+      <WorkspaceShell>{children}</WorkspaceShell>
+    </AuthGate>
+  );
 }

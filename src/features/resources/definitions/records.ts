@@ -1,4 +1,20 @@
 import type { Label } from "@/i18n";
+import { currentUsername, prepareUser, type UserError } from "@/lib/auth";
+
+const USER_ERRORS: Record<UserError, Label> = {
+  usernameTaken: [
+    "This username is already used",
+    "ឈ្មោះគណនីនេះត្រូវបានប្រើរួចហើយ",
+  ],
+  passwordRequired: [
+    "Enter a password for the new user",
+    "សូមបញ្ចូលពាក្យសម្ងាត់សម្រាប់អ្នកប្រើថ្មី",
+  ],
+  passwordShort: [
+    "Password must be at least 6 characters",
+    "ពាក្យសម្ងាត់ត្រូវមានយ៉ាងហោចណាស់ 6 តួ",
+  ],
+};
 import type { ResourceDef } from "../types";
 import { col, field, nextCode, nextRef, now, required } from "./helpers";
 
@@ -115,7 +131,9 @@ export const recordResources: ResourceDef[] = [
         default: 0,
       }),
       field("expiry", "Expiry Date", "ថ្ងៃផុតកំណត់", { type: "date" }),
-      field("createdBy", "Created by", "បង្កើតដោយ", { default: "admin021" }),
+      field("createdBy", "Created by", "បង្កើតដោយ", {
+        default: () => currentUsername(),
+      }),
     ],
   },
   // Purchases
@@ -150,7 +168,9 @@ export const recordResources: ResourceDef[] = [
         type: "number",
       }),
       field("note", "Note", "កំណត់ចំណាំ", { type: "textarea", full: true }),
-      field("createdBy", "Created by", "បង្កើតដោយ", { default: "admin021" }),
+      field("createdBy", "Created by", "បង្កើតដោយ", {
+        default: () => currentUsername(),
+      }),
     ],
   },
   // People
@@ -240,6 +260,17 @@ export const recordResources: ResourceDef[] = [
         options: YES,
         default: "active",
       }),
+      field(
+        "password",
+        "Password (new users; leave blank to keep)",
+        "ពាក្យសម្ងាត់ (ទុកទទេដើម្បីរក្សាដដែល)",
+        { type: "password", full: true },
+      ),
     ],
+    prepare: (values, existing) => {
+      const result = prepareUser(values, existing);
+      if ("values" in result) return result;
+      return { error: USER_ERRORS[result.error] };
+    },
   },
 ];

@@ -121,6 +121,12 @@ export const en = {
   barcodePending:
     "Labels show the product code as text. Barcode graphics will be added after the scale and label format are confirmed.",
   // Shared forms, tables and transactions
+  clearFilters: "Clear filters",
+  goTo: "Go to",
+  pageWord: "page",
+  perPage: "/ page",
+  rowsPerPage: "Rows per page",
+  pagination: "Pagination",
   addVerb: "Add",
   editVerb: "Edit",
   addItemsFirst: "Add at least one product first",
@@ -148,7 +154,7 @@ export const en = {
   formIntro:
     "Please fill in the information below. The field labels marked with * are required input fields.",
   items: "Items",
-  lastVisit: "opened",
+  lastVisit: "since",
   moreOptions: "More Options",
   namePlaceholder: "e.g. Fresh beef",
   netUnitCost: "Net Unit Cost",

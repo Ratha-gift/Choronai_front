@@ -53,4 +53,12 @@ export type ResourceDef = {
   canEdit?: boolean;
   /** Called after a record is deleted (e.g. to reverse stock). */
   onDelete?: (row: Row) => void;
+  /**
+   * Adjusts form values before saving (e.g. hashing a password). Return
+   * `{ error }` with a message to keep the form open.
+   */
+  prepare?: (
+    values: Record<string, unknown>,
+    existing?: Row,
+  ) => { values: Record<string, unknown> } | { error: Label };
 };

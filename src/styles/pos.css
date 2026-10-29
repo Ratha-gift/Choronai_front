@@ -96,23 +96,6 @@
   border-radius: 6px;
   background: #ffffff14;
 }
-.pos-user {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: 6px;
-  font-size: 12.5px;
-}
-.pos-avatar {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #fff;
-  color: var(--brand);
-  font-weight: 700;
-}
 
 /* Body: two white panels */
 .pos-body {

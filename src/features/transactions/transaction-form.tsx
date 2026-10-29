@@ -1,4 +1,5 @@
 "use client";
+import { currentUsername } from "@/lib/auth";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icons";
@@ -160,7 +161,7 @@ export function TransactionForm({ kind: kindId }: { kind: TransactionKind }) {
       paymentStatus: paid >= grandTotal ? "paid" : paid > 0 ? "partial" : "due",
       status: form.status,
       note: form.note,
-      createdBy: "admin021",
+      createdBy: currentUsername(),
       ...(form.document ? { document: form.document } : {}),
     };
     addRow(kind.collection, record);

@@ -1,8 +1,10 @@
 "use client";
+import { currentUsername } from "@/lib/auth";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/icons";
 import { LanguageMenu } from "@/components/layout/language-menu";
+import { UserMenu } from "@/components/layout/user-menu";
 import { confirmAction } from "@/components/ui/confirm";
 import { Modal } from "@/components/ui/modal";
 import { addRow, setRows, useCollection } from "@/data/collections";
@@ -194,7 +196,7 @@ function PosScreen() {
             : "due",
       status: "completed",
       note: [payment.saleNote, payment.staffNote].filter(Boolean).join(" / "),
-      createdBy: "admin021",
+      createdBy: currentUsername(),
       paymentMethod: payment.method,
     };
     const record = addRow("sales", sale) as Transaction;
@@ -274,10 +276,7 @@ function PosScreen() {
             )}
           </button>
           <LanguageMenu />
-          <span className="pos-user" title={`${t.welcome} admin021`}>
-            <span className="pos-avatar">A</span>
-            <span>admin021</span>
-          </span>
+          <UserMenu className="on-dark" />
         </nav>
       </header>
 

@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+"use client";
+import { useState, type ReactNode } from "react";
+import { Icon } from "@/components/icons";
 
 export function FormGrid({
   columns = 2,
@@ -49,5 +51,46 @@ export function Fieldset({
       <legend>{legend}</legend>
       {children}
     </fieldset>
+  );
+}
+
+/** Password box with a show/hide (eye) button. */
+export function PasswordInput({
+  value,
+  onChange,
+  required,
+  autoComplete = "new-password",
+  showLabel,
+  hideLabel,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  required?: boolean;
+  autoComplete?: string;
+  showLabel: string;
+  hideLabel: string;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="password-input">
+      <input
+        className="form-control"
+        type={visible ? "text" : "password"}
+        required={required}
+        autoComplete={autoComplete}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <button
+        type="button"
+        className="password-toggle"
+        aria-label={visible ? hideLabel : showLabel}
+        aria-pressed={visible}
+        title={visible ? hideLabel : showLabel}
+        onClick={() => setVisible((old) => !old)}
+      >
+        <Icon name={visible ? "eyeOff" : "eye"} size={16} />
+      </button>
+    </div>
   );
 }

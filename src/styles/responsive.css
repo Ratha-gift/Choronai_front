@@ -11,7 +11,7 @@
   .product-editor-grid {
     grid-template-columns: minmax(0, 1fr);
   }
-  .user-chip > span:last-child {
+  .user-menu-name {
     display: none;
   }
 }
@@ -46,17 +46,6 @@
     z-index: 25;
     background: #00000066;
   }
-  .collapse-button {
-    display: none;
-  }
-  .collapsed .nav-item {
-    justify-content: flex-start;
-    padding-inline: 13px 16px;
-  }
-  .collapsed .nav-item > span,
-  .collapsed .nav-item i {
-    display: revert;
-  }
   .header-actions > .hbtn:not(.green) {
     display: none;
   }
@@ -80,12 +69,21 @@
   .pos-clock,
   .pos-brand-text,
   .pos-nav-btn span,
-  .pos-user span:last-child {
+  .login-brand {
     display: none;
   }
   .pos-order-head,
   .pos-summary {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .login-page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .login-logo.small {
+    display: grid;
+  }
+  .login-card {
+    padding: 24px 20px;
   }
 }
 @media (max-width: 560px) {

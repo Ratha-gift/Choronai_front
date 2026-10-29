@@ -39,6 +39,10 @@ Products are standard (stocked), service (never stocked) or combo. Selling or bu
 
 Stock moves when records are saved: POS sales and purchase returns remove stock; received purchases and sale returns add it; adjustments follow each line's type. Deleting such a record reverses its stock change. Reports are computed from these records, never stored.
 
+## Sign-in
+
+`src/lib/auth.ts` holds the prototype sign-in. Users live in the `users` collection with a SHA-256 `passwordHash` (salted with the username). People → Users hashes the password on save, through the resource's `prepare` hook. `AuthGate` wraps the admin layout and the POS and sends signed-out visitors to `/login?next=…`. New records are stamped with `currentUsername()`. This runs only in the browser and is not real security: replace it with server-side sessions when the API exists.
+
 ## Languages
 
 Shared interface text lives in `src/i18n/locales/en.ts` and `km.ts`; TypeScript checks that Khmer has every English key. Page-specific text sits next to its use as `[English, Khmer]` label pairs, read with `useLanguage().l(label)`. English is the default language.

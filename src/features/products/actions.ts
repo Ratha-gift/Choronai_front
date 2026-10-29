@@ -1,4 +1,5 @@
 "use client";
+import { currentUsername } from "@/lib/auth";
 import { makeId, toNumber } from "@/lib/format";
 import { parseCsv } from "@/lib/csv";
 import { createSignal } from "@/lib/signal";
@@ -39,7 +40,7 @@ export function saveProduct(input: ProductInput, existing?: Product) {
           name: input.name,
           oldPrice: existing.price,
           newPrice: input.price,
-          actor: "admin021",
+          actor: currentUsername(),
           at: now,
         },
         ...old,

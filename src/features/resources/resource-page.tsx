@@ -176,9 +176,15 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
           )}
           submitLabel={`${editing === "new" ? t.addVerb : t.editVerb} ${noun}`}
           onClose={() => setEditing(null)}
-          onSave={(values) => {
-            if (editing === "new") add(values);
-            else update(editing.id, values);
+          onSave={(input) => {
+            const existing = editing === "new" ? undefined : editing;
+            const prepared = def.prepare
+              ? def.prepare(input, existing)
+              : { values: input };
+            if ("error" in prepared) return notify(l(prepared.error));
+            const { values } = prepared;
+            if (!existing) add(values);
+            else update(existing.id, values);
             setEditing(null);
             notify(editing === "new" ? t.added : t.saved);
           }}

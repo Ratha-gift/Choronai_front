@@ -517,7 +517,7 @@
 @media (min-height: 860px) {
   .product-editor-side {
     position: sticky;
-    top: 60px;
+    top: 0;
   }
 }
 
@@ -572,6 +572,7 @@
   gap: 10px;
 }
 .type-picker label {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -650,6 +651,7 @@
   border-radius: 3px;
 }
 .toggle {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 10px;

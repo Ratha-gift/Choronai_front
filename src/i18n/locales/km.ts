@@ -119,6 +119,12 @@ export const km = {
   barcodePending:
     "ស្លាកបង្ហាញកូដមុខទំនិញជាអក្សរ។ រូបបារកូដនឹងបន្ថែមបន្ទាប់ពីបញ្ជាក់ជញ្ជីង និងទម្រង់ស្លាក។",
   // Shared forms, tables and transactions
+  clearFilters: "សម្អាតការច្រោះ",
+  goTo: "ទៅទំព័រ",
+  pageWord: "",
+  perPage: "/ ទំព័រ",
+  rowsPerPage: "ចំនួនជួរក្នុងមួយទំព័រ",
+  pagination: "ទំព័រ",
   addVerb: "បន្ថែម",
   editVerb: "កែ",
   addItemsFirst: "សូមបន្ថែមមុខទំនិញយ៉ាងហោចណាស់មួយ",
@@ -144,7 +150,7 @@ export const km = {
   filter: "ច្រោះ",
   formIntro: "សូមបំពេញព័ត៌មានខាងក្រោម។ ប្រអប់ដែលមានសញ្ញា * ត្រូវតែបំពេញ។",
   items: "មុខទំនិញ",
-  lastVisit: "បើកនៅ",
+  lastVisit: "ចាប់ពី",
   moreOptions: "ជម្រើសបន្ថែម",
   namePlaceholder: "ឧ. សាច់គោស្រស់",
   netUnitCost: "ថ្លៃដើមឯកតា",

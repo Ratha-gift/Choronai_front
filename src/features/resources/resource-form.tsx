@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Field, FormGrid } from "@/components/ui/fields";
+import { Field, FormGrid, PasswordInput } from "@/components/ui/fields";
 import { Modal } from "@/components/ui/modal";
 import { useCollection, type CollectionName } from "@/data/collections";
 import type { Row } from "@/data/types";
@@ -71,6 +71,14 @@ export function FieldControl({
           ))}
           {field.collection && <CollectionOptions {...field.collection} />}
         </select>
+      ) : field.type === "password" ? (
+        <PasswordInput
+          required={field.required}
+          value={String(value ?? "")}
+          onChange={onChange}
+          showLabel={l(["Show password", "បង្ហាញពាក្យសម្ងាត់"])}
+          hideLabel={l(["Hide password", "លាក់ពាក្យសម្ងាត់"])}
+        />
       ) : field.type === "textarea" ? (
         <textarea
           {...common}

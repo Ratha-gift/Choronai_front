@@ -4,6 +4,12 @@ import { useLanguage, type Label } from "@/i18n";
 import { formatDate, formatMoney, formatNumber, toNumber } from "@/lib/format";
 import { Icon } from "@/components/icons";
 import { StatusLabel } from "./status-label";
+import {
+  FilterDrawer,
+  isActive,
+  type FilterSection,
+  type Filters,
+} from "./filter-drawer";
 
 export type ColumnType =
   | "text"
@@ -30,11 +36,27 @@ export type Column<T> = {
   total?: boolean;
   sortable?: boolean;
   width?: number;
+  /** Filter panel section; chosen from `type` and the data when omitted. */
+  filter?: FilterSection["kind"] | false;
 };
 
 export type HeaderGroup = { label?: Label; span: number };
 
 const PAGE_SIZES = [10, 25, 50, 100];
+
+/** 1 … 4 5 6 … 20 style page list. */
+function pageItems(current: number, pages: number): (number | "gap")[] {
+  if (pages <= 7) return Array.from({ length: pages }, (_, i) => i + 1);
+  const middle = [current - 1, current, current + 1].filter(
+    (page) => page > 1 && page < pages,
+  );
+  const items: (number | "gap")[] = [1];
+  if (middle[0] > 2) items.push("gap");
+  items.push(...middle);
+  if (middle[middle.length - 1] < pages - 1) items.push("gap");
+  items.push(pages);
+  return items;
+}
 
 const rightAligned: ColumnType[] = ["money", "number", "qty"];
 
@@ -118,10 +140,12 @@ export function DataTable<T extends { id: string }>({
   rowClassName?: (row: T) => string;
 }) {
   const { l, t } = useLanguage();
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(25);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [goTo, setGoTo] = useState("");
   const [page, setPage] = useState(1);
   const [query, setQuery] = useState("");
-  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [filters, setFilters] = useState<Filters>({});
   const [sort, setSort] = useState(initialSort);
   const [ownSelection, setOwnSelection] = useState<string[]>([]);
   const selection = selected ?? ownSelection;
@@ -131,7 +155,9 @@ export function DataTable<T extends { id: string }>({
 
   const filtered = useMemo(() => {
     const term = query.toLowerCase().trim();
-    const active = Object.entries(filters).filter(([, value]) => value.trim());
+    const active = Object.entries(filters).filter(([, value]) =>
+      isActive(value),
+    );
     let result = rows.filter((row) => {
       if (
         term &&
@@ -144,11 +170,19 @@ export function DataTable<T extends { id: string }>({
         const column = columns.find((item) => item.key === key);
         if (!column) return true;
         const raw = cellValue(column, row);
-        const text =
-          column.type === "date" || column.type === "datetime"
-            ? `${formatDate(raw, true)} ${searchable(raw)}`
-            : searchable(raw);
-        return text.toLowerCase().includes(value.toLowerCase().trim());
+        if (value.values?.length && !value.values.includes(String(raw ?? "")))
+          return false;
+        if (value.min && toNumber(raw) < Number(value.min)) return false;
+        if (value.max && toNumber(raw) > Number(value.max)) return false;
+        if (value.from || value.to) {
+          const time = new Date(String(raw ?? "")).getTime();
+          if (Number.isNaN(time)) return false;
+          if (value.from && time < new Date(`${value.from}T00:00`).getTime())
+            return false;
+          if (value.to && time > new Date(`${value.to}T23:59:59`).getTime())
+            return false;
+        }
+        return true;
       });
     });
     const column = sort && columns.find((item) => item.key === sort.key);
@@ -178,11 +212,48 @@ export function DataTable<T extends { id: string }>({
   const colSpan = columns.length + (selectable ? 1 : 0) + (actions ? 1 : 0);
   const hasTotals = columns.some((column) => column.total);
 
-  const pageNumbers = useMemo(() => {
-    const from = Math.max(1, Math.min(current - 2, pages - 4));
-    return Array.from({ length: Math.min(5, pages) }, (_, i) => from + i);
-  }, [current, pages]);
+  const canFilter = footer === "filters";
+  const activeFilters = Object.values(filters).filter(isActive).length;
 
+  // One panel section per filterable column, picked from its type and data.
+  const sections = useMemo<FilterSection[]>(() => {
+    if (!canFilter) return [];
+    return columns.flatMap((column): FilterSection[] => {
+      if (column.filter === false || column.type === "image") return [];
+      const base = { key: column.key, label: column.label };
+      const kind =
+        column.filter ??
+        (column.type === "date" || column.type === "datetime"
+          ? "date"
+          : column.type === "money" ||
+              column.type === "number" ||
+              column.type === "qty"
+            ? "range"
+            : "chips");
+      if (kind !== "chips") return [{ ...base, kind }];
+      const options = [
+        ...new Set(
+          rows
+            .map((row) => String(cellValue(column, row) ?? "").trim())
+            .filter(Boolean),
+        ),
+      ].sort((x, y) => x.localeCompare(y, undefined, { numeric: true }));
+      // Chips only help for short lists (status, category, warehouse …);
+      // free text like names is covered by the search box.
+      const useful =
+        options.length >= 2 &&
+        (column.filter === "chips" ||
+          column.type === "status" ||
+          options.length <= Math.min(12, rows.length / 1.5));
+      return useful ? [{ ...base, kind: "chips", options }] : [];
+    });
+  }, [canFilter, columns, rows]);
+
+  const jump = () => {
+    const target = Math.round(Number(goTo));
+    if (target >= 1) setPage(Math.min(target, pages));
+    setGoTo("");
+  };
   const align = (column: Column<T>) =>
     column.align ??
     (column.type && rightAligned.includes(column.type)
@@ -238,26 +309,39 @@ export function DataTable<T extends { id: string }>({
   return (
     <div className="data-table-wrap">
       <div className="table-controls">
-        <label className="inline-control">
-          {t.show}
-          <select
-            value={pageSize}
-            onChange={(event) => setPageSize(Number(event.target.value))}
-          >
-            {PAGE_SIZES.map((size) => (
-              <option key={size}>{size}</option>
-            ))}
-          </select>
-        </label>
-        {toolbar}
-        <label className="inline-control search-control">
-          {t.searchLabel}
+        <label className="table-search">
+          <Icon name="search" size={15} />
           <input
             type="search"
+            placeholder={`${t.searchLabel}…`}
+            aria-label={t.searchLabel}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
         </label>
+        {toolbar}
+        {activeFilters > 0 && (
+          <button
+            type="button"
+            className="clear-filters"
+            onClick={() => setFilters({})}
+          >
+            <Icon name="x" size={12} /> {t.clearFilters}
+          </button>
+        )}
+        {sections.length > 0 && (
+          <button
+            type="button"
+            className={`btn-filter ${activeFilters ? "active" : ""}`}
+            aria-haspopup="dialog"
+            onClick={() => setDrawerOpen(true)}
+          >
+            <Icon name="filter" size={14} /> {t.filter}
+            {activeFilters > 0 && (
+              <span className="filter-count">{activeFilters}</span>
+            )}
+          </button>
+        )}
       </div>
       <div className="table-responsive">
         <table className="data-table">
@@ -359,13 +443,13 @@ export function DataTable<T extends { id: string }>({
               </tr>
             )}
           </tbody>
-          {footer !== "none" && (
+          {hasTotals && footer !== "none" && (
             <tfoot>
               <tr>
                 {selectable && <td className="check-col" />}
                 {columns.map((column) => (
                   <td key={column.key} className={`align-${align(column)}`}>
-                    {column.total ? (
+                    {column.total && (
                       <b>
                         {column.type === "money"
                           ? formatMoney(
@@ -384,67 +468,98 @@ export function DataTable<T extends { id: string }>({
                               column.type === "qty" ? 3 : 0,
                             )}
                       </b>
-                    ) : footer === "filters" &&
-                      column.type !== "image" &&
-                      !(hasTotals && rightAligned.includes(column.type!)) ? (
-                      <input
-                        className="column-filter"
-                        aria-label={`${t.filter} ${l(column.label)}`}
-                        placeholder={`[${l(column.label)}]`}
-                        value={filters[column.key] ?? ""}
-                        onChange={(event) =>
-                          setFilters((old) => ({
-                            ...old,
-                            [column.key]: event.target.value,
-                          }))
-                        }
-                      />
-                    ) : null}
+                    )}
                   </td>
                 ))}
-                {actions && <td className="actions-col muted">{t.actions}</td>}
+                {actions && <td className="actions-col" />}
               </tr>
             </tfoot>
           )}
         </table>
       </div>
       <div className="table-footer">
-        <span>
-          {total === 0
-            ? t.showingNone
-            : t.showingRange
-                .replace("{from}", String(start + 1))
-                .replace("{to}", String(start + pageRows.length))
-                .replace("{total}", formatNumber(total))}
+        <span className="table-total">
+          {t.total}: <b>{formatNumber(total)}</b>
+          <i aria-hidden="true">|</i>
+          {total ? `${start + 1}–${start + pageRows.length}` : "0"}
         </span>
-        <div className="pagination">
-          <button
-            type="button"
-            disabled={current === 1}
-            onClick={() => setPage(current - 1)}
-          >
-            ‹ {t.previous}
-          </button>
-          {pageNumbers.map((number) => (
+        <div className="table-pager">
+          <nav className="pagination" aria-label={t.pagination}>
             <button
               type="button"
-              key={number}
-              className={number === current ? "active" : ""}
-              aria-current={number === current ? "page" : undefined}
-              onClick={() => setPage(number)}
+              aria-label={t.previous}
+              disabled={current === 1}
+              onClick={() => setPage(current - 1)}
             >
-              {number}
+              <Icon name="chevronLeft" size={14} />
             </button>
-          ))}
-          <button
-            type="button"
-            disabled={current === pages}
-            onClick={() => setPage(current + 1)}
+            {pageItems(current, pages).map((item, i) =>
+              item === "gap" ? (
+                <span key={`gap-${i}`} className="page-gap">
+                  …
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  key={item}
+                  className={item === current ? "active" : ""}
+                  aria-current={item === current ? "page" : undefined}
+                  onClick={() => setPage(item)}
+                >
+                  {item}
+                </button>
+              ),
+            )}
+            <button
+              type="button"
+              aria-label={t.next}
+              disabled={current === pages}
+              onClick={() => setPage(current + 1)}
+            >
+              <Icon name="chevronRight" size={14} />
+            </button>
+          </nav>
+          <select
+            className="page-size"
+            aria-label={t.rowsPerPage}
+            value={pageSize}
+            onChange={(event) => setPageSize(Number(event.target.value))}
           >
-            {t.next} ›
-          </button>
+            {PAGE_SIZES.map((size) => (
+              <option key={size} value={size}>
+                {size} {t.perPage}
+              </option>
+            ))}
+          </select>
+          {pages > 1 && (
+            <label className="go-to">
+              {t.goTo}
+              <input
+                type="number"
+                min={1}
+                max={pages}
+                inputMode="numeric"
+                value={goTo}
+                placeholder={String(current)}
+                onChange={(event) => setGoTo(event.target.value)}
+                onKeyDown={(event) => event.key === "Enter" && jump()}
+                onBlur={() => goTo && jump()}
+              />
+              {t.pageWord}
+            </label>
+          )}
         </div>
       </div>
+      <FilterDrawer
+        open={drawerOpen}
+        sections={sections}
+        value={filters}
+        onClose={() => setDrawerOpen(false)}
+        onApply={(next) => {
+          setFilters(next);
+          setDrawerOpen(false);
+        }}
+      />
     </div>
   );
 }

@@ -1,16 +1,38 @@
 "use client";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 // Validated categorical order (light surface): blue, green.
 export const CHART_COLORS = ["#3a7fc0", "#3d9a3d"] as const;
 
 export type Series = { label: string; color: string; values: number[] };
 
-function niceMax(value: number) {
-  if (value <= 0) return 1;
-  const power = 10 ** Math.floor(Math.log10(value));
-  const step = [1, 2, 2.5, 5, 10].find((n) => n * power >= value) ?? 10;
-  return step * power;
+/** Round axis: about five steps of 1, 2, 2.5 or 5 × a power of ten. */
+function niceTicks(value: number) {
+  if (value <= 0) return [0, 1];
+  const raw = value / 5;
+  const power = 10 ** Math.floor(Math.log10(raw));
+  const step = ([1, 2, 2.5, 5, 10].find((n) => n * power >= raw) ?? 10) * power;
+  const top = Math.ceil(value / step) * step;
+  return Array.from(
+    { length: Math.round(top / step) + 1 },
+    (_, i) => Math.round(i * step * 1e6) / 1e6,
+  );
+}
+
+/** Width of an element in CSS pixels, kept up to date on resize. */
+function useWidth(fallback: number) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(fallback);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) =>
+      setWidth(Math.floor(entry.contentRect.width)),
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  return [ref, width] as const;
 }
 
 const compact = (value: number) =>
@@ -68,15 +90,23 @@ export function BarChart({
     y: number;
     content: ReactNode;
   } | null>(null);
-  const width = Math.max(560, categories.length * (series.length * 26 + 30));
+  // Draw at the real pixel width so text and bars keep their size; very
+  // many categories scroll sideways instead of squeezing.
+  const [box, available] = useWidth(600);
+  const width = Math.max(
+    available,
+    categories.length * (series.length * 22 + 28) + 70,
+  );
   const rotate = categories.some((label) => label.length > 8);
   const pad = { top: 22, right: 12, bottom: rotate ? 90 : 34, left: 56 };
   const plotW = width - pad.left - pad.right;
   const plotH = height - pad.top - pad.bottom;
-  const max = niceMax(Math.max(0, ...series.flatMap((item) => item.values)));
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map((step) => step * max);
+  const ticks = niceTicks(
+    Math.max(0, ...series.flatMap((item) => item.values)),
+  );
+  const max = ticks[ticks.length - 1];
   const band = plotW / Math.max(1, categories.length);
-  const barW = Math.min(36, (band * 0.7) / series.length);
+  const barW = Math.min(48, (band * 0.6) / series.length);
   const y = (value: number) => pad.top + plotH - (value / max) * plotH;
 
   if (!categories.length) return <div className="chart-empty">—</div>;
@@ -84,11 +114,11 @@ export function BarChart({
   return (
     <div className="chart" onMouseLeave={() => setTip(null)}>
       {series.length > 1 && <Legend items={series} />}
-      <div className="chart-scroll">
+      <div className="chart-scroll" ref={box}>
         <svg
           viewBox={`0 0 ${width} ${height}`}
-          width="100%"
-          style={{ minWidth: width * 0.6 }}
+          width={width}
+          height={height}
           role="img"
           aria-label={series.map((item) => item.label).join(", ")}
         >

@@ -47,7 +47,14 @@ npm install
 npm run dev
 ```
 
-Then open **http://localhost:3000**. The point of sale is at **http://localhost:3000/pos**.
+Then open **http://localhost:3000** and sign in. The point of sale is at **http://localhost:3000/pos**.
+
+| Sample account | Password     | Group |
+| -------------- | ------------ | ----- |
+| `admin021`     | `admin123`   | Owner |
+| `cashier01`    | `cashier123` | Sale  |
+
+> Change these passwords under **People → Users** before real use. The sample accounts stop appearing on the sign-in page once their passwords are changed.
 
 The first visit shows sample products, sales and customers so every screen has something in it.
 
@@ -111,7 +118,7 @@ For where to make common changes, see the **[development guide](docs/project-str
 This is a front-end prototype:
 
 - **Data stays in one browser.** It is saved in localStorage and is not shared between devices. Clearing browser data removes it.
-- **There is no login yet.** `admin021` is a placeholder user, and group permissions are saved but not enforced.
+- **Sign-in runs in the browser.** It keeps casual users out, but it is not real security, because someone with browser devtools can get past it. Group permissions are saved but not enforced. Proper authentication needs the backend.
 - **Not connected yet:** barcode graphics on labels, receipt printers, payment gateways (ABA / KHQR) and the weighing scale.
 - **Placeholder pages:** Shop Settings, Transfers and Notifications.
 
