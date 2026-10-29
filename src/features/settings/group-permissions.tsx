@@ -1,0 +1,187 @@
+"use client";
+import { useState } from "react";
+import { Box } from "@/components/ui/box";
+import { useCollection } from "@/data/collections";
+import { useLanguage, type Label } from "@/i18n";
+import { useStored } from "@/lib/store";
+import { notify } from "@/lib/toast";
+
+type Permissions = Record<string, Record<string, boolean>>;
+const NONE: Permissions = {};
+
+const CRUD: [string, Label][] = [
+  ["view", ["View", "មើល"]],
+  ["add", ["Add", "បន្ថែម"]],
+  ["edit", ["Edit", "កែ"]],
+  ["delete", ["Delete", "លុប"]],
+];
+
+const MODULES: { id: string; label: Label; misc: [string, Label][] }[] = [
+  {
+    id: "products",
+    label: ["Products", "មុខទំនិញ"],
+    misc: [
+      ["import", ["Import Product", "នាំចូល"]],
+      ["cost", ["Product Cost", "ថ្លៃដើម"]],
+      ["price", ["Product Price", "តម្លៃ"]],
+      ["barcode", ["Print Barcodes", "បោះពុម្ពបារកូដ"]],
+      ["count", ["Stock Counts", "រាប់ស្តុក"]],
+    ],
+  },
+  {
+    id: "adjustments",
+    label: ["Adjustments", "កែសម្រួល"],
+    misc: [["approve", ["Approve Adjustment", "អនុម័ត"]]],
+  },
+  {
+    id: "sales",
+    label: ["Sales", "ការលក់"],
+    misc: [
+      ["pos", ["POS", "POS"]],
+      ["payments", ["Payments", "ការទូទាត់"]],
+      ["returns", ["Return Sales", "លក់ត្រឡប់"]],
+      ["cancel", ["Cancel Sales", "បោះបង់"]],
+    ],
+  },
+  {
+    id: "memberCards",
+    label: ["Member Cards", "កាតសមាជិក"],
+    misc: [["redeem", ["Redeem Points", "ប្ដូរពិន្ទុ"]]],
+  },
+  {
+    id: "purchaseRequests",
+    label: ["Purchase Requests", "សំណើទិញ"],
+    misc: [["approve", ["Approve Purchase Request", "អនុម័ត"]]],
+  },
+  {
+    id: "purchaseOrders",
+    label: ["Purchase Orders", "បញ្ជាទិញ"],
+    misc: [["approve", ["Approve Purchase Orders", "អនុម័ត"]]],
+  },
+  {
+    id: "purchases",
+    label: ["Purchases", "ការទិញ"],
+    misc: [
+      ["payments", ["Payments", "ការទូទាត់"]],
+      ["returns", ["Return Purchases", "ទិញត្រឡប់"]],
+    ],
+  },
+  { id: "expenses", label: ["Expenses", "ចំណាយ"], misc: [] },
+  {
+    id: "customers",
+    label: ["Customers", "អតិថិជន"],
+    misc: [
+      ["deposits", ["Deposits", "ប្រាក់កក់"]],
+      ["printCard", ["Print Card", "បោះពុម្ពកាត"]],
+    ],
+  },
+  { id: "suppliers", label: ["Suppliers", "អ្នកផ្គត់ផ្គង់"], misc: [] },
+  { id: "users", label: ["Users", "អ្នកប្រើប្រាស់"], misc: [] },
+  {
+    id: "settings",
+    label: ["Settings", "ការកំណត់"],
+    misc: [
+      ["system", ["System Settings", "ប្រព័ន្ធ"]],
+      ["pos", ["POS Settings", "POS"]],
+      ["categories", ["Categories", "ប្រភេទ"]],
+      ["currencies", ["Currencies", "រូបិយប័ណ្ណ"]],
+      ["taxRates", ["Tax Rates", "អត្រាពន្ធ"]],
+    ],
+  },
+  {
+    id: "reports",
+    label: ["Reports", "របាយការណ៍"],
+    misc: [
+      ["stockChart", ["Warehouse Stock Chart", "ក្រាហ្វស្តុក"]],
+      ["bestSellers", ["Best Sellers", "លក់ដាច់"]],
+      ["alerts", ["Quantity Alerts", "ព្រមានបរិមាណ"]],
+      ["products", ["Products", "មុខទំនិញ"]],
+      ["sales", ["Sales", "ការលក់"]],
+      ["purchases", ["Purchases", "ការទិញ"]],
+    ],
+  },
+];
+
+export function GroupPermissions({ groupId }: { groupId?: string }) {
+  const { l, t } = useLanguage();
+  const { rows: groups } = useCollection("userGroups");
+  const [saved, setSaved] = useStored("choronai-permissions-v1", NONE);
+  const group = groups.find((row) => row.id === groupId) ?? groups[0];
+  const [values, setValues] = useState<Record<string, boolean>>(
+    (group && saved[group.id]) ?? {},
+  );
+  if (!group)
+    return (
+      <Box icon="lock" title={l(["Group Permissions", "សិទ្ធិក្រុម"])}>
+        <p>{t.noDataTable}</p>
+      </Box>
+    );
+  const box = (key: string) => (
+    <input
+      type="checkbox"
+      aria-label={key}
+      checked={!!values[key]}
+      onChange={() => setValues((old) => ({ ...old, [key]: !old[key] }))}
+    />
+  );
+  return (
+    <Box
+      icon="lock"
+      title={`${String(group.description)} (${String(group.name)}) ${l(["Group Permissions", "សិទ្ធិក្រុម"])}`}
+      intro={l([
+        "Tick what members of this group may do.",
+        "ជ្រើសរើសអ្វីដែលសមាជិកក្រុមនេះអាចធ្វើបាន។",
+      ])}
+    >
+      <div className="table-responsive">
+        <table className="data-table permissions">
+          <thead>
+            <tr>
+              <th rowSpan={2}>{l(["Module Name", "ម៉ូឌុល"])}</th>
+              <th colSpan={5}>{l(["Permissions", "សិទ្ធិ"])}</th>
+            </tr>
+            <tr>
+              {CRUD.map(([id, label]) => (
+                <th key={id}>{l(label)}</th>
+              ))}
+              <th>{l(["Miscellaneous", "ផ្សេងៗ"])}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {MODULES.map((module) => (
+              <tr key={module.id}>
+                <th scope="row" className="row-head">
+                  {l(module.label)}
+                </th>
+                {CRUD.map(([id]) => (
+                  <td key={id} className="align-center">
+                    {box(`${module.id}.${id}`)}
+                  </td>
+                ))}
+                <td>
+                  <div className="checkbox-row compact">
+                    {module.misc.map(([id, label]) => (
+                      <label key={id}>
+                        {box(`${module.id}.${id}`)}
+                        {l(label)}
+                      </label>
+                    ))}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <button
+        className="btn btn-primary form-actions"
+        onClick={() => {
+          setSaved((old) => ({ ...old, [group.id]: values }));
+          notify(t.settingsSaved);
+        }}
+      >
+        {l(["Update", "ធ្វើបច្ចុប្បន្នភាព"])}
+      </button>
+    </Box>
+  );
+}

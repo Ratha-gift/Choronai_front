@@ -1,0 +1,82 @@
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+Khmer:wght@400;500;700&display=swap");
+:root {
+  --ink: #333;
+  --muted: #777;
+  --line: #ddd;
+  --primary: #428bca;
+  --primary-dark: #3071a9;
+  --info: #5bc0de;
+  --success: #78cd51;
+  --danger: #ff5454;
+  --warning: #fabb3d;
+  --teal: #16a085;
+  --sidebar: #2f3133;
+  --sidebar-line: #232526;
+  --page: #e9ebee;
+  --font: "Roboto", "Noto Sans Khmer", Arial, sans-serif;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--page);
+  font: 13px/1.45 var(--font);
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+}
+a {
+  color: var(--primary);
+  text-decoration: none;
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid #66afe9;
+  outline-offset: 1px;
+}
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+.icon {
+  flex-shrink: 0;
+  vertical-align: -3px;
+}
+a.btn,
+a.hbtn {
+  text-decoration: none;
+}
+.muted {
+  color: var(--muted);
+}
+.text-danger {
+  color: #c9302c;
+  font-weight: 700;
+}
+.text-warning {
+  color: #b5760a;
+  font-weight: 700;
+}
+.center {
+  text-align: center;
+}
+.unit {
+  color: var(--primary);
+}

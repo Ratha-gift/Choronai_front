@@ -1,0 +1,125 @@
+@media (max-width: 1200px) {
+  .tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .form-grid.cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .overview-grid,
+  .best-sellers,
+  .email-layout,
+  .product-editor-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .user-chip > span:last-child {
+    display: none;
+  }
+}
+@media (max-width: 860px) {
+  .app-shell,
+  .app-shell.collapsed {
+    --sidebar-width: 234px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .menu-toggle {
+    display: block;
+  }
+  .brand {
+    width: auto;
+    padding-left: 0;
+  }
+  .sidebar {
+    position: fixed;
+    left: 0;
+    z-index: 30;
+    width: var(--sidebar-width);
+    transform: translateX(-100%);
+    transition: transform 0.2s;
+  }
+  .mobile-open .sidebar {
+    transform: none;
+  }
+  .mobile-open .mobile-scrim {
+    display: block;
+    position: fixed;
+    inset: 60px 0 0;
+    z-index: 25;
+    background: #00000066;
+  }
+  .collapse-button {
+    display: none;
+  }
+  .collapsed .nav-item {
+    justify-content: flex-start;
+    padding-inline: 13px 16px;
+  }
+  .collapsed .nav-item > span,
+  .collapsed .nav-item i {
+    display: revert;
+  }
+  .header-actions > .hbtn:not(.green) {
+    display: none;
+  }
+  .session-info {
+    display: none;
+  }
+  .search-control {
+    margin-left: 0;
+  }
+  .pos {
+    height: auto;
+    min-height: 100dvh;
+  }
+  .pos-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pos-grid {
+    max-height: 60dvh;
+  }
+  .brand-text,
+  .pos-clock,
+  .pos-brand-text,
+  .pos-nav-btn span,
+  .pos-user span:last-child {
+    display: none;
+  }
+  .pos-order-head,
+  .pos-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 560px) {
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .tile strong {
+    font-size: 20px;
+  }
+  .quick-links {
+    gap: 14px;
+    padding: 4px;
+  }
+  .form-grid.cols-2,
+  .form-grid.cols-3,
+  .product-details,
+  .payment-layout,
+  .pos-filters,
+  .type-picker {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .tiles.two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .well-action {
+    float: none;
+    margin: 0 0 10px;
+  }
+  .page {
+    padding: 10px 8px 20px;
+  }
+}
+@media (max-width: 1200px) {
+  .product-editor-side {
+    position: static;
+  }
+}
