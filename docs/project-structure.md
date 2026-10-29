@@ -49,4 +49,4 @@ Shared interface text lives in `src/i18n/locales/en.ts` and `km.ts`; TypeScript 
 
 ## Before sharing
 
-Run `pnpm format:check`, `pnpm typecheck` and `pnpm build`. In the browser, check the dashboard, a POS sale through to the receipt, adding a purchase, a list page's add/edit/delete, a report, the language toggle and the mobile menu. Leave out `.next`, `node_modules`, `.git`, local secrets and previous ZIP files when packaging.
+Run `npm run format:check`, `npm run typecheck` and `npm run build`. In the browser, check the dashboard, a POS sale through to the receipt, adding a purchase, a list page's add/edit/delete, a report, the language toggle and the mobile menu. Leave out `.next`, `node_modules`, `.git`, local secrets and previous ZIP files when packaging.
