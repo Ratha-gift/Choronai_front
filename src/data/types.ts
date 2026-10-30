@@ -34,4 +34,7 @@ export type Transaction = Row & {
   status: string;
   note?: string;
   createdBy: string;
+  /** POS sales: how it was paid and the cashier register it belongs to. */
+  paymentMethod?: string;
+  registerId?: string;
 };

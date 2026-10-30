@@ -2,8 +2,8 @@
 import { currentUsername, useSession } from "@/lib/auth";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icons";
-import { LanguageMenu } from "@/components/layout/language-menu";
 import { UserMenu } from "@/components/layout/user-menu";
 import { confirmAction } from "@/components/ui/confirm";
 import { Modal } from "@/components/ui/modal";
@@ -33,12 +33,16 @@ import {
   formatMoney,
   formatNumber,
   formatUsd,
+  localDateTime,
   nextReference,
   toNumber,
 } from "@/lib/format";
 import { useHydrated, useStored } from "@/lib/store";
 import { notify } from "@/lib/toast";
 import { PaymentModal, type Payment } from "./payment-modal";
+import { PinModal } from "./pin-modal";
+import { useOpenRegister } from "./register";
+import { CloseRegisterModal, OpenRegisterModal } from "./register-modals";
 import { useCart, type CartAdjustments } from "./use-cart";
 
 /** Store logo shipped with the app; Settings → Change Logo overrides it. */
@@ -60,6 +64,8 @@ type Panel =
   | "tax"
   | "shipping"
   | "customer"
+  | "close-register"
+  | "member"
   | null;
 
 /** Remounts once stored data is available so defaults come from settings. */
@@ -71,18 +77,37 @@ export function PosPage() {
 function PosScreen() {
   const { l, t, language } = useLanguage();
   const [pos] = useSettings("pos");
+  // Removing items needs the POS PIN when one is set in POS Settings.
+  const pin = String(pos.pinCode ?? "").trim();
+  const [pinRequest, setPinRequest] = useState<{
+    reason: string;
+    run: () => void;
+  } | null>(null);
+  const withPin = (reason: string, run: () => void) =>
+    pin ? setPinRequest({ reason, run }) : run();
   const [system] = useSettings("system");
   const [logo] = useStored(LOGO_KEY, NO_LOGO);
   const { products } = useProducts();
   const customers = useCollection("customers");
+  const memberCards = useCollection("memberCards");
   const warehouses = useCollection("warehouses");
   const currencies = useCollection("currencies");
   const branches = useCollection("branches");
   const suspended = useCollection("suspendedSales");
   const sales = useCollection("sales");
   const session = useSession();
+  const router = useRouter();
+  const hydrated = useHydrated();
+  const username = session?.username ?? "";
+  // Cashiers sell inside an open register (shift); see register.ts.
+  const register = useOpenRegister(username).open;
+  // Set after closing so the "open register" prompt doesn't flash on the way out.
+  const [leaving, setLeaving] = useState(false);
   const cart = useCart();
   const [customer, setCustomer] = useState(String(pos.defaultCustomer));
+  // Scanned membership card; its owner becomes the customer.
+  const [memberCode, setMemberCode] = useState("");
+  const [member, setMember] = useState<Row | null>(null);
   const [warehouse, setWarehouse] = useState(String(system.defaultWarehouse));
   const [weighing, setWeighing] = useState<Product | null>(null);
   const [category, setCategory] = useState<"all" | Category>(
@@ -170,17 +195,82 @@ function PosScreen() {
     setSearch("");
   }
 
+  function scanMember(code: string) {
+    const wanted = code.trim().toLowerCase();
+    if (!wanted) return;
+    const card = memberCards.rows.find(
+      (row) =>
+        String(row.cardNo ?? "")
+          .trim()
+          .toLowerCase() === wanted,
+    );
+    if (!card) {
+      notify(l(["Membership card not found", "រកមិនឃើញកាតសមាជិក"]));
+      return;
+    }
+    const expiry = String(card.expiry ?? "");
+    if (expiry && expiry < localDateTime().slice(0, 10)) {
+      notify(
+        l([
+          `Card ${String(card.cardNo)} expired on ${formatDate(expiry)}`,
+          `កាត ${String(card.cardNo)} ផុតកំណត់នៅ ${formatDate(expiry)}`,
+        ]),
+      );
+      return;
+    }
+    applyCard(card);
+  }
+
+  /** Uses a card for this sale; its owner (matched by phone) becomes the customer. */
+  function applyCard(card: Row) {
+    const owner = customers.rows.find(
+      (row) =>
+        String(row.phone ?? "").replace(/\s/g, "") ===
+        String(card.customer ?? "").replace(/\s/g, ""),
+    );
+    if (owner) setCustomer(String(owner.name));
+    setMember(card);
+    setMemberCode("");
+    searchRef.current?.focus();
+  }
+
+  /** New card form: the typed code and the current customer's phone are filled in. */
+  function memberInitial() {
+    const values = initialValues(memberDef.fields!, memberCards.rows);
+    const phone = String(
+      customers.rows.find((row) => row.name === customer)?.phone ?? "",
+    ).trim();
+    const nextYear = new Date();
+    nextYear.setFullYear(nextYear.getFullYear() + 1);
+    return {
+      ...values,
+      ...(memberCode.trim() ? { cardNo: memberCode.trim() } : {}),
+      ...(phone && phone !== "-" ? { customer: phone } : {}),
+      expiry: localDateTime(nextYear).slice(0, 10),
+    };
+  }
+
+  /** Picking another customer by hand drops a card that belongs to someone else. */
+  function chooseCustomer(name: string) {
+    setCustomer(name);
+    if (!member) return;
+    const row = customers.rows.find((item) => item.name === name);
+    if (
+      String(row?.phone ?? "").replace(/\s/g, "") !==
+      String(member.customer ?? "").replace(/\s/g, "")
+    )
+      setMember(null);
+  }
+
   async function cancelSale() {
     if (!cart.items.length) return;
-    if (
-      await confirmAction(
-        l([
-          "Cancel this sale and clear the cart?",
-          "បោះបង់ការលក់នេះ ហើយសម្អាតកន្ត្រក?",
-        ]),
-      )
-    )
-      cart.clear();
+    const question = l([
+      "Cancel this sale and clear the cart?",
+      "បោះបង់ការលក់នេះ ហើយសម្អាតកន្ត្រក?",
+    ]);
+    // With a PIN, entering it is the confirmation.
+    if (pin) withPin(question, cart.clear);
+    else if (await confirmAction(question)) cart.clear();
   }
 
   function suspend() {
@@ -236,6 +326,8 @@ function PosScreen() {
       note: [payment.saleNote, payment.staffNote].filter(Boolean).join(" / "),
       createdBy: currentUsername(),
       paymentMethod: payment.method,
+      ...(member ? { memberCard: String(member.cardNo) } : {}),
+      registerId: register?.id,
     };
     const record = addRow("sales", sale) as Transaction;
     adjustStock(
@@ -258,6 +350,19 @@ function PosScreen() {
             : row,
         ),
       );
+    if (member)
+      setRows("memberCards", (rows) =>
+        rows.map((row) =>
+          row.id === member.id
+            ? {
+                ...row,
+                awardPoints: toNumber(row.awardPoints) + points,
+                spent: toNumber(row.spent) + totals.payable,
+              }
+            : row,
+        ),
+      );
+    setMember(null);
     cart.clear();
     setPanel(null);
     notify(l(["Sale completed", "ការលក់បានបញ្ចប់"]));
@@ -267,6 +372,7 @@ function PosScreen() {
   }
 
   const customerDef = resources["people/customers"];
+  const memberDef = resources["sales/member-cards"];
   const adjust = (key: "discount" | "tax" | "shipping") => setPanel(key);
 
   const siteName = String(system.siteName || "CHORONAI");
@@ -313,7 +419,16 @@ function PosScreen() {
               <i className="badge">{suspended.rows.length}</i>
             )}
           </button>
-          <LanguageMenu />
+          {register && (
+            <button
+              type="button"
+              className="pos-nav-btn close-register"
+              onClick={() => setPanel("close-register")}
+            >
+              <Icon name="lock" />
+              <span>{l(["Close Register", "បិទបញ្ជរ"])}</span>
+            </button>
+          )}
           <UserMenu className="on-dark" />
         </nav>
       </header>
@@ -321,6 +436,66 @@ function PosScreen() {
       <div className="pos-body">
         {/* Left: the current order */}
         <section className="pos-panel pos-order">
+          <form
+            className="input-group pos-member"
+            onSubmit={(event) => {
+              event.preventDefault();
+              scanMember(memberCode);
+            }}
+          >
+            <span className="pos-field-icon" aria-hidden="true">
+              <Icon name="card" size={15} />
+            </span>
+            <input
+              className="form-control"
+              placeholder={l(["Scan membership code", "ស្កេនលេខកាតសមាជិក"])}
+              aria-label={l(["Scan membership code", "ស្កេនលេខកាតសមាជិក"])}
+              autoComplete="off"
+              value={memberCode}
+              onChange={(event) => setMemberCode(event.target.value)}
+            />
+            <button
+              type="submit"
+              className="addon"
+              title={l(["Apply card", "ប្រើកាត"])}
+              aria-label={l(["Apply card", "ប្រើកាត"])}
+            >
+              <Icon name="check" size={15} />
+            </button>
+            <button
+              type="button"
+              className="addon"
+              title={l(["Add Member Card", "បន្ថែមកាតសមាជិក"])}
+              aria-label={l(["Add Member Card", "បន្ថែមកាតសមាជិក"])}
+              onClick={() => setPanel("member")}
+            >
+              <Icon name="plus" size={16} />
+            </button>
+          </form>
+          {member && (
+            <div className="pos-member-chip">
+              <Icon name="card" size={14} />
+              <span>
+                <b>{String(member.cardNo)}</b> ·{" "}
+                {formatNumber(member.awardPoints)} {l(["points", "ពិន្ទុ"])}
+                {member.expiry ? (
+                  <>
+                    {" "}
+                    · {l(["expires", "ផុតកំណត់"])}{" "}
+                    {formatDate(String(member.expiry))}
+                  </>
+                ) : null}
+              </span>
+              <button
+                type="button"
+                aria-label={l(["Remove card", "ដកកាតចេញ"])}
+                title={l(["Remove card", "ដកកាតចេញ"])}
+                onClick={() => setMember(null)}
+              >
+                <Icon name="x" size={13} />
+              </button>
+            </div>
+          )}
           <div className="pos-order-head">
             <div className="input-group">
               <span className="pos-field-icon" aria-hidden="true">
@@ -330,7 +505,7 @@ function PosScreen() {
                 className="grow"
                 ariaLabel={t.customer}
                 value={customer}
-                onChange={setCustomer}
+                onChange={chooseCustomer}
                 searchPlaceholder={`${t.searchLabel}…`}
                 forceSearch
                 options={customers.rows.map((row) => ({
@@ -486,7 +661,11 @@ function PosScreen() {
                   type="button"
                   className="cart-remove"
                   aria-label={`${t.remove} ${line.name}`}
-                  onClick={() => cart.remove(line.productId)}
+                  onClick={() =>
+                    withPin(`${t.remove}: ${line.name}`, () =>
+                      cart.remove(line.productId),
+                    )
+                  }
                 >
                   <Icon name="x" size={14} />
                 </button>
@@ -746,6 +925,38 @@ function PosScreen() {
         </section>
       </div>
 
+      {hydrated && session && !register && !leaving && (
+        <OpenRegisterModal
+          username={username}
+          warehouse={warehouse}
+          rate={rate}
+          onCancel={() => router.push("/")}
+        />
+      )}
+      {panel === "close-register" && register && (
+        <CloseRegisterModal
+          register={register}
+          rate={rate}
+          onClose={() => setPanel(null)}
+          onClosed={() => {
+            setLeaving(true);
+            setPanel(null);
+            notify(l(["Register closed", "បានបិទបញ្ជរ"]));
+            router.push("/");
+          }}
+        />
+      )}
+      {pinRequest && (
+        <PinModal
+          pin={pin}
+          reason={pinRequest.reason}
+          onCancel={() => setPinRequest(null)}
+          onSuccess={() => {
+            pinRequest.run();
+            setPinRequest(null);
+          }}
+        />
+      )}
       {panel === "payment" && (
         <PaymentModal
           open
@@ -849,6 +1060,38 @@ function PosScreen() {
             setCustomer(String(values.name));
             setPanel(null);
             notify(t.added);
+          }}
+        />
+      )}
+
+      {panel === "member" && (
+        <ResourceForm
+          open
+          title={l(["Add Member Card", "បន្ថែមកាតសមាជិក"])}
+          fields={memberDef.fields!}
+          columns={1}
+          initial={memberInitial()}
+          submitLabel={l(["Add Member Card", "បន្ថែមកាតសមាជិក"])}
+          onClose={() => setPanel(null)}
+          onSave={(values) => {
+            const cardNo = String(values.cardNo ?? "").trim();
+            if (
+              memberCards.rows.some(
+                (row) =>
+                  String(row.cardNo ?? "")
+                    .trim()
+                    .toLowerCase() === cardNo.toLowerCase(),
+              )
+            ) {
+              notify(
+                l([`Card ${cardNo} already exists`, `កាត ${cardNo} មានរួចហើយ`]),
+              );
+              return;
+            }
+            const card = memberCards.add({ ...values, cardNo });
+            setPanel(null);
+            notify(t.added);
+            applyCard(card);
           }}
         />
       )}

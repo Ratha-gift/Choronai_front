@@ -23,7 +23,7 @@ export type Payment = {
 };
 
 const QUICK_CASH = [1000, 5000, 10000, 20000, 50000, 100000];
-const METHODS = ["Cash", "ABA / KHQR", "Card", "Bank transfer"];
+export const METHODS = ["Cash", "ABA / KHQR", "Card", "Bank transfer"];
 
 export function PaymentModal({
   open,
