@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Snakehead fish">
+  <rect width="400" height="300" fill="#e9f2ec"/>
+  <ellipse cx="198" cy="150" rx="108" ry="44" fill="#4f7357"/>
+  <path d="M298 150l48-28v56z" fill="#3f5d46"/>
+  <circle cx="118" cy="142" r="7" fill="#e9f2ec"/>
+  <path d="M150 128c30 10 60 10 90 0M150 172c30-10 60-10 90 0" stroke="#a8c4ae" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <text x="200" y="268" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="700" fill="#33513b">SNAKEHEAD</text>
+</svg>

@@ -9,16 +9,9 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { Icon, type IconName } from "@/components/icons";
+import { Icon } from "@/components/icons";
 
 export type SelectOption = { value: string; label: ReactNode; text?: string };
-
-/** Button pinned under the options, e.g. "Add new customer". */
-export type SelectFooter = {
-  icon: IconName;
-  label: string;
-  onClick: () => void;
-};
 
 type Place = {
   left: number;
@@ -37,8 +30,7 @@ const optionText = (option: SelectOption) =>
 /**
  * Animated drop-down that replaces the native <select>: rotating chevron,
  * sliding list, keyboard support (arrows, Enter, Escape, type-ahead) and a
- * search box (always, or automatically for long lists) and an optional
- * footer button. The list is rendered on <body> (or the open
+ * search box for long lists. The list is rendered on <body> (or the open
  * dialog) so scroll areas cannot clip it.
  */
 export function Select({
@@ -51,7 +43,7 @@ export function Select({
   ariaLabel,
   className = "",
   searchPlaceholder = "Search…",
-  searchable: alwaysSearch = false,
+  forceSearch,
   footer,
 }: {
   value: string;
@@ -63,9 +55,10 @@ export function Select({
   ariaLabel?: string;
   className?: string;
   searchPlaceholder?: string;
-  /** Show the search box even for short lists. */
-  searchable?: boolean;
-  footer?: SelectFooter;
+  /** Always show the search box, even for short lists. */
+  forceSearch?: boolean;
+  /** Extra row pinned under the options; receives a function that closes the list. */
+  footer?: (close: () => void) => ReactNode;
 }) {
   const id = useId();
   const button = useRef<HTMLButtonElement>(null);
@@ -76,7 +69,7 @@ export function Select({
   const typed = useRef({ text: "", at: 0 });
   const open = !!place;
   const selected = options.find((option) => option.value === value);
-  const searchable = alwaysSearch || options.length > SEARCH_FROM;
+  const searchable = forceSearch || options.length > SEARCH_FROM;
 
   const shown = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -92,10 +85,7 @@ export function Select({
     const rect = button.current.getBoundingClientRect();
     const below = window.innerHeight - rect.bottom - 12;
     const above = rect.top - 12;
-    const wanted = Math.min(
-      340,
-      options.length * 38 + (searchable ? 52 : 12) + (footer ? 50 : 0),
-    );
+    const wanted = Math.min(300, options.length * 38 + (searchable ? 52 : 12));
     const upward = below < wanted && above > below;
     setPlace({
       left: rect.left,
@@ -103,7 +93,7 @@ export function Select({
       ...(upward
         ? { bottom: window.innerHeight - rect.top + 4 }
         : { top: rect.bottom + 4 }),
-      maxHeight: Math.max(160, Math.min(340, upward ? above : below)),
+      maxHeight: Math.max(160, Math.min(300, upward ? above : below)),
     });
     setQuery("");
     setActive(
@@ -276,18 +266,7 @@ export function Select({
               {shown.length === 0 && <div className="select-empty">—</div>}
             </div>
             {footer && (
-              <button
-                type="button"
-                className="select-footer"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  hide(false);
-                  footer.onClick();
-                }}
-              >
-                <Icon name={footer.icon} size={15} />
-                {footer.label}
-              </button>
+              <div className="select-footer">{footer(() => hide())}</div>
             )}
           </div>,
           // Inside a modal <dialog> (browser top layer) the list must live in

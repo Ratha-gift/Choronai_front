@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Fresh pork">
+  <rect width="400" height="300" fill="#f8eeef"/>
+  <ellipse cx="200" cy="150" rx="108" ry="74" fill="#e29aa4"/>
+  <ellipse cx="200" cy="150" rx="74" ry="48" fill="#f0bcc3"/>
+  <path d="M148 148c22-16 52-18 78-6 18 8 30 22 34 36" fill="none" stroke="#fbe4e7" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="180" cy="128" r="7" fill="#fbe4e7"/>
+  <text x="200" y="268" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="700" fill="#a45762">PORK</text>
+</svg>

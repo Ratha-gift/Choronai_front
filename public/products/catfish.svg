@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Striped catfish">
+  <rect width="400" height="300" fill="#e8f0f4"/>
+  <ellipse cx="195" cy="150" rx="105" ry="52" fill="#5d7a8c"/>
+  <path d="M292 150l52-34v68z" fill="#4a6577"/>
+  <circle cx="130" cy="140" r="8" fill="#e8f0f4"/>
+  <path d="M95 128c-14-8-26-6-34 4M95 172c-14 8-26 6-34-4" stroke="#4a6577" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <path d="M160 110c8 26 8 54 0 80M200 104c8 30 8 62 0 92M240 110c8 26 8 54 0 80" stroke="#dcebf2" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <text x="200" y="268" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="700" fill="#3e5766">CATFISH</text>
+</svg>

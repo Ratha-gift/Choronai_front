@@ -55,6 +55,15 @@
   .search-control {
     margin-left: 0;
   }
+  .brand-text {
+    display: none;
+  }
+  .login-card {
+    padding: 24px 20px;
+  }
+}
+/* POS: single column below 760px */
+@media (max-width: 760px) {
   .pos {
     height: auto;
     min-height: 100dvh;
@@ -65,7 +74,6 @@
   .pos-grid {
     max-height: 60dvh;
   }
-  .brand-text,
   .pos-clock,
   .pos-brand-text,
   .pos-nav-btn span {
@@ -74,9 +82,6 @@
   .pos-order-head,
   .pos-summary {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .login-card {
-    padding: 24px 20px;
   }
 }
 @media (max-width: 560px) {

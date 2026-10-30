@@ -1,5 +1,5 @@
 "use client";
-import { currentUsername } from "@/lib/auth";
+import { currentUsername, useSession } from "@/lib/auth";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/icons";
@@ -14,6 +14,7 @@ import {
   adjustStock,
   isLowStock,
   productStock,
+  productUnit,
   tracksStock,
   useProducts,
 } from "@/features/products/store";
@@ -43,6 +44,14 @@ import { useCart, type CartAdjustments } from "./use-cart";
 /** Store logo shipped with the app; Settings → Change Logo overrides it. */
 const DEFAULT_LOGO = "/brand/choronai-mark.png";
 
+const WEIGHT_UNITS = ["kg", "g"];
+/** Sold by weight: the POS opens the keypad instead of adding 1. */
+const isWeighted = (product: Product) =>
+  WEIGHT_UNITS.includes(productUnit(product));
+/** Weight lines keep three decimals (2.500 kg); pieces stay whole. */
+const qtyDecimals = (quantity: number, unit?: string) =>
+  WEIGHT_UNITS.includes(unit ?? "") || quantity % 1 ? 3 : 0;
+
 type Panel =
   | "payment"
   | "bill"
@@ -68,11 +77,14 @@ function PosScreen() {
   const customers = useCollection("customers");
   const warehouses = useCollection("warehouses");
   const currencies = useCollection("currencies");
+  const branches = useCollection("branches");
   const suspended = useCollection("suspendedSales");
   const sales = useCollection("sales");
+  const session = useSession();
   const cart = useCart();
   const [customer, setCustomer] = useState(String(pos.defaultCustomer));
   const [warehouse, setWarehouse] = useState(String(system.defaultWarehouse));
+  const [weighing, setWeighing] = useState<Product | null>(null);
   const [category, setCategory] = useState<"all" | Category>(
     (pos.defaultCategory as "all" | Category) || "all",
   );
@@ -88,6 +100,16 @@ function PosScreen() {
     toNumber(currencies.rows.find((row) => row.code === "USD")?.rate) || 4100;
   const perPage = Math.max(6, toNumber(pos.displayProducts) || 30);
   const allowOversell = system.overSelling !== "no";
+  // Shop details for the receipt come from the selected branch record.
+  const branchRow = branches.rows.find(
+    (row) => String(row.name) === String(pos.defaultBranch),
+  );
+  const branchPhone = String(branchRow?.phone ?? "").trim();
+  const branchAddress = [branchRow?.city, branchRow?.country]
+    .map((part) => String(part ?? "").trim())
+    .filter(Boolean)
+    .join(", ");
+  const cashier = String(session?.name || session?.username || "");
 
   useEffect(() => {
     const tick = () => setClock(formatDate(new Date().toISOString(), true));
@@ -118,18 +140,33 @@ function PosScreen() {
       .slice(0, 8);
   }, [products, search]);
 
-  function addToCart(product: Product) {
+  function addLine(product: Product, quantity: number) {
     const inCart =
       cart.items.find((line) => line.productId === product.id)?.quantity ?? 0;
     if (
       !allowOversell &&
       tracksStock(product) &&
-      inCart + 1 > productStock(product)
+      inCart + quantity > productStock(product)
     ) {
       notify(l(["Not enough stock for this product", "ស្តុកមិនគ្រប់គ្រាន់"]));
+      return false;
+    }
+    cart.add(product, quantity);
+    return true;
+  }
+
+  function addToCart(product: Product) {
+    if (isWeighted(product)) {
+      setWeighing(product);
       return;
     }
-    cart.add(product);
+    addLine(product, 1);
+    setSearch("");
+  }
+
+  function confirmWeight(product: Product, quantity: number) {
+    if (!(quantity > 0) || !addLine(product, quantity)) return;
+    setWeighing(null);
     setSearch("");
   }
 
@@ -294,17 +331,24 @@ function PosScreen() {
                 ariaLabel={t.customer}
                 value={customer}
                 onChange={setCustomer}
-                searchable
                 searchPlaceholder={`${t.searchLabel}…`}
-                footer={{
-                  icon: "userPlus",
-                  label: l(["Add new customer", "បន្ថែមអតិថិជនថ្មី"]),
-                  onClick: () => setPanel("customer"),
-                }}
+                forceSearch
                 options={customers.rows.map((row) => ({
                   value: String(row.name),
                   label: String(row.name),
                 }))}
+                footer={(close) => (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      close();
+                      setPanel("customer");
+                    }}
+                  >
+                    <Icon name="userPlus" size={15} />{" "}
+                    {l(["Add new customer", "បន្ថែមអតិថិជនថ្មី"])}
+                  </button>
+                )}
               />
               <button
                 type="button"
@@ -393,7 +437,12 @@ function PosScreen() {
                 <div className="cart-info">
                   <b>{line.name}</b>
                   <small>
-                    {line.code} · {formatMoney(line.price)} / {line.unit}
+                    {line.code} ·{" "}
+                    {formatNumber(
+                      line.quantity,
+                      qtyDecimals(line.quantity, line.unit),
+                    )}{" "}
+                    {line.unit} × {formatNumber(line.price)} ៛
                   </small>
                 </div>
                 <div className="qty-stepper">
@@ -465,32 +514,71 @@ function PosScreen() {
               </b>
             </div>
             <div>
-              <span>{t.total}</span>
+              <span>{t.subtotal}</span>
               <b>{formatMoney(cart.totals.total)}</b>
             </div>
-            {(
-              [
-                ["tax", t.orderTax, cart.totals.orderTax],
-                ["discount", t.discount, cart.totals.discount],
-                ["shipping", t.shipping, cart.totals.shipping],
-              ] as const
-            ).map(([key, label, value]) => (
-              <div key={key}>
-                <button
-                  type="button"
-                  className="pos-link"
-                  onClick={() => adjust(key)}
+            <div>
+              <button
+                type="button"
+                className="pos-link"
+                onClick={() => adjust("tax")}
+              >
+                {t.orderTax} <Icon name="edit" size={12} />
+              </button>
+              <b>{formatMoney(cart.totals.orderTax)}</b>
+            </div>
+            <div>
+              <span>{t.discount}</span>
+              <b className="pos-summary-edit">
+                <input
+                  type="number"
+                  min="0"
+                  aria-label={t.discount}
+                  value={cart.adjustments.discount}
+                  onChange={(event) =>
+                    cart.setAdjustments({
+                      ...cart.adjustments,
+                      discount: toNumber(event.target.value),
+                    })
+                  }
+                />
+                <select
+                  aria-label={l(["Discount type", "ប្រភេទបញ្ចុះតម្លៃ"])}
+                  value={cart.adjustments.discountPercent ? "%" : "៛"}
+                  onChange={(event) =>
+                    cart.setAdjustments({
+                      ...cart.adjustments,
+                      discountPercent: event.target.value === "%",
+                    })
+                  }
                 >
-                  {label} <Icon name="edit" size={12} />
-                </button>
-                <b>{formatMoney(value)}</b>
-              </div>
-            ))}
+                  <option>៛</option>
+                  <option>%</option>
+                </select>
+                {cart.adjustments.discountPercent &&
+                  cart.adjustments.discount > 0 && (
+                    <small>{formatMoney(cart.totals.discount)}</small>
+                  )}
+              </b>
+            </div>
+            <div>
+              <button
+                type="button"
+                className="pos-link"
+                onClick={() => adjust("shipping")}
+              >
+                {t.shipping} <Icon name="edit" size={12} />
+              </button>
+              <b>{formatMoney(cart.totals.shipping)}</b>
+            </div>
           </div>
           <div className="pos-payable">
             <span>{t.totalPayable}</span>
             <div>
-              <strong>{formatMoney(cart.totals.payable)}</strong>
+              <strong>
+                {formatNumber(cart.totals.payable)}
+                <span className="riel">៛</span>
+              </strong>
               <small>{formatUsd(cart.totals.payable, rate)}</small>
             </div>
           </div>
@@ -500,6 +588,7 @@ function PosScreen() {
               className="pos-btn warning"
               onClick={suspend}
               disabled={!cart.items.length}
+              aria-disabled={!cart.items.length}
             >
               <Icon name="pause" size={15} /> {l(["Suspend", "ផ្អាក"])}
             </button>
@@ -508,6 +597,7 @@ function PosScreen() {
               className="pos-btn danger"
               onClick={cancelSale}
               disabled={!cart.items.length}
+              aria-disabled={!cart.items.length}
             >
               <Icon name="x" size={15} /> {t.cancel}
             </button>
@@ -516,6 +606,7 @@ function PosScreen() {
               className="pos-btn outline"
               onClick={() => setPanel("bill")}
               disabled={!cart.items.length}
+              aria-disabled={!cart.items.length}
             >
               <Icon name="receipt" size={15} /> {l(["Bill", "វិក្កយបត្រ"])}
             </button>
@@ -524,6 +615,7 @@ function PosScreen() {
               className="pos-btn primary"
               onClick={() => setPanel("payment")}
               disabled={!cart.items.length}
+              aria-disabled={!cart.items.length}
             >
               <Icon name="money" size={17} /> {l(["Payment", "ទូទាត់"])}
             </button>
@@ -603,7 +695,7 @@ function PosScreen() {
                     )}
                     {count > 0 && (
                       <span className="pos-card-count">
-                        {formatNumber(count, count % 1 ? 1 : 0)}
+                        {formatNumber(count, count % 1 ? 3 : 0)}
                       </span>
                     )}
                   </span>
@@ -663,6 +755,14 @@ function PosScreen() {
           rate={rate}
           defaultBranch={String(pos.defaultBranch)}
           onSubmit={finalize}
+        />
+      )}
+
+      {weighing && (
+        <WeightModal
+          product={weighing}
+          onClose={() => setWeighing(null)}
+          onAdd={(quantity) => confirmWeight(weighing, quantity)}
         />
       )}
 
@@ -759,9 +859,12 @@ function PosScreen() {
           onClose={() => setPanel(null)}
           logo={brandLogo}
           siteName={String(system.siteName)}
+          address={branchAddress}
+          phone={branchPhone}
+          cashier={cashier}
           record={{
             date: new Date().toISOString(),
-            reference: l(["Not paid yet", "មិនទាន់បង់"]),
+            reference: l(["Pay complete", "ការទូទាត់បានបញ្ចប់"]),
             customer,
             items: cart.items,
             ...cart.totals,
@@ -777,6 +880,9 @@ function PosScreen() {
           onClose={() => setReceipt(null)}
           logo={brandLogo}
           siteName={String(system.siteName)}
+          address={branchAddress}
+          phone={branchPhone}
+          cashier={cashier}
           record={receipt}
           rate={rate}
         />
@@ -877,6 +983,86 @@ function AdjustModal({
   );
 }
 
+function WeightModal({
+  product,
+  onClose,
+  onAdd,
+}: {
+  product: Product;
+  onClose: () => void;
+  onAdd: (quantity: number) => void;
+}) {
+  const { l, t } = useLanguage();
+  const [entry, setEntry] = useState("");
+  const quantity = toNumber(entry);
+  const unit = productUnit(product);
+  const press = (key: string) =>
+    setEntry((old) =>
+      key === "back"
+        ? old.slice(0, -1)
+        : key === "." && old.includes(".")
+          ? old
+          : old + key,
+    );
+  const keys = ["7", "8", "9", "4", "5", "6", "1", "2", "3", ".", "0", "back"];
+  return (
+    <Modal
+      open
+      size="sm"
+      title={product.name}
+      onClose={onClose}
+      footer={
+        <>
+          <button className="btn btn-default" onClick={onClose}>
+            {t.cancel}
+          </button>
+          <button
+            className="btn btn-primary"
+            disabled={!(quantity > 0)}
+            aria-disabled={!(quantity > 0)}
+            onClick={() => onAdd(quantity)}
+          >
+            {t.addVerb}
+          </button>
+        </>
+      }
+    >
+      <p className="weigh-unit">
+        {l(["Enter weight", "បញ្ចូលទម្ងន់"])} · {formatMoney(product.price)} /{" "}
+        {unit}
+      </p>
+      <div className="weigh-display" aria-live="polite">
+        <div className="weigh-qty">
+          {entry || "0"}
+          <span>{unit}</span>
+        </div>
+        <div className="weigh-price">
+          {formatMoney(quantity * product.price)}
+        </div>
+      </div>
+      <div className="weigh-pad">
+        {keys.map((key) => (
+          <button
+            key={key}
+            type="button"
+            className={`weigh-key${key === "." || key === "back" ? " action" : ""}`}
+            aria-label={
+              key === "back"
+                ? l(["Backspace", "លុបកូដចុងក្រោយ"])
+                : key === "."
+                  ? l(["Decimal point", "ចំណុចទសភាគ"])
+                  : key
+            }
+            onClick={() => press(key)}
+          >
+            {key === "back" ? <Icon name="x" size={18} /> : key}
+          </button>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
 function Receipt({
   title,
   record,
@@ -884,6 +1070,9 @@ function Receipt({
   logo,
   siteName,
   rate,
+  address,
+  phone,
+  cashier,
 }: {
   title: string;
   record: Pick<
@@ -900,9 +1089,13 @@ function Receipt({
   logo: string;
   siteName: string;
   rate: number;
+  address?: string;
+  phone?: string;
+  cashier?: string;
 }) {
   const { l, t } = useLanguage();
   const change = record.paid - record.grandTotal;
+  const paidInFull = record.paid >= record.grandTotal;
   return (
     <Modal
       open
@@ -922,17 +1115,38 @@ function Receipt({
     >
       <div className="receipt print-area">
         <div className="receipt-head">
-          {logo ? <img src={logo} alt="" /> : <b>{siteName}</b>}
-          <span>{formatDate(record.date, true)}</span>
-          <span>
-            {t.referenceNo}: {record.reference}
-          </span>
+          {logo && <img src={logo} alt={siteName} />}
+          <b>{siteName}</b>
+          {address && <span>{address}</span>}
+          {phone && <span>{phone}</span>}
+        </div>
+        <div className="receipt-meta">
+          <div>
+            <span>{t.date}</span>
+            <b>{formatDate(record.date, true)}</b>
+          </div>
+          <div>
+            <span>{t.referenceNo}</span>
+            <b>{record.reference}</b>
+          </div>
           {record.customer && (
-            <span>
-              {t.customer}: {record.customer}
-            </span>
+            <div>
+              <span>{t.customer}</span>
+              <b>{record.customer}</b>
+            </div>
+          )}
+          {cashier && (
+            <div>
+              <span>{l(["Cashier", "អ្នកលក់"])}</span>
+              <b>{cashier}</b>
+            </div>
           )}
         </div>
+        {paidInFull && (
+          <p className="receipt-paid">
+            {l(["Payment completed", "ការទូទាត់បានបញ្ចប់"])}
+          </p>
+        )}
         <table>
           <tbody>
             {record.items.map((line, i) => (
@@ -941,31 +1155,48 @@ function Receipt({
                   {line.name}
                   <small>
                     {formatNumber(line.quantity, 3)} {line.unit} ×{" "}
-                    {formatNumber(line.price)}
+                    {formatNumber(line.price)} ៛
                   </small>
                 </td>
                 <td className="num">
-                  {formatNumber(line.quantity * line.price)}
+                  {formatNumber(line.quantity * line.price)} ៛
                 </td>
               </tr>
             ))}
           </tbody>
           <tfoot>
+            {record.total != null && (
+              <tr>
+                <td>{t.subtotal}</td>
+                <td className="num">{formatNumber(record.total)} ៛</td>
+              </tr>
+            )}
             {!!record.discount && (
               <tr>
                 <td>{t.discount}</td>
-                <td className="num">-{formatNumber(record.discount)}</td>
+                <td className="num">-{formatNumber(record.discount)} ៛</td>
               </tr>
             )}
             {!!record.orderTax && (
               <tr>
                 <td>{t.orderTax}</td>
-                <td className="num">{formatNumber(record.orderTax)}</td>
+                <td className="num">{formatNumber(record.orderTax)} ៛</td>
               </tr>
             )}
-            <tr className="strong">
+            {!!record.shipping && (
+              <tr>
+                <td>{t.shipping}</td>
+                <td className="num">{formatNumber(record.shipping)} ៛</td>
+              </tr>
+            )}
+            <tr className="strong grand">
               <td>{t.grandTotal}</td>
-              <td className="num">{formatMoney(record.grandTotal)}</td>
+              <td className="num">
+                <b className="receipt-grand">
+                  {formatNumber(record.grandTotal)}
+                  <span className="riel">៛</span>
+                </b>
+              </td>
             </tr>
             <tr>
               <td>USD</td>
