@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Whole chicken">
+  <rect width="400" height="300" fill="#f8f1e3"/>
+  <ellipse cx="205" cy="165" rx="95" ry="68" fill="#e0a83c"/>
+  <circle cx="278" cy="108" r="30" fill="#e0a83c"/>
+  <path d="M300 100l22-8-18 18z" fill="#c98a1b"/>
+  <circle cx="286" cy="102" r="4" fill="#5c4310"/>
+  <path d="M150 190c-16 10-32 10-44 2" stroke="#c98a1b" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <ellipse cx="180" cy="150" rx="34" ry="22" fill="#f0c96e"/>
+  <text x="200" y="268" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="700" fill="#8a6412">CHICKEN</text>
+</svg>

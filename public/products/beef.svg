@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Fresh beef">
+  <rect width="400" height="300" fill="#f6e9e7"/>
+  <ellipse cx="200" cy="150" rx="110" ry="78" fill="#b8372e"/>
+  <ellipse cx="200" cy="150" rx="78" ry="52" fill="#d4544a"/>
+  <path d="M150 140c18-14 40-18 62-10 20 7 34 22 38 40" fill="none" stroke="#f2d9d5" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="168" cy="168" r="8" fill="#f2d9d5"/>
+  <circle cx="230" cy="128" r="6" fill="#f2d9d5"/>
+  <text x="200" y="268" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="700" fill="#8f2a22">BEEF</text>
+</svg>

@@ -1,13 +1,20 @@
 /* ---------- Choronai brand theme (logo blue + white) ---------- */
 :root {
-  --brand: #054ba3;
-  --brand-dark: #033a7f;
-  --brand-deep: #022a5c;
+  --brand: #054290;
+  --brand-dark: #03316f;
+  --brand-deep: #022451;
   --brand-soft: #e9f0fb;
-  --primary: #054ba3;
-  --primary-dark: #033a7f;
+  --primary: #054290;
+  --primary-dark: #03316f;
   --info: #2f7fd8;
-  --page: #eef3fa;
+  --page: #eef2f8;
+  /* Design tokens */
+  --ink: #14233a;
+  --muted: #4a5870;
+  --card-border: #d5deeb;
+  --success: #0b6b3a;
+  --danger: #b42318;
+  --warning-text: #8a4f00;
 }
 .app-shell {
   grid-template-rows: 60px minmax(0, 1fr);
@@ -935,11 +942,35 @@
   color: #8796aa;
   text-align: center;
 }
+.select-footer {
+  flex-shrink: 0;
+  margin: 4px 2px 2px;
+  padding-top: 4px;
+  border-top: 1px solid #e6ebf2;
+}
+.select-footer button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 40px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--brand);
+  font-weight: 600;
+}
+.select-footer button:hover {
+  background: var(--brand-soft);
+}
 /* POS: taller controls */
 .pos .select-button {
-  height: 38px;
+  min-height: 44px;
+  height: auto;
   border-color: #cfd9e6;
   border-radius: 0;
+  font-size: 15px;
 }
 .pos .input-group > .select:last-child .select-button {
   border-radius: 0 6px 6px 0;

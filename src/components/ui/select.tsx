@@ -43,6 +43,8 @@ export function Select({
   ariaLabel,
   className = "",
   searchPlaceholder = "Search…",
+  forceSearch,
+  footer,
 }: {
   value: string;
   options: SelectOption[];
@@ -53,6 +55,10 @@ export function Select({
   ariaLabel?: string;
   className?: string;
   searchPlaceholder?: string;
+  /** Always show the search box, even for short lists. */
+  forceSearch?: boolean;
+  /** Extra row pinned under the options; receives a function that closes the list. */
+  footer?: (close: () => void) => ReactNode;
 }) {
   const id = useId();
   const button = useRef<HTMLButtonElement>(null);
@@ -63,7 +69,7 @@ export function Select({
   const typed = useRef({ text: "", at: 0 });
   const open = !!place;
   const selected = options.find((option) => option.value === value);
-  const searchable = options.length > SEARCH_FROM;
+  const searchable = forceSearch || options.length > SEARCH_FROM;
 
   const shown = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -259,6 +265,9 @@ export function Select({
               })}
               {shown.length === 0 && <div className="select-empty">—</div>}
             </div>
+            {footer && (
+              <div className="select-footer">{footer(() => hide())}</div>
+            )}
           </div>,
           // Inside a modal <dialog> (browser top layer) the list must live in
           // the dialog, or it would be drawn behind it.
