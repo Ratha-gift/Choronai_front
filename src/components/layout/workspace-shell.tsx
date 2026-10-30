@@ -44,9 +44,11 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
   const [settings] = useSettings("system");
   const [logo] = useStored(LOGO_KEY, NO_LOGO);
   const { products } = useProducts();
+  // Starts as the slim icon rail; the header button opens the full menu.
+  // The choice is remembered (v2 key, so the new default reaches everyone).
   const [collapsed, setCollapsed] = useStored(
-    "choronai-sidebar-collapsed-v1",
-    false,
+    "choronai-sidebar-collapsed-v2",
+    true,
   );
   const [mobileOpen, setMobileOpen] = useState(false);
   // Phones use the slide-in menu, never the icon rail.

@@ -68,19 +68,12 @@
   .brand-text,
   .pos-clock,
   .pos-brand-text,
-  .pos-nav-btn span,
-  .login-brand {
+  .pos-nav-btn span {
     display: none;
   }
   .pos-order-head,
   .pos-summary {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .login-page {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .login-logo.small {
-    display: grid;
   }
   .login-card {
     padding: 24px 20px;

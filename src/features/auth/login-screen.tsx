@@ -36,24 +36,6 @@ const ERRORS: Record<Exclude<LoginResult, "ok">, Label> = {
   ],
 };
 
-const FEATURES: [Parameters<typeof Icon>[0]["name"], Label][] = [
-  [
-    "grid",
-    [
-      "Fast point of sale in riel and dollars",
-      "ផ្ទាំងលក់រហ័ស ជារៀល និងដុល្លារ",
-    ],
-  ],
-  [
-    "layers",
-    ["Stock that updates with every sale", "ស្តុកធ្វើបច្ចុប្បន្នភាពរាល់ការលក់"],
-  ],
-  [
-    "chart",
-    ["Reports for sales, purchases and stock", "របាយការណ៍លក់ ទិញ និងស្តុក"],
-  ],
-];
-
 export function LoginScreen() {
   const { l } = useLanguage();
   const router = useRouter();
@@ -97,148 +79,114 @@ export function LoginScreen() {
 
   return (
     <div className="login-page">
-      <section className="login-brand" aria-hidden="true">
-        <div className="login-brand-inner">
-          <span className="login-logo">
-            <img src={logo || DEFAULT_LOGO} alt="" />
+      <div className="login-top">
+        <LanguageMenu />
+      </div>
+
+      <form className="login-card" onSubmit={submit} noValidate>
+        <span className="login-logo">
+          <img src={logo || DEFAULT_LOGO} alt={siteName} />
+        </span>
+        <h1>{l(["Sign in", "ចូលប្រើប្រាស់"])}</h1>
+
+        {error && (
+          <div className="login-error" role="alert">
+            <Icon name="alert" size={15} /> {l(ERRORS[error])}
+          </div>
+        )}
+
+        <label className="login-field">
+          <span>
+            {l(["Username", "ឈ្មោះគណនី"])} <b aria-hidden="true">*</b>
           </span>
-          <h2>{siteName}</h2>
-          <p>
-            {l([
-              "Shop management for meat and fish.",
-              "ប្រព័ន្ធគ្រប់គ្រងហាងសាច់ និងត្រី។",
-            ])}
-          </p>
-          <ul>
-            {FEATURES.map(([icon, label]) => (
-              <li key={icon}>
-                <span>
-                  <Icon name={icon} size={16} />
-                </span>
-                {l(label)}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      <section className="login-panel">
-        <div className="login-top">
-          <LanguageMenu />
-        </div>
-        <form className="login-card" onSubmit={submit} noValidate>
-          <span className="login-logo small">
-            <img src={logo || DEFAULT_LOGO} alt={siteName} />
-          </span>
-          <h1>{l(["Sign in", "ចូលប្រើប្រាស់"])}</h1>
-          <p className="login-sub">
-            {l([
-              "Enter your username and password to continue.",
-              "បញ្ចូលឈ្មោះគណនី និងពាក្យសម្ងាត់ ដើម្បីបន្ត។",
-            ])}
-          </p>
-
-          {error && (
-            <div className="login-error" role="alert">
-              <Icon name="alert" size={15} /> {l(ERRORS[error])}
-            </div>
-          )}
-
-          <label className="login-field">
-            <span>{l(["Username", "ឈ្មោះគណនី"])}</span>
-            <div className="login-input">
-              <Icon name="user" size={16} />
-              <input
-                autoFocus
-                required
-                autoComplete="username"
-                autoCapitalize="none"
-                spellCheck={false}
-                value={username}
-                onChange={(event) => {
-                  setUsername(event.target.value);
-                  setError(null);
-                }}
-              />
-            </div>
-          </label>
-          <label className="login-field">
-            <span>{l(["Password", "ពាក្យសម្ងាត់"])}</span>
-            <div className="login-input">
-              <Icon name="lock" size={16} />
-              <input
-                required
-                type={showPassword ? "text" : "password"}
-                autoComplete="current-password"
-                value={password}
-                onChange={(event) => {
-                  setPassword(event.target.value);
-                  setError(null);
-                }}
-              />
-              <button
-                type="button"
-                className="login-eye"
-                aria-label={
-                  showPassword
-                    ? l(["Hide password", "លាក់ពាក្យសម្ងាត់"])
-                    : l(["Show password", "បង្ហាញពាក្យសម្ងាត់"])
-                }
-                aria-pressed={showPassword}
-                onClick={() => setShowPassword((value) => !value)}
-              >
-                <Icon name={showPassword ? "eyeOff" : "eye"} size={16} />
-              </button>
-            </div>
-          </label>
-
-          <label className="login-remember">
+          <div className="login-input">
             <input
-              type="checkbox"
-              checked={remember}
-              onChange={() => setRemember((value) => !value)}
+              autoFocus
+              required
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+              value={username}
+              onChange={(event) => {
+                setUsername(event.target.value);
+                setError(null);
+              }}
             />
-            {l(["Keep me signed in for 30 days", "ចងចាំខ្ញុំ 30 ថ្ងៃ"])}
-          </label>
+          </div>
+        </label>
+        <label className="login-field">
+          <span>
+            {l(["Password", "ពាក្យសម្ងាត់"])} <b aria-hidden="true">*</b>
+          </span>
+          <div className="login-input">
+            <input
+              required
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                setError(null);
+              }}
+            />
+            <button
+              type="button"
+              className="login-eye"
+              aria-label={
+                showPassword
+                  ? l(["Hide password", "លាក់ពាក្យសម្ងាត់"])
+                  : l(["Show password", "បង្ហាញពាក្យសម្ងាត់"])
+              }
+              aria-pressed={showPassword}
+              onClick={() => setShowPassword((value) => !value)}
+            >
+              <Icon name={showPassword ? "eyeOff" : "eye"} size={16} />
+            </button>
+          </div>
+        </label>
 
-          <button
-            className="login-submit"
-            type="submit"
-            disabled={busy || !username.trim() || !password}
-          >
-            {l(["Sign in", "ចូលប្រើប្រាស់"])}{" "}
-            <Icon name="chevronsRight" size={15} />
-          </button>
+        <label className="login-remember">
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={() => setRemember((value) => !value)}
+          />
+          {l(["Keep me signed in for 30 days", "ចងចាំខ្ញុំ 30 ថ្ងៃ"])}
+        </label>
 
-          {demoAccounts.length > 0 && (
-            <div className="login-demo">
-              <b>{l(["Sample accounts", "គណនីគំរូ"])}</b>
-              {demoAccounts.map(([user, pass]) => (
-                <button
-                  key={user}
-                  type="button"
-                  onClick={() => {
-                    setUsername(user);
-                    setPassword(pass);
-                    setError(null);
-                  }}
-                >
-                  <code>{user}</code> / <code>{pass}</code>
-                </button>
-              ))}
-              <small>
-                {l([
-                  "Change these passwords under People → Users.",
-                  "ប្ដូរពាក្យសម្ងាត់ទាំងនេះនៅ ទំនាក់ទំនង → អ្នកប្រើប្រាស់។",
-                ])}
-              </small>
-            </div>
-          )}
-        </form>
-        <p className="login-foot">
-          © {new Date().getFullYear()} {siteName}
-        </p>
-      </section>
+        <button
+          className="login-submit"
+          type="submit"
+          disabled={busy || !username.trim() || !password}
+        >
+          {l(["Sign in", "ចូលប្រើប្រាស់"])}
+        </button>
+
+        {demoAccounts.length > 0 && (
+          <div className="login-demo">
+            <span>{l(["Sample accounts:", "គណនីគំរូ៖"])}</span>
+            {demoAccounts.map(([user, pass]) => (
+              <button
+                key={user}
+                type="button"
+                title={l(["Fill in this account", "បំពេញគណនីនេះ"])}
+                onClick={() => {
+                  setUsername(user);
+                  setPassword(pass);
+                  setError(null);
+                }}
+              >
+                {user} / {pass}
+              </button>
+            ))}
+          </div>
+        )}
+      </form>
+
+      <p className="login-foot">
+        © {new Date().getFullYear()} {siteName}.{" "}
+        {l(["All rights reserved.", "រក្សាសិទ្ធិគ្រប់យ៉ាង។"])}
+      </p>
     </div>
   );
 }
