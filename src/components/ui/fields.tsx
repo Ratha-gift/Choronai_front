@@ -1,5 +1,5 @@
 "use client";
-import { useState, type ReactNode } from "react";
+import { useState, type InputHTMLAttributes, type ReactNode } from "react";
 import { Icon } from "@/components/icons";
 
 export function FormGrid({
@@ -92,5 +92,51 @@ export function PasswordInput({
         <Icon name={visible ? "eyeOff" : "eye"} size={16} />
       </button>
     </div>
+  );
+}
+
+/**
+ * Number box that may be empty while typing (empty counts as 0), drops
+ * leading zeros ("010" becomes "10") and selects its text on focus, so a
+ * cashier can type over the old value.
+ */
+export function NumberInput({
+  value,
+  onChange,
+  onFocus,
+  ...rest
+}: Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  "value" | "onChange" | "type"
+> & {
+  value: number | string;
+  onChange: (value: number) => void;
+}) {
+  const outside = Number(value) || 0;
+  const [text, setText] = useState(String(value ?? ""));
+  const [shown, setShown] = useState(outside);
+  // Follow changes made elsewhere (e.g. the + / − buttons).
+  if (outside !== shown) {
+    setShown(outside);
+    setText(String(value ?? ""));
+  }
+  return (
+    <input
+      {...rest}
+      type="number"
+      value={text}
+      onFocus={(event) => {
+        event.target.select();
+        onFocus?.(event);
+      }}
+      onChange={(event) => {
+        const raw = event.target.value.replace(/^0+(?=\d)/, "");
+        const next = raw === "" ? 0 : Number(raw);
+        setText(raw);
+        if (!Number.isFinite(next)) return;
+        setShown(next);
+        onChange(next);
+      }}
+    />
   );
 }

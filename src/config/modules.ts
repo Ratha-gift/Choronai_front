@@ -92,18 +92,6 @@ export const groups: NavGroup[] = [
     ],
   },
   {
-    id: "purchases",
-    label: ["Purchase", "ការទិញ"],
-    icon: "star",
-    items: [
-      m("purchases/requests", "Purchase Requests", "សំណើទិញ", "star"),
-      m("purchases/orders", "Purchase Orders", "បញ្ជាទិញ", "star"),
-      m("purchases/list", "Purchases", "ការទិញ", "star"),
-      m("purchases/returns", "Purchase Returns", "ទំនិញទិញត្រឡប់", "undo"),
-      m("purchases/expenses", "Expenses", "ចំណាយ", "dollar"),
-    ],
-  },
-  {
     id: "people",
     label: ["People", "ទំនាក់ទំនង"],
     icon: "users",
@@ -123,12 +111,6 @@ export const groups: NavGroup[] = [
       m("settings/logo", "Change Logo", "ប្ដូរឡូហ្គោ", "upload"),
       m("settings/branches", "Branches", "សាខា", "chart"),
       m("settings/warehouses", "Warehouses", "ឃ្លាំង", "building"),
-      m(
-        "settings/expense-categories",
-        "Expense Categories",
-        "ប្រភេទចំណាយ",
-        "folder",
-      ),
       m("settings/categories", "Categories", "ប្រភេទមុខទំនិញ", "folder"),
       m("settings/units", "Units", "ឯកតា", "wrench"),
       m("settings/brands", "Brands", "ម៉ាក", "list"),
@@ -257,25 +239,6 @@ export const hiddenModules: ModuleDef[] = [
     "បង្កើតការលក់ត្រឡប់",
   ),
   sub(
-    "purchases/requests",
-    "purchases/requests/add",
-    "Add Purchase Request",
-    "បន្ថែមសំណើទិញ",
-  ),
-  sub(
-    "purchases/orders",
-    "purchases/orders/add",
-    "Add Purchase Order",
-    "បន្ថែមបញ្ជាទិញ",
-  ),
-  sub("purchases/list", "purchases/list/add", "Add Purchase", "បន្ថែមការទិញ"),
-  sub(
-    "purchases/returns",
-    "purchases/returns/add",
-    "Return Purchase",
-    "បង្កើតការទិញត្រឡប់",
-  ),
-  sub(
     "inventory/stock-receive",
     "inventory/stock-receive/add",
     "Add Stock Receive",
@@ -293,6 +256,33 @@ export const hiddenModules: ModuleDef[] = [
     "Add Stock Adjustment",
     "បន្ថែមការកែតម្រូវស្តុក",
   ),
+  {
+    ...sub(
+      "inventory/stock-receive",
+      "inventory/stock-receive/edit",
+      "Edit Stock Receive",
+      "កែការទទួលស្តុក",
+    ),
+    takesParams: true,
+  },
+  {
+    ...sub(
+      "inventory/stock-issue",
+      "inventory/stock-issue/edit",
+      "Edit Stock Issue",
+      "កែការបញ្ចេញស្តុក",
+    ),
+    takesParams: true,
+  },
+  {
+    ...sub(
+      "inventory/stock-adjustment",
+      "inventory/stock-adjustment/edit",
+      "Edit Stock Adjustment",
+      "កែការកែតម្រូវស្តុក",
+    ),
+    takesParams: true,
+  },
   {
     ...sub(
       "settings/group-permissions",

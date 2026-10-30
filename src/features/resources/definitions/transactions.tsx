@@ -16,7 +16,6 @@ const reverseStock = (kind: TransactionKind) => (row: Row) => {
   const def = KINDS[kind];
   const record = row as Transaction;
   if (def.stock === 0 && def.price !== "none") return;
-  if (kind === "purchase" && record.status !== "received") return;
   adjustStock(
     record.items.map((line) => ({
       productId: line.productId,
@@ -141,100 +140,6 @@ export const transactionResources: ResourceDef[] = [
     ],
   },
   {
-    id: "purchases/requests",
-    collection: "purchaseRequests",
-    title: ["Purchase Requests (All Branches)", "សំណើទិញ (គ្រប់សាខា)"],
-    noun: ["Purchase Request", "សំណើទិញ"],
-    icon: "star",
-    addHref: "/purchases/requests/add",
-    initialSort: sortByDate,
-    details,
-    canEdit: false,
-    columns: [
-      date,
-      reference,
-      col("supplier", "Supplier", "អ្នកផ្គត់ផ្គង់"),
-      grandTotal,
-      status,
-    ],
-  },
-  {
-    id: "purchases/orders",
-    collection: "purchaseOrders",
-    title: ["Purchase Orders (All Branches)", "បញ្ជាទិញ (គ្រប់សាខា)"],
-    noun: ["Purchase Order", "បញ្ជាទិញ"],
-    icon: "star",
-    addHref: "/purchases/orders/add",
-    initialSort: sortByDate,
-    details,
-    canEdit: false,
-    columns: [
-      date,
-      reference,
-      col("supplier", "Supplier", "អ្នកផ្គត់ផ្គង់"),
-      grandTotal,
-      status,
-    ],
-  },
-  {
-    id: "purchases/list",
-    collection: "purchases",
-    title: [
-      "Purchases (All Branches) (All Warehouses)",
-      "ការទិញ (គ្រប់សាខា) (គ្រប់ឃ្លាំង)",
-    ],
-    noun: ["Purchase", "ការទិញ"],
-    icon: "star",
-    addHref: "/purchases/list/add",
-    initialSort: sortByDate,
-    details,
-    canEdit: false,
-    onDelete: reverseStock("purchase"),
-    menuItems: (_row, { navigate, l }) => [
-      {
-        icon: "undo",
-        label: l(["Return Purchase", "ទិញត្រឡប់"]),
-        onClick: () => navigate("/purchases/returns/add"),
-      },
-    ],
-    columns: [
-      date,
-      reference,
-      col("supplier", "Supplier", "អ្នកផ្គត់ផ្គង់"),
-      grandTotal,
-      returned,
-      paid,
-      balance,
-      col("status", "Purchase Status", "ស្ថានភាពទិញ", "status"),
-      paymentStatus,
-    ],
-  },
-  {
-    id: "purchases/returns",
-    collection: "purchaseReturns",
-    title: [
-      "Purchase Returns (All Branches) (All Warehouses)",
-      "ការទិញត្រឡប់ (គ្រប់សាខា) (គ្រប់ឃ្លាំង)",
-    ],
-    noun: ["Purchase Return", "ការទិញត្រឡប់"],
-    icon: "undo",
-    addHref: "/purchases/returns/add",
-    initialSort: sortByDate,
-    details,
-    canEdit: false,
-    onDelete: reverseStock("purchase-return"),
-    columns: [
-      date,
-      reference,
-      referenceTo,
-      col("supplier", "Supplier", "អ្នកផ្គត់ផ្គង់"),
-      col("grandTotal", "Total Return", "សរុបត្រឡប់", "money", { total: true }),
-      paid,
-      balance,
-      paymentStatus,
-    ],
-  },
-  {
     id: "inventory/stock-receive",
     collection: "stockReceives",
     title: [
@@ -246,7 +151,7 @@ export const transactionResources: ResourceDef[] = [
     addHref: "/inventory/stock-receive/add",
     initialSort: sortByDate,
     details,
-    canEdit: false,
+    editHref: (row) => `/inventory/stock-receive/edit/${row.id}`,
     onDelete: reverseStock("stock-receive"),
     columns: [
       date,
@@ -269,7 +174,7 @@ export const transactionResources: ResourceDef[] = [
     addHref: "/inventory/stock-issue/add",
     initialSort: sortByDate,
     details,
-    canEdit: false,
+    editHref: (row) => `/inventory/stock-issue/edit/${row.id}`,
     onDelete: reverseStock("stock-issue"),
     columns: [
       date,
@@ -292,7 +197,7 @@ export const transactionResources: ResourceDef[] = [
     addHref: "/inventory/stock-adjustment/add",
     initialSort: sortByDate,
     details,
-    canEdit: false,
+    editHref: (row) => `/inventory/stock-adjustment/edit/${row.id}`,
     onDelete: reverseStock("adjustment"),
     columns: [
       date,

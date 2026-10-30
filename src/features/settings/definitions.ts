@@ -184,12 +184,6 @@ export const SYSTEM_SECTIONS: SettingSection[] = [
         ],
       }),
       yesNo(
-        "updateCostWithPurchase",
-        "Update cost with purchase",
-        "ធ្វើបច្ចុប្បន្នភាពថ្លៃដើមពេលទិញ",
-        "yes",
-      ),
-      yesNo(
         "showWarehouseQuantity",
         "Show Warehouse Quantity",
         "បង្ហាញបរិមាណឃ្លាំង",
@@ -278,42 +272,11 @@ export const SYSTEM_SECTIONS: SettingSection[] = [
         "RC",
       ),
       prefix(
-        "purchasePaymentPrefix",
-        "Purchase Payment Prefix",
-        "បុព្វបទទូទាត់ការទិញ",
-        "PV",
-      ),
-      prefix(
-        "purchasePrefix",
-        "Purchase Reference Prefix",
-        "បុព្វបទការទិញ",
-        "PU",
-      ),
-      prefix(
-        "purchaseOrderPrefix",
-        "Purchase Order Reference Prefix",
-        "បុព្វបទបញ្ជាទិញ",
-        "PO",
-      ),
-      prefix(
-        "purchaseRequestPrefix",
-        "Purchase Request Reference Prefix",
-        "បុព្វបទសំណើទិញ",
-        "PR",
-      ),
-      prefix(
-        "returnPurchasePrefix",
-        "Return Purchase Prefix",
-        "បុព្វបទទិញត្រឡប់",
-        "PUR",
-      ),
-      prefix(
         "transferPrefix",
         "Transfer Reference Prefix",
         "បុព្វបទផ្ទេរ",
         "TR",
       ),
-      prefix("expensePrefix", "Expense Prefix", "បុព្វបទចំណាយ", "EXP"),
       prefix(
         "stockReceivePrefix",
         "Stock Receive Prefix",

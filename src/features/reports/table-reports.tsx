@@ -126,21 +126,21 @@ export function QuantityAlerts() {
   );
 }
 
-/** Purchase lines with an expiry date, newest batches first. */
+/** Received lines with an expiry date, newest batches first. */
 function useExpiryRows() {
-  const { purchases } = useReportData();
-  return purchases.flatMap((purchase) =>
-    purchase.items
+  const { stockReceives } = useReportData();
+  return stockReceives.flatMap((receive) =>
+    receive.items
       .filter((line) => line.expiry)
       .map((line, i) => ({
-        id: `${purchase.id}-${i}`,
-        date: purchase.date,
-        reference: purchase.reference,
+        id: `${receive.id}-${i}`,
+        date: receive.date,
+        reference: receive.reference,
         code: line.code,
         name: line.name,
         quantity: line.quantity,
         unit: line.unit,
-        warehouse: purchase.warehouse,
+        warehouse: receive.warehouse,
         expiry: line.expiry,
         daysLeft: Math.ceil(
           (new Date(String(line.expiry)).getTime() - Date.now()) / DAY,
@@ -210,9 +210,9 @@ export function InventoryInOutExpiry() {
 }
 
 const amountColumns = (): Column<Row>[] => [
-  c("purchasedQty", "Purchased", "បានទិញ", "qty", { total: true }),
+  c("receivedQty", "Received", "បានទទួល", "qty", { total: true }),
   c("soldQty", "Sold", "បានលក់", "qty", { total: true }),
-  c("purchasedAmount", "Purchased Amount", "ទឹកប្រាក់ទិញ", "money", {
+  c("receivedAmount", "Received Cost", "ថ្លៃដើមបានទទួល", "money", {
     total: true,
   }),
   c("soldAmount", "Sold Amount", "ទឹកប្រាក់លក់", "money", { total: true }),
@@ -249,9 +249,9 @@ export function CategoriesReport() {
         id: category,
         code: category,
         name: categoryLabel(category, language),
-        purchasedQty: total((move) => move.purchasedQty),
+        receivedQty: total((move) => move.receivedQty),
         soldQty: total((move) => move.soldQty),
-        purchasedAmount: total((move) => move.purchasedAmount),
+        receivedAmount: total((move) => move.receivedAmount),
         soldAmount: total((move) => move.soldAmount),
         profit: total(
           (move) => move.soldAmount - move.soldQty * productCost(move.product),
@@ -287,8 +287,8 @@ export function ProductsReport() {
     name: move.product.name,
     category: categoryLabel(move.product.category, language),
     unit: productUnit(move.product),
-    purchasedQty: move.purchasedQty,
-    purchasedAmount: move.purchasedAmount,
+    receivedQty: move.receivedQty,
+    receivedAmount: move.receivedAmount,
     soldQty: move.soldQty,
     soldAmount: move.soldAmount,
     stockQty: productStock(move.product),
@@ -304,8 +304,8 @@ export function ProductsReport() {
         c("code", "Product Code", "កូដមុខទំនិញ"),
         c("name", "Product Name", "ឈ្មោះមុខទំនិញ"),
         c("category", "Category", "ប្រភេទ"),
-        c("purchasedQty", "Purchased", "បានទិញ", "qty", { unit, total: true }),
-        c("purchasedAmount", "Purchased Amount", "ទឹកប្រាក់ទិញ", "money", {
+        c("receivedQty", "Received", "បានទទួល", "qty", { unit, total: true }),
+        c("receivedAmount", "Received Cost", "ថ្លៃដើមបានទទួល", "money", {
           total: true,
         }),
         c("soldQty", "Sold", "បានលក់", "qty", { unit, total: true }),
@@ -333,10 +333,8 @@ export function InventoryInOut() {
   const { movements } = useReportData();
   const rows = movements.map((move) => {
     const ending = productStock(move.product);
-    const inQty =
-      move.purchasedQty + move.saleReturnQty + move.receivedQty + move.adjustIn;
-    const outQty =
-      move.purchaseReturnQty + move.soldQty + move.issuedQty + move.adjustOut;
+    const inQty = move.saleReturnQty + move.receivedQty + move.adjustIn;
+    const outQty = move.soldQty + move.issuedQty + move.adjustOut;
     return {
       id: move.product.id,
       category: categoryLabel(move.product.category, language),
@@ -344,11 +342,9 @@ export function InventoryInOut() {
       name: move.product.name,
       unit: productUnit(move.product),
       begin: ending - inQty + outQty,
-      inPurchase: move.purchasedQty,
       inSaleReturn: move.saleReturnQty,
       inReceive: move.receivedQty,
       inAdjustment: move.adjustIn,
-      outPurchaseReturn: move.purchaseReturnQty,
       outSale: move.soldQty,
       outIssue: move.issuedQty,
       outAdjustment: move.adjustOut,
@@ -369,8 +365,8 @@ export function InventoryInOut() {
       rows={rows}
       headerGroups={[
         { span: 4 },
-        { label: ["In", "ចូល"], span: 4 },
-        { label: ["Out", "ចេញ"], span: 4 },
+        { label: ["In", "ចូល"], span: 3 },
+        { label: ["Out", "ចេញ"], span: 3 },
         { span: 1 },
       ]}
       columns={[
@@ -378,11 +374,9 @@ export function InventoryInOut() {
         c("code", "Code", "កូដ"),
         c("name", "Name", "ឈ្មោះ"),
         qty("begin", "Begin", "ដើមគ្រា"),
-        qty("inPurchase", "Purchase", "ទិញ"),
         qty("inSaleReturn", "Sale Return", "លក់ត្រឡប់"),
         qty("inReceive", "Stock Receive", "ទទួលស្តុក"),
         qty("inAdjustment", "Adjustment", "កែតម្រូវ"),
-        qty("outPurchaseReturn", "Purchase Return", "ទិញត្រឡប់"),
         qty("outSale", "Sale", "លក់"),
         qty("outIssue", "Stock Issue", "បញ្ចេញស្តុក"),
         qty("outAdjustment", "Adjustment", "កែតម្រូវ"),

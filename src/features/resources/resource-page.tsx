@@ -23,7 +23,9 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [editing, setEditing] = useState<Row | "new" | null>(null);
   const [viewing, setViewing] = useState<Row | null>(null);
-  const canEdit = def.canEdit ?? !!def.fields;
+  const canEdit = def.canEdit ?? (!!def.fields || !!def.editHref);
+  const edit = (row: Row) =>
+    def.editHref ? router.push(def.editHref(row)) : setEditing(row);
   const noun = l(def.noun);
 
   async function deleteRows(targets: Row[]) {
@@ -97,7 +99,7 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
                   icon: "edit" as const,
                   label: `${t.editVerb} ${noun}`,
                   color: "warning" as const,
-                  onClick: () => setEditing(row),
+                  onClick: () => edit(row),
                 },
               ]
             : []),
@@ -130,7 +132,7 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
                 {
                   icon: "edit" as const,
                   label: `${t.editVerb} ${noun}`,
-                  onClick: () => setEditing(row),
+                  onClick: () => edit(row),
                 },
               ]
             : []),

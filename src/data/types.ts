@@ -6,7 +6,7 @@ export type LineItem = {
   name: string;
   unit: string;
   quantity: number;
-  /** Unit cost for purchases, unit price for sales. Riel. */
+  /** Unit cost for stock receive / issue, unit price for sales. Riel. */
   price: number;
   expiry?: string;
   /** Quantity adjustments only. */

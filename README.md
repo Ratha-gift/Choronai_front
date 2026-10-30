@@ -4,7 +4,7 @@
 
 # Choronai — Shop Management
 
-Inventory, point of sale, purchasing and reports for a meat and fish shop.
+Inventory, stock management, point of sale and reports for a meat and fish shop.
 English and Khmer (ភាសាខ្មែរ) interface.
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs)
@@ -28,8 +28,7 @@ English and Khmer (ភាសាខ្មែរ) interface.
 
 - **Point of sale:** barcode/search, product grid by category, cart, discount, tax and shipping, suspend and resume, cash in riel or US dollars with quick-cash buttons, printable bill and receipt. Cashiers open a register with their cash in hand and close it at the end of the shift with a count and summary (Sale → Registers keeps the history).
 - **Products:** standard, service and combo products, with images, suppliers, promotions, price history and CSV export.
-- **Purchasing:** purchase requests, orders, purchases and returns, plus expenses.
-- **Stock management** (under Inventory): stock receive, stock issue and stock adjustment pages. Every sale, purchase, return, receive, issue and adjustment updates stock automatically. Low-stock alerts appear in the header.
+- **Stock management** (under Inventory): stock receive, stock issue and stock adjustment pages. Goods come in through Stock Receive (with expiry dates) and go out through sales or Stock Issue; every one of these updates stock automatically. Low-stock alerts appear in the header.
 - **People:** customers (with award points), suppliers and users.
 - **Settings:** system and POS settings, branches, warehouses, categories, units, currencies, tax rates, group permissions, printers and email templates.
 - **Reports:** overview, warehouse stock, category and best-seller charts, plus stock in/out, expiry, adjustment and sales reports. All of them can be exported as CSV or printed.
@@ -100,7 +99,7 @@ src/
 │   ├── dashboard/          Totals, quick links, latest five
 │   ├── products/           Product list, add/edit page
 │   ├── pos/                Point of sale, cart, payment, receipt
-│   ├── transactions/       Purchase, return, stock receive / issue / adjustment forms
+│   ├── transactions/       Sale return, stock receive / issue / adjustment forms
 │   ├── resources/          Config-driven list pages (customers, units, ...)
 │   ├── settings/           System/POS settings, logo, permissions, emails
 │   └── reports/            Charts and report tables

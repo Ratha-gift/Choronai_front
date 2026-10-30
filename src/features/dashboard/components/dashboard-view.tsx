@@ -11,7 +11,7 @@ import type { Transaction } from "@/data/types";
 import { useLanguage, type Label } from "@/i18n";
 import { formatDate, formatMoney, toNumber } from "@/lib/format";
 
-type Tab = "sales" | "purchases" | "customers" | "suppliers";
+type Tab = "sales" | "receives" | "customers" | "suppliers";
 
 const LINKS: { href: string; label: Label; icon: IconName; color: string }[] = [
   {
@@ -27,9 +27,9 @@ const LINKS: { href: string; label: Label; icon: IconName; color: string }[] = [
     color: "green",
   },
   {
-    href: "/purchases/list",
-    label: ["Purchases", "ការទិញ"],
-    icon: "star",
+    href: "/inventory/stock-receive",
+    label: ["Stock Receive", "ទទួលស្តុក"],
+    icon: "download",
     color: "red",
   },
   {
@@ -78,8 +78,8 @@ export function DashboardView() {
   const [tab, setTab] = useState<Tab>("sales");
   const sales = useCollection<Transaction>("sales").rows;
   const returns = useCollection<Transaction>("saleReturns").rows;
-  const purchases = useCollection<Transaction>("purchases").rows;
-  const expenses = useCollection("expenses").rows;
+  const receives = useCollection<Transaction>("stockReceives").rows;
+  const issues = useCollection<Transaction>("stockIssues").rows;
   const customers = useCollection("customers").rows;
   const suppliers = useCollection("suppliers").rows;
 
@@ -117,15 +117,15 @@ export function DashboardView() {
       color: "yellow",
     },
     {
-      label: ["Purchases", "ការទិញ"],
-      value: sum(purchases, (row) => row.grandTotal),
-      icon: "star",
+      label: ["Stock Received (cost)", "ស្តុកបានទទួល (ថ្លៃដើម)"],
+      value: sum(receives, (row) => row.grandTotal),
+      icon: "download",
       color: "green",
     },
     {
-      label: ["Expense", "ចំណាយ"],
-      value: sum(expenses, (row) => row.amount),
-      icon: "pie",
+      label: ["Stock Issued (cost)", "ស្តុកបានបញ្ចេញ (ថ្លៃដើម)"],
+      value: sum(issues, (row) => row.grandTotal),
+      icon: "upload",
       color: "teal",
     },
   ];
@@ -196,22 +196,20 @@ export function DashboardView() {
         <StatusLabel key="s" status={row.paymentStatus} />,
       ]),
     ),
-    purchases: table(
+    receives: table(
       [
         ["Date", "កាលបរិច្ឆេទ"],
         ["Reference No", "លេខយោង"],
-        ["Supplier", "អ្នកផ្គត់ផ្គង់"],
-        ["Status", "ស្ថានភាព"],
-        ["Grand Total", "សរុប"],
-        ["Payment Status", "ស្ថានភាពទូទាត់"],
+        ["Warehouse", "ឃ្លាំង"],
+        ["Total Cost", "ថ្លៃដើមសរុប"],
+        ["Created by", "បង្កើតដោយ"],
       ],
-      latest(purchases).map((row) => [
+      latest(receives).map((row) => [
         formatDate(row.date, true),
         row.reference,
-        row.supplier ?? "",
-        <StatusLabel key="s" status={row.status} />,
+        row.warehouse ?? "",
         formatMoney(row.grandTotal),
-        <StatusLabel key="p" status={row.paymentStatus} />,
+        row.createdBy,
       ]),
     ),
     customers: table(
@@ -281,7 +279,7 @@ export function DashboardView() {
           onChange={setTab}
           tabs={[
             ["sales", l(["Sales", "ការលក់"])],
-            ["purchases", l(["Purchases", "ការទិញ"])],
+            ["receives", l(["Stock Receive", "ទទួលស្តុក"])],
             ["customers", l(["Customers", "អតិថិជន"])],
             ["suppliers", l(["Suppliers", "អ្នកផ្គត់ផ្គង់"])],
           ]}

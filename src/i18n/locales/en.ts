@@ -132,7 +132,6 @@ export const en = {
   orderTax: "Order Tax",
   previousPrice: "Old price",
   productCodeName: "Product (Code - Name)",
-  purchaseReference: "Purchase Reference No",
   referenceTo: "Reference To",
   reportIntro:
     "Please customize the report below. You can download it as CSV or print it.",

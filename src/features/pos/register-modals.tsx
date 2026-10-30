@@ -138,14 +138,13 @@ export function CloseRegisterModal({
   const registers = useCollection<Register>("registers");
   const sales = useCollection<Transaction>("sales").rows;
   const saleReturns = useCollection<Transaction>("saleReturns").rows;
-  const expenses = useCollection("expenses").rows;
   const [closedAt] = useState(() => new Date().toISOString());
   const [countedRiel, setCountedRiel] = useState<number | "">("");
   const [countedUsd, setCountedUsd] = useState<number | "">("");
   const [cardSlips, setCardSlips] = useState<number | "">("");
   const [note, setNote] = useState("");
 
-  const summary = summarize(register, sales, saleReturns, expenses);
+  const summary = summarize(register, sales, saleReturns);
   const counted = toNumber(countedRiel) + toNumber(countedUsd) * rate;
   const difference = counted - summary.expectedCash;
   const both = (riel: number) => (
@@ -164,7 +163,6 @@ export function CloseRegisterModal({
     [["Total Discounts", "បញ្ចុះតម្លៃសរុប"], both(summary.discounts)],
     [["Total Money Sale", "ទឹកប្រាក់លក់សរុប"], both(summary.totalSales)],
     [["Refunds", "សងប្រាក់វិញ"], both(summary.refunds)],
-    [["Expenses", "ចំណាយ"], both(summary.expenses)],
     [
       ["Total Cash (expected)", "សាច់ប្រាក់សរុប (គួរមាន)"],
       both(summary.expectedCash),

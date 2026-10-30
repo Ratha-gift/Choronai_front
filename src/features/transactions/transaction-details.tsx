@@ -4,7 +4,7 @@ import { useLanguage } from "@/i18n";
 import { formatDate, formatMoney, formatNumber } from "@/lib/format";
 import { StatusLabel } from "@/components/ui/status-label";
 
-/** Printable summary of a sale, purchase, return or adjustment. */
+/** Printable summary of a sale, return or stock movement. */
 export function TransactionDetails({ row }: { row: Row }) {
   const { t } = useLanguage();
   const record = row as Transaction;

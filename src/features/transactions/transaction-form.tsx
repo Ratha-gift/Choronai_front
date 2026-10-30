@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icons";
 import { Box } from "@/components/ui/box";
-import { Field, FormGrid } from "@/components/ui/fields";
+import { Field, FormGrid, NumberInput } from "@/components/ui/fields";
 import { addRow, setRows, useCollection } from "@/data/collections";
 import type { LineItem, Transaction } from "@/data/types";
 import {
@@ -27,7 +27,14 @@ import { KINDS, lineDelta, type TransactionKind } from "./kinds";
 
 const round = (value: number) => Math.round(value * 1000) / 1000;
 
-export function TransactionForm({ kind: kindId }: { kind: TransactionKind }) {
+export function TransactionForm({
+  kind: kindId,
+  recordId,
+}: {
+  kind: TransactionKind;
+  /** Edit this saved record instead of adding a new one. */
+  recordId?: string;
+}) {
   const kind = KINDS[kindId];
   const { l, t } = useLanguage();
   const router = useRouter();
@@ -41,6 +48,10 @@ export function TransactionForm({ kind: kindId }: { kind: TransactionKind }) {
   const branches = useCollection("branches");
   const warehouses = useCollection("warehouses");
   const taxRates = useCollection("taxRates");
+  const existing = recordId
+    ? (records.rows.find((row) => row.id === recordId) as
+        Transaction | undefined)
+    : undefined;
 
   const fresh = () => ({
     date: localDateTime(),
@@ -60,8 +71,26 @@ export function TransactionForm({ kind: kindId }: { kind: TransactionKind }) {
     note: "",
     document: "",
   });
-  const [form, setForm] = useState(fresh);
-  const [items, setItems] = useState<LineItem[]>([]);
+  const fromExisting = (record: Transaction) => ({
+    ...fresh(),
+    date: localDateTime(new Date(record.date)),
+    reference: record.reference,
+    referenceTo: record.referenceTo ?? "",
+    branch: record.branch ?? "",
+    warehouse: record.warehouse ?? "",
+    status: record.status,
+    discount: record.discount,
+    shipping: record.shipping,
+    paid: record.paid,
+    note: record.note ?? "",
+    document: String(record.document ?? ""),
+  });
+  const [form, setForm] = useState(() =>
+    existing ? fromExisting(existing) : fresh(),
+  );
+  const [items, setItems] = useState<LineItem[]>(() =>
+    existing ? existing.items.map((line) => ({ ...line })) : [],
+  );
   const [search, setSearch] = useState("");
   const [moreOptions, setMoreOptions] = useState(true);
   const set = (patch: Partial<ReturnType<typeof fresh>>) =>
@@ -166,9 +195,32 @@ export function TransactionForm({ kind: kindId }: { kind: TransactionKind }) {
       createdBy: currentUsername(),
       ...(form.document ? { document: form.document } : {}),
     };
+    const movesStock = kind.stock !== 0 || kind.price === "none";
+    if (existing) {
+      // Keep who created it; undo the old stock change, then apply the new one.
+      setRows(kind.collection, (rows) =>
+        rows.map((row) =>
+          row.id === existing.id
+            ? { ...row, ...record, createdBy: existing.createdBy }
+            : row,
+        ),
+      );
+      if (movesStock)
+        adjustStock([
+          ...existing.items.map((line) => ({
+            productId: line.productId,
+            delta: -lineDelta(kind, line),
+          })),
+          ...items.map((line) => ({
+            productId: line.productId,
+            delta: lineDelta(kind, line),
+          })),
+        ]);
+      notify(t.saved);
+      router.push(kind.listHref);
+      return;
+    }
     addRow(kind.collection, record);
-    const movesStock =
-      kind.stock !== 0 && (kindId !== "purchase" || form.status === "received");
     if (movesStock)
       adjustStock(
         items.map((line) => ({
@@ -193,8 +245,23 @@ export function TransactionForm({ kind: kindId }: { kind: TransactionKind }) {
 
   const priceLabel = kind.price === "cost" ? t.netUnitCost : t.netUnitPrice;
 
+  if (recordId && !existing)
+    return (
+      <Box icon={kind.icon} title={l(kind.editTitle ?? kind.title)}>
+        <p>{t.noDataTable}</p>
+      </Box>
+    );
+
   return (
-    <Box icon={kind.icon} title={l(kind.title)} intro={t.formIntro}>
+    <Box
+      icon={kind.icon}
+      title={
+        existing
+          ? `${l(kind.editTitle ?? kind.title)} (${existing.reference})`
+          : l(kind.title)
+      }
+      intro={t.formIntro}
+    >
       <form
         className="transaction-form"
         onSubmit={(event) => {
@@ -213,12 +280,7 @@ export function TransactionForm({ kind: kindId }: { kind: TransactionKind }) {
             />
           </Field>
           {kind.source && (
-            <Field
-              label={
-                kindId === "sale-return" ? t.saleReference : t.purchaseReference
-              }
-              required
-            >
+            <Field label={t.saleReference} required>
               <select
                 className="form-control"
                 required
@@ -417,14 +479,11 @@ export function TransactionForm({ kind: kindId }: { kind: TransactionKind }) {
                     )}
                     {kind.price !== "none" && (
                       <td className="cell-input">
-                        <input
-                          type="number"
+                        <NumberInput
                           min="0"
                           aria-label={priceLabel}
                           value={line.price}
-                          onChange={(event) =>
-                            change({ price: toNumber(event.target.value) })
-                          }
+                          onChange={(next) => change({ price: next })}
                         />
                       </td>
                     )}
@@ -445,15 +504,12 @@ export function TransactionForm({ kind: kindId }: { kind: TransactionKind }) {
                       </td>
                     )}
                     <td className="cell-input qty-col">
-                      <input
-                        type="number"
+                      <NumberInput
                         min="0.001"
                         step="any"
                         aria-label={t.quantity}
                         value={line.quantity}
-                        onChange={(event) =>
-                          change({ quantity: toNumber(event.target.value) })
-                        }
+                        onChange={(next) => change({ quantity: next })}
                       />
                     </td>
                     {kind.price !== "none" && (
@@ -544,39 +600,30 @@ export function TransactionForm({ kind: kindId }: { kind: TransactionKind }) {
                   </select>
                 </Field>
                 <Field label={t.discount}>
-                  <input
+                  <NumberInput
                     className="form-control"
-                    type="number"
                     min="0"
                     value={form.discount}
-                    onChange={(event) =>
-                      set({ discount: toNumber(event.target.value) })
-                    }
+                    onChange={(next) => set({ discount: next })}
                   />
                 </Field>
                 <Field label={t.shipping}>
-                  <input
+                  <NumberInput
                     className="form-control"
-                    type="number"
                     min="0"
                     value={form.shipping}
-                    onChange={(event) =>
-                      set({ shipping: toNumber(event.target.value) })
-                    }
+                    onChange={(next) => set({ shipping: next })}
                   />
                 </Field>
               </>
             )}
             {kind.payment && (
               <Field label={t.amountPaid} hint={formatMoney(grandTotal)}>
-                <input
+                <NumberInput
                   className="form-control"
-                  type="number"
                   min="0"
                   value={form.paid}
-                  onChange={(event) =>
-                    set({ paid: toNumber(event.target.value) })
-                  }
+                  onChange={(next) => set({ paid: next })}
                 />
               </Field>
             )}
@@ -598,8 +645,11 @@ export function TransactionForm({ kind: kindId }: { kind: TransactionKind }) {
             className="btn btn-danger"
             type="button"
             onClick={() => {
-              setForm(fresh());
-              setItems([]);
+              // Editing: back to the saved values; adding: an empty form.
+              setForm(existing ? fromExisting(existing) : fresh());
+              setItems(
+                existing ? existing.items.map((line) => ({ ...line })) : [],
+              );
             }}
           >
             {t.reset}

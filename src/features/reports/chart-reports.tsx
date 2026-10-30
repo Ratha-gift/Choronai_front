@@ -81,9 +81,9 @@ const REPORT_LINKS: {
     color: "orange",
   },
   {
-    href: "/purchases/list",
-    label: ["Purchases", "ការទិញ"],
-    icon: "star",
+    href: "/inventory/stock-receive",
+    label: ["Stock Receive", "ទទួលស្តុក"],
+    icon: "download",
     color: "cyan",
   },
   {
@@ -102,7 +102,7 @@ const REPORT_LINKS: {
 
 export function OverviewChart() {
   const { l } = useLanguage();
-  const { sales, purchases, stockValue } = useReportData();
+  const { sales, stockReceives, stockValue } = useReportData();
   const months = lastMonths(6);
   const sum = (records: typeof sales, key: string) =>
     records
@@ -128,8 +128,8 @@ export function OverviewChart() {
         icon="chart"
         title={l(["Overview Chart", "ក្រាហ្វសង្ខេប"])}
         intro={l([
-          "Monthly sales and purchases (riel, columns) for the last six months, and current stock value by cost and price.",
-          "ការលក់ និងការទិញប្រចាំខែ (រៀល) ក្នុងរយៈពេលប្រាំមួយខែចុងក្រោយ និងតម្លៃស្តុកបច្ចុប្បន្ន។",
+          "Monthly sales and stock received at cost (riel, columns) for the last six months, and current stock value by cost and price.",
+          "ការលក់ និងស្តុកដែលបានទទួល (តាមថ្លៃដើម) ប្រចាំខែ (រៀល) ក្នុងរយៈពេលប្រាំមួយខែចុងក្រោយ និងតម្លៃស្តុកបច្ចុប្បន្ន។",
         ])}
       >
         <div className="overview-grid">
@@ -143,9 +143,9 @@ export function OverviewChart() {
                 values: months.map((month) => sum(sales, month.key)),
               },
               {
-                label: l(["Purchases", "ការទិញ"]),
+                label: l(["Stock Receive", "ទទួលស្តុក"]),
                 color: CHART_COLORS[1],
-                values: months.map((month) => sum(purchases, month.key)),
+                values: months.map((month) => sum(stockReceives, month.key)),
               },
             ]}
           />
@@ -227,7 +227,7 @@ export function WarehouseStockChart() {
   );
 }
 
-type Metric = "soldQty" | "soldAmount" | "purchasedQty" | "purchasedAmount";
+type Metric = "soldQty" | "soldAmount" | "receivedQty" | "receivedAmount";
 
 export function CategoryChart() {
   const { l, language } = useLanguage();
@@ -236,8 +236,8 @@ export function CategoryChart() {
   const metrics: [Metric, Label][] = [
     ["soldQty", ["Sold Qty", "បរិមាណលក់"]],
     ["soldAmount", ["Sales", "ការលក់"]],
-    ["purchasedQty", ["Purchased Qty", "បរិមាណទិញ"]],
-    ["purchasedAmount", ["Purchases", "ការទិញ"]],
+    ["receivedQty", ["Received Qty", "បរិមាណទទួល"]],
+    ["receivedAmount", ["Received Cost", "ថ្លៃដើមទទួល"]],
   ];
   const categories = categoriesOf(movements.map((move) => move.product)).map(
     (category) => ({

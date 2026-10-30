@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { NumberInput } from "@/components/ui/fields";
 import { Modal } from "@/components/ui/modal";
 import { useCollection } from "@/data/collections";
 import { useLanguage } from "@/i18n";
@@ -155,27 +156,25 @@ export function PaymentModal({
                   </select>
                 </th>
                 <td>
-                  <input
+                  <NumberInput
                     className="pay-input"
-                    type="number"
                     min="0"
                     aria-label={l(["Paying in riel", "បង់ជារៀល"])}
                     value={riel}
-                    onChange={(event) => {
-                      setRiel(toNumber(event.target.value));
+                    onChange={(next) => {
+                      setRiel(next);
                       setTaps({});
                     }}
                   />
                 </td>
                 <td>
-                  <input
+                  <NumberInput
                     className="pay-input"
-                    type="number"
                     min="0"
                     step="0.01"
                     aria-label={l(["Paying in dollars", "បង់ជាដុល្លារ"])}
                     value={usd}
-                    onChange={(event) => setUsd(toNumber(event.target.value))}
+                    onChange={(next) => setUsd(next)}
                   />
                 </td>
               </tr>

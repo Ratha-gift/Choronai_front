@@ -51,25 +51,6 @@ const MODULES: { id: string; label: Label; misc: [string, Label][] }[] = [
     misc: [["redeem", ["Redeem Points", "ប្ដូរពិន្ទុ"]]],
   },
   {
-    id: "purchaseRequests",
-    label: ["Purchase Requests", "សំណើទិញ"],
-    misc: [["approve", ["Approve Purchase Request", "អនុម័ត"]]],
-  },
-  {
-    id: "purchaseOrders",
-    label: ["Purchase Orders", "បញ្ជាទិញ"],
-    misc: [["approve", ["Approve Purchase Orders", "អនុម័ត"]]],
-  },
-  {
-    id: "purchases",
-    label: ["Purchases", "ការទិញ"],
-    misc: [
-      ["payments", ["Payments", "ការទូទាត់"]],
-      ["returns", ["Return Purchases", "ទិញត្រឡប់"]],
-    ],
-  },
-  { id: "expenses", label: ["Expenses", "ចំណាយ"], misc: [] },
-  {
     id: "customers",
     label: ["Customers", "អតិថិជន"],
     misc: [
@@ -99,7 +80,6 @@ const MODULES: { id: string; label: Label; misc: [string, Label][] }[] = [
       ["alerts", ["Quantity Alerts", "ព្រមានបរិមាណ"]],
       ["products", ["Products", "មុខទំនិញ"]],
       ["sales", ["Sales", "ការលក់"]],
-      ["purchases", ["Purchases", "ការទិញ"]],
     ],
   },
 ];

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icons";
+import { NumberInput } from "@/components/ui/fields";
 import { UserMenu } from "@/components/layout/user-menu";
 import { confirmAction } from "@/components/ui/confirm";
 import { Modal } from "@/components/ui/modal";
@@ -631,18 +632,12 @@ function PosScreen() {
                   >
                     <Icon name="minus" size={12} />
                   </button>
-                  <input
-                    type="number"
+                  <NumberInput
                     min="0.001"
                     step="any"
                     aria-label={l(["Quantity", "បរិមាណ"])}
                     value={line.quantity}
-                    onChange={(event) =>
-                      cart.setQuantity(
-                        line.productId,
-                        toNumber(event.target.value),
-                      )
-                    }
+                    onChange={(next) => cart.setQuantity(line.productId, next)}
                   />
                   <button
                     type="button"
@@ -709,15 +704,14 @@ function PosScreen() {
             <div>
               <span>{t.discount}</span>
               <b className="pos-summary-edit">
-                <input
-                  type="number"
+                <NumberInput
                   min="0"
                   aria-label={t.discount}
                   value={cart.adjustments.discount}
-                  onChange={(event) =>
+                  onChange={(next) =>
                     cart.setAdjustments({
                       ...cart.adjustments,
-                      discount: toNumber(event.target.value),
+                      discount: next,
                     })
                   }
                 />
@@ -1193,16 +1187,13 @@ function AdjustModal({
         </select>
       ) : (
         <div className="input-group">
-          <input
+          <NumberInput
             className="form-control"
-            type="number"
             min="0"
             autoFocus
             aria-label={title}
             value={kind === "discount" ? draft.discount : draft.shipping}
-            onChange={(event) =>
-              setDraft({ ...draft, [kind]: toNumber(event.target.value) })
-            }
+            onChange={(next) => setDraft({ ...draft, [kind]: next })}
           />
           {kind === "discount" && (
             <select

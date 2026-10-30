@@ -52,7 +52,6 @@ export function summarize(
   register: Register,
   sales: Transaction[],
   saleReturns: Transaction[],
-  expenses: Row[],
 ) {
   const mine = sales.filter((sale) =>
     sale.registerId ? sale.registerId === register.id : inShift(register, sale),
@@ -71,10 +70,6 @@ export function summarize(
     saleReturns.filter((row) => inShift(register, row)),
     "grandTotal",
   );
-  const spent = sum(
-    expenses.filter((row) => inShift(register, row)),
-    "amount",
-  );
   const cash = byMethod.Cash ?? 0;
   return {
     byMethod,
@@ -82,9 +77,8 @@ export function summarize(
     discounts: sum(mine, "discount"),
     totalSales: sum(mine, "grandTotal"),
     refunds,
-    expenses: spent,
-    /** What should be in the drawer: opening cash + cash taken − cash paid out. */
-    expectedCash: toNumber(register.cashInHand) + cash - refunds - spent,
+    /** What should be in the drawer: opening cash + cash taken − refunds. */
+    expectedCash: toNumber(register.cashInHand) + cash - refunds,
     invoices: mine.length,
   };
 }

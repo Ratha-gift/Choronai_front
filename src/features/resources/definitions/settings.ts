@@ -60,21 +60,6 @@ export const settingResources: ResourceDef[] = [
     ],
   }),
   settings({
-    id: "settings/expense-categories",
-    collection: "expenseCategories",
-    title: ["Expense Categories", "ប្រភេទចំណាយ"],
-    noun: ["Expense Category", "ប្រភេទចំណាយ"],
-    icon: "folder",
-    columns: [
-      col("code", "Category Code", "កូដប្រភេទ"),
-      col("name", "Category Name", "ឈ្មោះប្រភេទ"),
-    ],
-    fields: [
-      required("code", "Category Code", "កូដប្រភេទ"),
-      required("name", "Category Name", "ឈ្មោះប្រភេទ"),
-    ],
-  }),
-  settings({
     id: "settings/categories",
     collection: "categories",
     title: ["Categories", "ប្រភេទមុខទំនិញ"],

@@ -11,29 +11,26 @@ import type { Product } from "@/features/products/types";
 
 export type Movement = {
   product: Product;
-  purchasedQty: number;
-  purchasedAmount: number;
   soldQty: number;
   soldAmount: number;
   saleReturnQty: number;
-  purchaseReturnQty: number;
   adjustIn: number;
   adjustOut: number;
   receivedQty: number;
+  /** Cost of the received goods. */
+  receivedAmount: number;
   issuedQty: number;
 };
 
 const empty = (product: Product): Movement => ({
   product,
-  purchasedQty: 0,
-  purchasedAmount: 0,
   soldQty: 0,
   soldAmount: 0,
   saleReturnQty: 0,
-  purchaseReturnQty: 0,
   adjustIn: 0,
   adjustOut: 0,
   receivedQty: 0,
+  receivedAmount: 0,
   issuedQty: 0,
 });
 
@@ -42,12 +39,9 @@ export function useReportData() {
   const { products } = useProducts();
   const sales = useCollection<Transaction>("sales").rows;
   const saleReturns = useCollection<Transaction>("saleReturns").rows;
-  const purchases = useCollection<Transaction>("purchases").rows;
-  const purchaseReturns = useCollection<Transaction>("purchaseReturns").rows;
   const adjustments = useCollection<Transaction>("adjustments").rows;
   const stockReceives = useCollection<Transaction>("stockReceives").rows;
   const stockIssues = useCollection<Transaction>("stockIssues").rows;
-  const expenses = useCollection("expenses").rows;
 
   const movements = useMemo(() => {
     const map = new Map(
@@ -67,35 +61,18 @@ export function useReportData() {
       move.soldQty += line.quantity;
       move.soldAmount += line.quantity * line.price;
     });
-    each(
-      purchases.filter((record) => record.status === "received"),
-      (move, line) => {
-        move.purchasedQty += line.quantity;
-        move.purchasedAmount += line.quantity * line.price;
-      },
-    );
     each(saleReturns, (move, line) => (move.saleReturnQty += line.quantity));
-    each(
-      purchaseReturns,
-      (move, line) => (move.purchaseReturnQty += line.quantity),
-    );
     each(adjustments, (move, line) => {
       if (line.type === "subtraction") move.adjustOut += line.quantity;
       else move.adjustIn += line.quantity;
     });
-    each(stockReceives, (move, line) => (move.receivedQty += line.quantity));
+    each(stockReceives, (move, line) => {
+      move.receivedQty += line.quantity;
+      move.receivedAmount += line.quantity * line.price;
+    });
     each(stockIssues, (move, line) => (move.issuedQty += line.quantity));
     return [...map.values()];
-  }, [
-    products,
-    sales,
-    saleReturns,
-    purchases,
-    purchaseReturns,
-    adjustments,
-    stockReceives,
-    stockIssues,
-  ]);
+  }, [products, sales, saleReturns, adjustments, stockReceives, stockIssues]);
 
   const stockValue = useMemo(
     () =>
@@ -117,10 +94,9 @@ export function useReportData() {
     products,
     sales,
     saleReturns,
-    purchases,
-    purchaseReturns,
     adjustments,
-    expenses,
+    stockReceives,
+    stockIssues,
     movements,
     stockValue,
   };
