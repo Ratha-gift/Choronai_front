@@ -162,8 +162,8 @@ export function Navigation({
               >
                 <Icon name={group.icon} />
                 <span>{l(group.label)}</span>
-                <i>
-                  <Icon name={open ? "chevronUp" : "chevronDown"} size={14} />
+                <i className={open ? "nav-chevron open" : "nav-chevron"}>
+                  <Icon name="chevronDown" size={14} />
                 </i>
               </button>
               {open && (

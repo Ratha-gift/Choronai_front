@@ -2,29 +2,54 @@
 import { useState } from "react";
 import { Field, FormGrid, PasswordInput } from "@/components/ui/fields";
 import { Modal } from "@/components/ui/modal";
-import { useCollection, type CollectionName } from "@/data/collections";
+import { Select, type SelectOption } from "@/components/ui/select";
+import { useCollection } from "@/data/collections";
 import type { Row } from "@/data/types";
 import { useLanguage } from "@/i18n";
 import type { FieldDef } from "./types";
 
 type Values = Record<string, string | number>;
 
-function CollectionOptions({
-  name,
+/** Animated select for a FieldDef: static options plus collection values. */
+function FieldSelect({
   field,
+  value,
+  onChange,
 }: {
-  name: CollectionName;
-  field: string;
+  field: FieldDef;
+  value: string | number;
+  onChange: (value: string) => void;
 }) {
-  const { rows } = useCollection(name);
+  const { l, t } = useLanguage();
+  // Always call the hook; the result is ignored for static-only fields.
+  const { rows } = useCollection(field.collection?.name ?? "units");
+  const fromCollection = field.collection
+    ? [
+        ...new Set(
+          rows.map((row) => String(row[field.collection!.field] ?? "")),
+        ),
+      ]
+        .filter(Boolean)
+        .map((text) => ({ value: text, label: text }))
+    : [];
+  const options: SelectOption[] = [
+    ...(field.required ? [] : [{ value: "", label: t.select }]),
+    ...(field.options ?? []).map(([option, label]) => ({
+      value: option,
+      label: l(label),
+    })),
+    ...fromCollection,
+  ];
   return (
-    <>
-      {rows.map((row) => (
-        <option key={row.id} value={String(row[field] ?? "")}>
-          {String(row[field] ?? "")}
-        </option>
-      ))}
-    </>
+    <Select
+      value={String(value ?? "")}
+      options={options}
+      onChange={onChange}
+      required={field.required}
+      ariaLabel={l(field.label)}
+      placeholder={t.select}
+      searchPlaceholder={`${t.searchLabel}…`}
+    />
   );
 }
 
@@ -53,7 +78,7 @@ export function FieldControl({
   value: string | number;
   onChange: (value: string | number) => void;
 }) {
-  const { l, t } = useLanguage();
+  const { l } = useLanguage();
   const common = {
     required: field.required,
     value: value ?? "",
@@ -62,15 +87,7 @@ export function FieldControl({
   return (
     <Field label={l(field.label)} required={field.required} full={field.full}>
       {field.type === "select" ? (
-        <select {...common} onChange={(event) => onChange(event.target.value)}>
-          {!field.required && <option value="">{t.select}</option>}
-          {field.options?.map(([option, label]) => (
-            <option key={option} value={option}>
-              {l(label)}
-            </option>
-          ))}
-          {field.collection && <CollectionOptions {...field.collection} />}
-        </select>
+        <FieldSelect field={field} value={value} onChange={onChange} />
       ) : field.type === "password" ? (
         <PasswordInput
           required={field.required}

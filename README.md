@@ -16,13 +16,13 @@ English and Khmer (ភាសាខ្មែរ) interface.
 
 ---
 
-## Screenshots
+<!-- ## Screenshots
 
 | Dashboard                                    | Point of sale                    |
 | -------------------------------------------- | -------------------------------- |
 | ![Dashboard](docs/screenshots/dashboard.png) | ![POS](docs/screenshots/pos.png) |
 | **Products**                                 |                                  |
-| ![Products](docs/screenshots/products.png)   |                                  |
+| ![Products](docs/screenshots/products.png)   |                                  | -->
 
 ## Features
 

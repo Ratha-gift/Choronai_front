@@ -7,6 +7,7 @@ import { LanguageMenu } from "@/components/layout/language-menu";
 import { UserMenu } from "@/components/layout/user-menu";
 import { confirmAction } from "@/components/ui/confirm";
 import { Modal } from "@/components/ui/modal";
+import { Select } from "@/components/ui/select";
 import { addRow, setRows, useCollection } from "@/data/collections";
 import type { LineItem, Row, Transaction } from "@/data/types";
 import {
@@ -288,16 +289,17 @@ function PosScreen() {
               <span className="pos-field-icon" aria-hidden="true">
                 <Icon name="user" size={15} />
               </span>
-              <select
-                className="form-control"
-                aria-label={t.customer}
+              <Select
+                className="grow"
+                ariaLabel={t.customer}
                 value={customer}
-                onChange={(event) => setCustomer(event.target.value)}
-              >
-                {customers.rows.map((row) => (
-                  <option key={row.id}>{String(row.name)}</option>
-                ))}
-              </select>
+                onChange={setCustomer}
+                searchPlaceholder={`${t.searchLabel}…`}
+                options={customers.rows.map((row) => ({
+                  value: String(row.name),
+                  label: String(row.name),
+                }))}
+              />
               <button
                 type="button"
                 className="addon"
@@ -312,16 +314,17 @@ function PosScreen() {
               <span className="pos-field-icon" aria-hidden="true">
                 <Icon name="building" size={15} />
               </span>
-              <select
-                className="form-control"
-                aria-label={t.warehouse}
+              <Select
+                className="grow"
+                ariaLabel={t.warehouse}
                 value={warehouse}
-                onChange={(event) => setWarehouse(event.target.value)}
-              >
-                {warehouses.rows.map((row) => (
-                  <option key={row.id}>{String(row.name)}</option>
-                ))}
-              </select>
+                onChange={setWarehouse}
+                searchPlaceholder={`${t.searchLabel}…`}
+                options={warehouses.rows.map((row) => ({
+                  value: String(row.name),
+                  label: String(row.name),
+                }))}
+              />
             </div>
           </div>
 
