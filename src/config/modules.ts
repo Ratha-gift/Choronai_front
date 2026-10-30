@@ -13,12 +13,29 @@ export type ModuleDef = {
   takesParams?: boolean;
 };
 
-export type NavGroup = {
+/** A collapsible sub-menu inside a group (one level deep). */
+export type NavFolder = {
   id: string;
   label: Label;
   icon: IconName;
   items: ModuleDef[];
 };
+
+export type NavEntry = ModuleDef | NavFolder;
+
+export type NavGroup = {
+  id: string;
+  label: Label;
+  icon: IconName;
+  items: NavEntry[];
+};
+
+export const isFolder = (entry: NavEntry): entry is NavFolder =>
+  "items" in entry;
+
+/** The pages of a group, with folders flattened. */
+export const pagesOf = (entries: NavEntry[]) =>
+  entries.flatMap((entry) => (isFolder(entry) ? entry.items : [entry]));
 
 const m = (id: string, en: string, km: string, icon: IconName): ModuleDef => ({
   id,
@@ -35,25 +52,26 @@ export const groups: NavGroup[] = [
     icon: "barcode",
     items: [
       m("inventory/products", "Products", "មុខទំនិញ", "barcode"),
-      m(
-        "inventory/import-products",
-        "Import Products",
-        "នាំចូលមុខទំនិញ",
-        "file",
-      ),
-      m(
-        "inventory/print-barcode",
-        "Print Barcode/Label",
-        "បោះពុម្ពបារកូដ/ស្លាក",
-        "barcode",
-      ),
-      m("inventory/stock-counts", "Stock Counts", "រាប់ស្តុក", "list"),
-      m(
-        "inventory/quantity-adjustments",
-        "Quantity Adjustments",
-        "កែសម្រួលបរិមាណ",
-        "filter",
-      ),
+      {
+        id: "inventory/stock",
+        label: ["Stock Management", "គ្រប់គ្រងស្តុក"],
+        icon: "layers",
+        items: [
+          m(
+            "inventory/stock-receive",
+            "Stock Receive",
+            "ទទួលស្តុក",
+            "download",
+          ),
+          m("inventory/stock-issue", "Stock Issue", "បញ្ចេញស្តុក", "upload"),
+          m(
+            "inventory/stock-adjustment",
+            "Stock Adjustment",
+            "កែតម្រូវស្តុក",
+            "filter",
+          ),
+        ],
+      },
       m(
         "inventory/product-rewards",
         "Product Rewards",
@@ -257,10 +275,22 @@ export const hiddenModules: ModuleDef[] = [
     "បង្កើតការទិញត្រឡប់",
   ),
   sub(
-    "inventory/quantity-adjustments",
-    "inventory/quantity-adjustments/add",
-    "Add Adjustment",
-    "បន្ថែមការកែសម្រួល",
+    "inventory/stock-receive",
+    "inventory/stock-receive/add",
+    "Add Stock Receive",
+    "បន្ថែមការទទួលស្តុក",
+  ),
+  sub(
+    "inventory/stock-issue",
+    "inventory/stock-issue/add",
+    "Add Stock Issue",
+    "បន្ថែមការបញ្ចេញស្តុក",
+  ),
+  sub(
+    "inventory/stock-adjustment",
+    "inventory/stock-adjustment/add",
+    "Add Stock Adjustment",
+    "បន្ថែមការកែតម្រូវស្តុក",
   ),
   {
     ...sub(
@@ -275,7 +305,7 @@ export const hiddenModules: ModuleDef[] = [
 
 export const allModules: ModuleDef[] = [
   DASHBOARD,
-  ...groups.flatMap((group) => group.items),
+  ...groups.flatMap((group) => pagesOf(group.items)),
   SHOP_SETTINGS,
   ...hiddenModules,
 ];
@@ -293,11 +323,19 @@ export function resolvePath(segments: string[]) {
   return null;
 }
 
+const isOrParentOf = (pageId: string, id: string) =>
+  pageId === id || pageId === findModule(id)?.parent;
+
 export const groupOf = (id: string) =>
   groups.find((group) =>
-    group.items.some(
-      (item) => item.id === id || item.id === findModule(id)?.parent,
-    ),
+    pagesOf(group.items).some((page) => isOrParentOf(page.id, id)),
   );
+
+/** The sub-menu holding a page, if any. */
+export const folderOf = (id: string) =>
+  groups
+    .flatMap((group) => group.items)
+    .filter(isFolder)
+    .find((folder) => folder.items.some((page) => isOrParentOf(page.id, id)));
 
 export const hrefOf = (id: string) => `/${id}`;

@@ -443,7 +443,7 @@ export function DataTable<T extends { id: string }>({
               </tr>
             )}
           </tbody>
-          {hasTotals && footer !== "none" && (
+          {hasTotals && footer !== "none" && total > 0 && (
             <tfoot>
               <tr>
                 {selectable && <td className="check-col" />}

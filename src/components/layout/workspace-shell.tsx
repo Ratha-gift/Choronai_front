@@ -6,7 +6,9 @@ import { Icon } from "@/components/icons";
 import {
   DASHBOARD,
   findModule,
+  folderOf,
   groupOf,
+  pagesOf,
   hrefOf,
   resolvePath,
 } from "@/config/modules";
@@ -60,6 +62,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
   const segments = pathname.split("/").filter(Boolean);
   const module = resolvePath(segments)?.module ?? DASHBOARD;
   const group = groupOf(module.id);
+  const folder = folderOf(module.id);
   const parent = module.parent ? findModule(module.parent) : undefined;
   const alerts = products.filter(isLowStock).length;
   const siteName = String(settings.siteName || "CHORONAI");
@@ -174,8 +177,15 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
                 </li>
                 {group && (
                   <li>
-                    <Link href={hrefOf(group.items[0].id)}>
+                    <Link href={hrefOf(pagesOf(group.items)[0].id)}>
                       {l(group.label)}
+                    </Link>
+                  </li>
+                )}
+                {folder && (
+                  <li>
+                    <Link href={hrefOf(folder.items[0].id)}>
+                      {l(folder.label)}
                     </Link>
                   </li>
                 )}

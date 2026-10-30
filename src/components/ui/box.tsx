@@ -9,7 +9,7 @@ export type BoxAction = {
   disabled?: boolean;
 };
 
-/** White panel with an icon, blue title and optional header buttons. */
+/** White panel with an icon, blue title and optional named header buttons. */
 export function Box({
   icon,
   title,
@@ -43,7 +43,8 @@ export function Box({
                   title={action.label}
                   aria-label={action.label}
                 >
-                  <Icon name={action.icon} />
+                  <Icon name={action.icon} size={15} />
+                  <span>{action.label}</span>
                 </a>
               ) : (
                 <button
@@ -53,7 +54,8 @@ export function Box({
                   onClick={action.onClick}
                   disabled={action.disabled}
                 >
-                  <Icon name={action.icon} />
+                  <Icon name={action.icon} size={15} />
+                  <span>{action.label}</span>
                 </button>
               ),
             )}

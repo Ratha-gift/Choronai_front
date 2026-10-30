@@ -106,10 +106,6 @@
   .tiles.two {
     grid-template-columns: minmax(0, 1fr);
   }
-  .well-action {
-    float: none;
-    margin: 0 0 10px;
-  }
   .page {
     padding: 10px 8px 20px;
   }

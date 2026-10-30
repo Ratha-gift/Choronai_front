@@ -333,8 +333,10 @@ export function InventoryInOut() {
   const { movements } = useReportData();
   const rows = movements.map((move) => {
     const ending = productStock(move.product);
-    const inQty = move.purchasedQty + move.saleReturnQty + move.adjustIn;
-    const outQty = move.purchaseReturnQty + move.soldQty + move.adjustOut;
+    const inQty =
+      move.purchasedQty + move.saleReturnQty + move.receivedQty + move.adjustIn;
+    const outQty =
+      move.purchaseReturnQty + move.soldQty + move.issuedQty + move.adjustOut;
     return {
       id: move.product.id,
       category: categoryLabel(move.product.category, language),
@@ -344,9 +346,11 @@ export function InventoryInOut() {
       begin: ending - inQty + outQty,
       inPurchase: move.purchasedQty,
       inSaleReturn: move.saleReturnQty,
+      inReceive: move.receivedQty,
       inAdjustment: move.adjustIn,
       outPurchaseReturn: move.purchaseReturnQty,
       outSale: move.soldQty,
+      outIssue: move.issuedQty,
       outAdjustment: move.adjustOut,
       ending,
     };
@@ -365,8 +369,8 @@ export function InventoryInOut() {
       rows={rows}
       headerGroups={[
         { span: 4 },
-        { label: ["In", "ចូល"], span: 3 },
-        { label: ["Out", "ចេញ"], span: 3 },
+        { label: ["In", "ចូល"], span: 4 },
+        { label: ["Out", "ចេញ"], span: 4 },
         { span: 1 },
       ]}
       columns={[
@@ -376,10 +380,12 @@ export function InventoryInOut() {
         qty("begin", "Begin", "ដើមគ្រា"),
         qty("inPurchase", "Purchase", "ទិញ"),
         qty("inSaleReturn", "Sale Return", "លក់ត្រឡប់"),
-        qty("inAdjustment", "Adjustment", "កែសម្រួល"),
+        qty("inReceive", "Stock Receive", "ទទួលស្តុក"),
+        qty("inAdjustment", "Adjustment", "កែតម្រូវ"),
         qty("outPurchaseReturn", "Purchase Return", "ទិញត្រឡប់"),
         qty("outSale", "Sale", "លក់"),
-        qty("outAdjustment", "Adjustment", "កែសម្រួល"),
+        qty("outIssue", "Stock Issue", "បញ្ចេញស្តុក"),
+        qty("outAdjustment", "Adjustment", "កែតម្រូវ"),
         qty("ending", "Ending", "ចុងគ្រា"),
       ]}
     />

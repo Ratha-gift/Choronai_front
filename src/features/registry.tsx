@@ -1,11 +1,9 @@
 "use client";
-import { Fragment, Suspense, type ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { useHydrated } from "@/lib/store";
 import { PlannedModule } from "@/components/layout/planned-module";
 import { resolvePath } from "@/config/modules";
 import { DashboardView } from "./dashboard/components/dashboard-view";
-import { ImportProducts } from "./products/components/import-products";
-import { PrintBarcode } from "./products/components/print-barcode";
 import { ProductFormPage } from "./products/components/product-form-page";
 import { ProductsView } from "./products/components/products-view";
 import {
@@ -44,15 +42,9 @@ const PAGES: Record<string, (params: string[]) => ReactNode> = {
   "inventory/products/edit": ([id]) => (
     <ProductFormPage key={id} productId={id} />
   ),
-  "inventory/import-products": () => <ImportProducts />,
-  "inventory/print-barcode": () => (
-    <Suspense>
-      <PrintBarcode />
-    </Suspense>
-  ),
-  "inventory/quantity-adjustments/add": () => (
-    <TransactionForm kind="adjustment" />
-  ),
+  "inventory/stock-receive/add": () => <TransactionForm kind="stock-receive" />,
+  "inventory/stock-issue/add": () => <TransactionForm kind="stock-issue" />,
+  "inventory/stock-adjustment/add": () => <TransactionForm kind="adjustment" />,
   "sales/returns/add": () => <TransactionForm kind="sale-return" />,
   "purchases/requests/add": () => <TransactionForm kind="purchase-request" />,
   "purchases/orders/add": () => <TransactionForm kind="purchase-order" />,

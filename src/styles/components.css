@@ -648,14 +648,7 @@ input[type="checkbox"] {
   color: #fff;
 }
 
-/* ---------- Well / panels ---------- */
-.well {
-  padding: 12px 19px;
-  margin-bottom: 18px;
-  background: #f5f5f5;
-  border: 1px solid #e3e3e3;
-  border-radius: 2px;
-}
+/* ---------- Panels ---------- */
 .panel-warning {
   margin: 18px 0;
   border: 1px solid #faebcc;

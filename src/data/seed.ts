@@ -316,7 +316,6 @@ export const SEED = {
       createdBy: "admin021",
     },
   ]),
-  stockCounts: rows("stock-count", [] as Record<string, unknown>[]),
   productRewards: rows("product-reward", [
     { code: "RW001", name: "Free 1 kg pork", type: "standard", points: 300 },
     {
@@ -350,6 +349,8 @@ export const SEED = {
   purchaseRequests: [] as Row[],
   purchaseOrders: [] as Row[],
   purchaseReturns: [] as Row[],
+  stockReceives: [] as Row[],
+  stockIssues: [] as Row[],
   adjustments: SEED_ADJUSTMENTS as Row[],
   suspendedSales: [] as Row[],
 };

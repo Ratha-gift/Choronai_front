@@ -19,6 +19,8 @@ export type Movement = {
   purchaseReturnQty: number;
   adjustIn: number;
   adjustOut: number;
+  receivedQty: number;
+  issuedQty: number;
 };
 
 const empty = (product: Product): Movement => ({
@@ -31,6 +33,8 @@ const empty = (product: Product): Movement => ({
   purchaseReturnQty: 0,
   adjustIn: 0,
   adjustOut: 0,
+  receivedQty: 0,
+  issuedQty: 0,
 });
 
 /** Everything the reports need, computed once from the stored records. */
@@ -41,6 +45,8 @@ export function useReportData() {
   const purchases = useCollection<Transaction>("purchases").rows;
   const purchaseReturns = useCollection<Transaction>("purchaseReturns").rows;
   const adjustments = useCollection<Transaction>("adjustments").rows;
+  const stockReceives = useCollection<Transaction>("stockReceives").rows;
+  const stockIssues = useCollection<Transaction>("stockIssues").rows;
   const expenses = useCollection("expenses").rows;
 
   const movements = useMemo(() => {
@@ -77,8 +83,19 @@ export function useReportData() {
       if (line.type === "subtraction") move.adjustOut += line.quantity;
       else move.adjustIn += line.quantity;
     });
+    each(stockReceives, (move, line) => (move.receivedQty += line.quantity));
+    each(stockIssues, (move, line) => (move.issuedQty += line.quantity));
     return [...map.values()];
-  }, [products, sales, saleReturns, purchases, purchaseReturns, adjustments]);
+  }, [
+    products,
+    sales,
+    saleReturns,
+    purchases,
+    purchaseReturns,
+    adjustments,
+    stockReceives,
+    stockIssues,
+  ]);
 
   const stockValue = useMemo(
     () =>

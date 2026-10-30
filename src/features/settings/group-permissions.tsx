@@ -21,17 +21,18 @@ const MODULES: { id: string; label: Label; misc: [string, Label][] }[] = [
     id: "products",
     label: ["Products", "មុខទំនិញ"],
     misc: [
-      ["import", ["Import Product", "នាំចូល"]],
       ["cost", ["Product Cost", "ថ្លៃដើម"]],
       ["price", ["Product Price", "តម្លៃ"]],
-      ["barcode", ["Print Barcodes", "បោះពុម្ពបារកូដ"]],
-      ["count", ["Stock Counts", "រាប់ស្តុក"]],
     ],
   },
   {
-    id: "adjustments",
-    label: ["Adjustments", "កែសម្រួល"],
-    misc: [["approve", ["Approve Adjustment", "អនុម័ត"]]],
+    id: "stock",
+    label: ["Stock Management", "គ្រប់គ្រងស្តុក"],
+    misc: [
+      ["receive", ["Stock Receive", "ទទួលស្តុក"]],
+      ["issue", ["Stock Issue", "បញ្ចេញស្តុក"]],
+      ["approve", ["Approve Adjustment", "អនុម័ត"]],
+    ],
   },
   {
     id: "sales",

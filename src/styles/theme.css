@@ -152,6 +152,71 @@
   font-weight: 700;
 }
 
+/* Sub-menu inside a sidebar group (Inventory > Stock Management) */
+.nav-folder-button {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 37px;
+  padding: 8px 14px 8px 15px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #b3c8e8;
+  font-size: 12px;
+  text-align: left;
+}
+.nav-folder-button > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nav-folder-button i {
+  margin-left: auto;
+  font-style: normal;
+}
+.nav-folder-button:hover {
+  background: #ffffff12;
+  color: #fff;
+}
+.nav-folder-button.active {
+  color: #fff;
+  font-weight: 700;
+}
+.nav-folder-button .nav-chevron {
+  color: inherit;
+}
+.nav-children.nested {
+  margin: 2px 0 4px 12px;
+}
+.nav-children.nested a {
+  min-height: 33px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+/* Sub-menu in the collapsed rail's flyout */
+.nav-flyout-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 38px;
+  padding: 0 10px;
+  color: #23344d;
+  font-size: 13px;
+  font-weight: 600;
+}
+.nav-flyout-subtitle .icon {
+  color: #7a889b;
+}
+.nav-flyout-folder a {
+  margin-left: 18px;
+  padding-left: 12px;
+  border-left: 1px solid #dbe5f2;
+  border-radius: 0 7px 7px 0;
+}
+
 /* Content chrome */
 /* The content column is exactly one screen tall; the page area scrolls
    inside it, so list pages can pin their pagination to the bottom. */
@@ -1007,5 +1072,34 @@
   .select-chevron,
   .nav-chevron {
     transition: none;
+  }
+}
+
+/* Header buttons show their name beside the icon (icon only on phones). */
+.box-actions button,
+.box-actions a {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  padding: 0 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.box-actions button:disabled {
+  color: #9aa7b8;
+  cursor: not-allowed;
+}
+@media (max-width: 860px) {
+  .box-actions button,
+  .box-actions a {
+    width: 38px;
+    padding: 0;
+    justify-content: center;
+  }
+  .box-actions span {
+    display: none;
   }
 }
