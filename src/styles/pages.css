@@ -257,6 +257,23 @@
 .permissions td {
   vertical-align: middle;
 }
+/* "Select all" boxes: whole table, a column, or a module row */
+.check-all-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.check-all-label.column {
+  flex-direction: column;
+  gap: 6px;
+}
+.check-all {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--brand, var(--primary));
+  cursor: pointer;
+}
 .email-layout {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);

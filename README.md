@@ -26,7 +26,7 @@ English and Khmer (ភាសាខ្មែរ) interface.
 
 ## Features
 
-- **Point of sale:** barcode/search, product grid by category, cart, discount, tax and shipping, suspend and resume, cash in riel or US dollars with quick-cash buttons, printable bill and receipt.
+- **Point of sale:** barcode/search, product grid by category, cart, discount, tax and shipping, suspend and resume, cash in riel or US dollars with quick-cash buttons, printable bill and receipt. Cashiers open a register with their cash in hand and close it at the end of the shift with a count and summary (Sale → Registers keeps the history).
 - **Products:** standard, service and combo products, with images, suppliers, promotions, price history and CSV export.
 - **Purchasing:** purchase requests, orders, purchases and returns, plus expenses.
 - **Stock management** (under Inventory): stock receive, stock issue and stock adjustment pages. Every sale, purchase, return, receive, issue and adjustment updates stock automatically. Low-stock alerts appear in the header.

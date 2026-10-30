@@ -50,6 +50,29 @@ const sortByDate = { key: "date", desc: true };
 
 export const transactionResources: ResourceDef[] = [
   {
+    id: "sales/registers",
+    collection: "registers",
+    title: ["Registers (cashier shifts)", "បញ្ជរគិតលុយ (វេនអ្នកគិតលុយ)"],
+    noun: ["Register", "បញ្ជរ"],
+    icon: "lock",
+    initialSort: { key: "openedAt", desc: true },
+    canEdit: false,
+    columns: [
+      col("openedAt", "Opened", "បើក", "datetime"),
+      col("closedAt", "Closed", "បិទ", "datetime"),
+      col("username", "Cashier", "អ្នកគិតលុយ"),
+      col("warehouse", "Warehouse", "ឃ្លាំង"),
+      col("cashInHand", "Cash in hand", "សាច់ប្រាក់ដើម", "money"),
+      col("totalSales", "Total Sales", "លក់សរុប", "money", { total: true }),
+      col("invoices", "Invoices", "វិក្កយបត្រ", "number", { total: true }),
+      col("expectedCash", "Expected Cash", "សាច់ប្រាក់គួរមាន", "money"),
+      col("countedTotal", "Counted", "រាប់បាន", "money"),
+      col("difference", "Difference", "ខុសគ្នា", "money", { total: true }),
+      col("note", "Note", "កំណត់ចំណាំ"),
+      status,
+    ],
+  },
+  {
     id: "sales/pos-sales",
     collection: "sales",
     title: [

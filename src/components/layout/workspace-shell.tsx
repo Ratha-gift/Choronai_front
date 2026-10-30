@@ -1,7 +1,7 @@
 "use client";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/icons";
 import {
   DASHBOARD,
@@ -15,7 +15,11 @@ import {
 import { ProductDialogs } from "@/features/products/components/product-dialogs";
 import { isLowStock, useProducts } from "@/features/products/store";
 import { LOGO_KEY, NO_LOGO } from "@/features/settings/change-logo";
+import { useOpenRegister } from "@/features/pos/register";
+import { OpenRegisterModal } from "@/features/pos/register-modals";
 import { useSettings } from "@/features/settings/store";
+import { useCollection } from "@/data/collections";
+import { toNumber } from "@/lib/format";
 import { useLanguage } from "@/i18n";
 import { formatDate } from "@/lib/format";
 import { useSession } from "@/lib/auth";
@@ -58,6 +62,14 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
   const rail = collapsed && !isPhone;
   const [calculator, setCalculator] = useState(false);
   const session = useSession();
+  const router = useRouter();
+  // The POS button asks for the cash in hand first when no register is open.
+  const register = useOpenRegister(session?.username ?? "").open;
+  const [openingRegister, setOpeningRegister] = useState(false);
+  const usdRate =
+    toNumber(
+      useCollection("currencies").rows.find((row) => row.code === "USD")?.rate,
+    ) || 4100;
 
   const segments = pathname.split("/").filter(Boolean);
   const module = resolvePath(segments)?.module ?? DASHBOARD;
@@ -144,7 +156,15 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
             <Icon name="alert" />
             {alerts > 0 && <i className="badge">{alerts}</i>}
           </Link>
-          <Link href="/pos" className="hbtn green wide">
+          <Link
+            href="/pos"
+            className="hbtn green wide"
+            onClick={(event) => {
+              if (register || !session) return;
+              event.preventDefault();
+              setOpeningRegister(true);
+            }}
+          >
             <Icon name="grid" /> POS
           </Link>
           <Link
@@ -208,6 +228,19 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
       <div className="mobile-scrim" onClick={() => setMobileOpen(false)} />
       <ProductDialogs />
       <Calculator open={calculator} onClose={() => setCalculator(false)} />
+      {openingRegister && session && (
+        <OpenRegisterModal
+          username={session.username}
+          warehouse={String(settings.defaultWarehouse ?? "")}
+          rate={usdRate}
+          cancelLabel={["Cancel", "បោះបង់"]}
+          onCancel={() => setOpeningRegister(false)}
+          onOpened={() => {
+            setOpeningRegister(false);
+            router.push("/pos");
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1004,3 +1004,135 @@
     -webkit-print-color-adjust: exact;
   }
 }
+
+/* ---------- Cashier register (open / close shift) ---------- */
+.register-form {
+  display: grid;
+  gap: 12px;
+}
+.register-total {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--brand-soft, #e9f0fb);
+}
+.register-total small,
+.register-summary small {
+  color: var(--muted);
+}
+.register-print {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  margin-right: 10px;
+  padding: 4px 10px;
+  font-size: 12.5px;
+}
+.register-summary {
+  margin: 0 0 16px;
+}
+.register-summary > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 2px;
+  border-bottom: 1px solid #edf1f6;
+}
+.register-summary dt {
+  color: #3d4b60;
+}
+.register-summary dd {
+  margin: 0;
+  text-align: right;
+}
+.register-summary .strong dt,
+.register-summary .strong dd {
+  font-weight: 700;
+  color: var(--ink, #14233a);
+}
+.register-count {
+  padding-top: 14px;
+  border-top: 1px solid #dfe6ef;
+}
+.text-success {
+  color: #0b6b3a;
+}
+.print-only {
+  display: none;
+}
+.pos-nav-btn.close-register {
+  background: #c0392b;
+  border-color: #c0392b;
+  color: #fff;
+}
+.pos-nav-btn.close-register:hover {
+  background: #a93226;
+}
+@media print {
+  .print-only {
+    display: block;
+  }
+}
+
+/* ---------- PIN prompt ---------- */
+.pin-input {
+  font-size: 20px;
+  letter-spacing: 0.4em;
+  text-align: center;
+}
+.pin-input.invalid {
+  border-color: #c0392b;
+  animation: pin-shake 0.3s;
+}
+.pin-error {
+  margin: 8px 0 0;
+  color: #c0392b;
+  font-size: 13px;
+}
+.pin-ok {
+  min-width: 90px;
+}
+@keyframes pin-shake {
+  25% {
+    transform: translateX(-6px);
+  }
+  75% {
+    transform: translateX(6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pin-input.invalid {
+    animation: none;
+  }
+}
+
+/* ---------- Membership card ---------- */
+.pos-member .form-control {
+  flex: 1;
+  min-height: var(--touch);
+  border: 1px solid var(--brand-line);
+}
+.pos-member-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: -4px;
+  padding: 6px 10px;
+  border: 1px solid #bfe3cc;
+  border-radius: 6px;
+  background: #eaf7ef;
+  color: #0b6b3a;
+  font-size: 13px;
+}
+.pos-member-chip span {
+  flex: 1;
+}
+.pos-member-chip button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}

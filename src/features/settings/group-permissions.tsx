@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Box } from "@/components/ui/box";
 import { useCollection } from "@/data/collections";
 import { useLanguage, type Label } from "@/i18n";
@@ -42,6 +42,7 @@ const MODULES: { id: string; label: Label; misc: [string, Label][] }[] = [
       ["payments", ["Payments", "ការទូទាត់"]],
       ["returns", ["Return Sales", "លក់ត្រឡប់"]],
       ["cancel", ["Cancel Sales", "បោះបង់"]],
+      ["registers", ["Open / Close Register", "បើក / បិទបញ្ជរ"]],
     ],
   },
   {
@@ -103,6 +104,43 @@ const MODULES: { id: string; label: Label; misc: [string, Label][] }[] = [
   },
 ];
 
+const keysOf = (module: (typeof MODULES)[number]) => [
+  ...CRUD.map(([id]) => `${module.id}.${id}`),
+  ...module.misc.map(([id]) => `${module.id}.${id}`),
+];
+const ALL_KEYS = MODULES.flatMap(keysOf);
+
+/** Ticks or clears a set of permissions; shows a dash when only some are on. */
+function CheckAll({
+  keys,
+  values,
+  onChange,
+  label,
+}: {
+  keys: string[];
+  values: Record<string, boolean>;
+  onChange: (keys: string[], on: boolean) => void;
+  label: string;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const count = keys.filter((key) => values[key]).length;
+  const all = count === keys.length;
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = count > 0 && !all;
+  }, [count, all]);
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      className="check-all"
+      title={label}
+      aria-label={label}
+      checked={all}
+      onChange={() => onChange(keys, !all)}
+    />
+  );
+}
+
 export function GroupPermissions({ groupId }: { groupId?: string }) {
   const { l, t } = useLanguage();
   const { rows: groups } = useCollection("userGroups");
@@ -117,6 +155,12 @@ export function GroupPermissions({ groupId }: { groupId?: string }) {
         <p>{t.noDataTable}</p>
       </Box>
     );
+  const setMany = (keys: string[], on: boolean) =>
+    setValues((old) => ({
+      ...old,
+      ...Object.fromEntries(keys.map((key) => [key, on])),
+    }));
+  const selectAll = l(["Select all", "ជ្រើសទាំងអស់"]);
   const box = (key: string) => (
     <input
       type="checkbox"
@@ -138,12 +182,32 @@ export function GroupPermissions({ groupId }: { groupId?: string }) {
         <table className="data-table permissions">
           <thead>
             <tr>
-              <th rowSpan={2}>{l(["Module Name", "ម៉ូឌុល"])}</th>
+              <th rowSpan={2}>
+                <label className="check-all-label">
+                  <CheckAll
+                    keys={ALL_KEYS}
+                    values={values}
+                    onChange={setMany}
+                    label={selectAll}
+                  />
+                  {l(["Check All", "ជ្រើសទាំងអស់"])}
+                </label>
+              </th>
               <th colSpan={5}>{l(["Permissions", "សិទ្ធិ"])}</th>
             </tr>
             <tr>
               {CRUD.map(([id, label]) => (
-                <th key={id}>{l(label)}</th>
+                <th key={id} className="align-center">
+                  <label className="check-all-label column">
+                    {l(label)}
+                    <CheckAll
+                      keys={MODULES.map((module) => `${module.id}.${id}`)}
+                      values={values}
+                      onChange={setMany}
+                      label={`${selectAll}: ${l(label)}`}
+                    />
+                  </label>
+                </th>
               ))}
               <th>{l(["Miscellaneous", "ផ្សេងៗ"])}</th>
             </tr>
@@ -152,7 +216,15 @@ export function GroupPermissions({ groupId }: { groupId?: string }) {
             {MODULES.map((module) => (
               <tr key={module.id}>
                 <th scope="row" className="row-head">
-                  {l(module.label)}
+                  <label className="check-all-label">
+                    <CheckAll
+                      keys={keysOf(module)}
+                      values={values}
+                      onChange={setMany}
+                      label={`${selectAll}: ${l(module.label)}`}
+                    />
+                    {l(module.label)}
+                  </label>
                 </th>
                 {CRUD.map(([id]) => (
                   <td key={id} className="align-center">

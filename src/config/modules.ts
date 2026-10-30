@@ -87,6 +87,7 @@ export const groups: NavGroup[] = [
     items: [
       m("sales/pos-sales", "POS Sales", "ការលក់ POS", "heart"),
       m("sales/returns", "Sale Returns", "ទំនិញលក់ត្រឡប់", "undo"),
+      m("sales/registers", "Registers", "បញ្ជរគិតលុយ", "lock"),
       m("sales/member-cards", "Member Cards", "កាតសមាជិក", "card"),
     ],
   },
