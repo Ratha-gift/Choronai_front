@@ -26,52 +26,6 @@ const YES: [string, Label][] = [
 export const recordResources: ResourceDef[] = [
   // Inventory
   {
-    id: "inventory/stock-counts",
-    collection: "stockCounts",
-    title: ["Stock Counts (All Warehouses)", "រាប់ស្តុក (គ្រប់ឃ្លាំង)"],
-    noun: ["Stock Count", "ការរាប់ស្តុក"],
-    icon: "list",
-    initialSort: { key: "date", desc: true },
-    columns: [
-      col("date", "Date", "កាលបរិច្ឆេទ", "datetime"),
-      col("reference", "Reference", "លេខយោង"),
-      col("warehouse", "Warehouse", "ឃ្លាំង"),
-      col("type", "Type", "ប្រភេទ"),
-      col("brands", "Brands", "ម៉ាក"),
-      col("categories", "Categories", "ប្រភេទទំនិញ"),
-      col("note", "Note", "កំណត់ចំណាំ"),
-    ],
-    fields: [
-      required("date", "Date", "កាលបរិច្ឆេទ", {
-        type: "datetime-local",
-        default: now,
-      }),
-      field("reference", "Reference", "លេខយោង", {
-        default: nextRef("countStockPrefix"),
-      }),
-      required("warehouse", "Warehouse", "ឃ្លាំង", {
-        type: "select",
-        collection: { name: "warehouses", field: "name" },
-      }),
-      required("type", "Type", "ប្រភេទ", {
-        type: "select",
-        options: [
-          ["Full", ["Full", "ពេញលេញ"]],
-          ["Partial", ["Partial", "ផ្នែកខ្លះ"]],
-        ],
-      }),
-      field("brands", "Brands", "ម៉ាក", {
-        type: "select",
-        collection: { name: "brands", field: "name" },
-      }),
-      field("categories", "Categories", "ប្រភេទទំនិញ", {
-        type: "select",
-        collection: { name: "categories", field: "name" },
-      }),
-      field("note", "Note", "កំណត់ចំណាំ", { type: "textarea", full: true }),
-    ],
-  },
-  {
     id: "inventory/product-rewards",
     collection: "productRewards",
     title: ["Product Rewards", "រង្វាន់មុខទំនិញ"],

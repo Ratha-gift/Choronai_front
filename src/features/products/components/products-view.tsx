@@ -131,12 +131,6 @@ export function ProductsView() {
                   openProductDialog({ kind: "history", productId: product.id }),
               },
               {
-                icon: "print",
-                label: l(["Print Barcode/Label", "បោះពុម្ពបារកូដ"]),
-                onClick: () =>
-                  router.push(`/inventory/print-barcode?product=${product.id}`),
-              },
-              {
                 icon: "trash",
                 label: l(["Delete Product", "លុបមុខទំនិញ"]),
                 danger: true,

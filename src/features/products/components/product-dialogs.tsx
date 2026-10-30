@@ -25,7 +25,7 @@ function ProductDetails({
   product: Product;
   onClose: () => void;
 }) {
-  const { l, t, language } = useLanguage();
+  const { t, language } = useLanguage();
   const router = useRouter();
   const rows: [string, string][] = [
     [t.code, product.sku],
@@ -65,15 +65,6 @@ function ProductDetails({
         </table>
       </div>
       <div className="button-bar">
-        <button
-          className="btn btn-primary"
-          onClick={() => {
-            onClose();
-            router.push(`/inventory/print-barcode?product=${product.id}`);
-          }}
-        >
-          {l(["Print Barcode/Label", "បោះពុម្ពបារកូដ"])}
-        </button>
         <button className="btn btn-primary" onClick={() => window.print()}>
           {t.print}
         </button>

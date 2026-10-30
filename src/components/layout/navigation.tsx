@@ -5,11 +5,14 @@ import Link from "next/link";
 import {
   DASHBOARD,
   SHOP_SETTINGS,
+  folderOf,
   groupOf,
   groups,
   hrefOf,
   findModule,
+  isFolder,
   type ModuleDef,
+  type NavEntry,
   type NavGroup,
 } from "@/config/modules";
 import { Icon } from "@/components/icons";
@@ -31,9 +34,11 @@ export function Navigation({
 }) {
   const { l, language } = useLanguage();
   const activeGroup = groupOf(current)?.id;
+  const activeFolder = folderOf(current)?.id;
   const activeItem = findModule(current)?.parent ?? current;
+  // Open groups and sub-menus (folders share the list; ids never clash).
   const [expanded, setExpanded] = useState<string[]>(
-    activeGroup ? [activeGroup] : [],
+    [activeGroup, activeFolder].filter((id) => id !== undefined),
   );
   const [flyout, setFlyout] = useState<Flyout>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -41,11 +46,17 @@ export function Navigation({
   const flyoutRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (activeGroup)
-      setExpanded((old) =>
-        old.includes(activeGroup) ? old : [...old, activeGroup],
-      );
-  }, [activeGroup]);
+    const wanted = [activeGroup, activeFolder].filter((id) => id !== undefined);
+    setExpanded((old) =>
+      wanted.every((id) => old.includes(id))
+        ? old
+        : [...old, ...wanted.filter((id) => !old.includes(id))],
+    );
+  }, [activeGroup, activeFolder]);
+  const toggle = (id: string) =>
+    setExpanded((old) =>
+      old.includes(id) ? old.filter((item) => item !== id) : [...old, id],
+    );
 
   // Flyouts only exist in the collapsed rail.
   useEffect(() => {
@@ -116,6 +127,54 @@ export function Navigation({
     </Link>
   );
 
+  /** Rows a group needs in the flyout: its pages plus folder headings. */
+  const rowsOf = (group: NavGroup) =>
+    group.items.reduce(
+      (sum, entry) => sum + (isFolder(entry) ? entry.items.length + 1 : 1),
+      0,
+    );
+
+  const childLink = (item: ModuleDef, size: number, menu = false) => (
+    <Link
+      key={item.id}
+      href={hrefOf(item.id)}
+      role={menu ? "menuitem" : undefined}
+      aria-current={activeItem === item.id ? "page" : undefined}
+      className={activeItem === item.id ? "active" : ""}
+      onClick={navigate}
+    >
+      <Icon name={item.icon} size={size} />
+      <span>{l(item.label)}</span>
+    </Link>
+  );
+
+  /** A page link, or a sub-menu that opens below its heading. */
+  const sidebarEntry = (entry: NavEntry) => {
+    if (!isFolder(entry)) return childLink(entry, 14);
+    const open = expanded.includes(entry.id);
+    return (
+      <div key={entry.id} className="nav-folder">
+        <button
+          type="button"
+          className={`nav-folder-button ${activeFolder === entry.id ? "active" : ""}`}
+          aria-expanded={open}
+          onClick={() => toggle(entry.id)}
+        >
+          <Icon name={entry.icon} size={14} />
+          <span>{l(entry.label)}</span>
+          <i className={open ? "nav-chevron open" : "nav-chevron"}>
+            <Icon name="chevronDown" size={13} />
+          </i>
+        </button>
+        {open && (
+          <div className="nav-children nested">
+            {entry.items.map((item) => childLink(item, 13))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const flyoutGroup: NavGroup | undefined = groups.find(
     (group) => group.id === flyout?.id,
   );
@@ -141,23 +200,15 @@ export function Navigation({
                 aria-expanded={collapsed ? flown : open}
                 aria-haspopup={collapsed ? "menu" : undefined}
                 aria-label={collapsed ? l(group.label) : undefined}
-                {...hover(group.id, group.items.length)}
+                {...hover(group.id, rowsOf(group))}
                 onClick={(event) => {
                   if (collapsed) {
                     if (flown) setFlyout(null);
                     else
-                      openFlyout(
-                        group.id,
-                        event.currentTarget,
-                        group.items.length,
-                      );
+                      openFlyout(group.id, event.currentTarget, rowsOf(group));
                     return;
                   }
-                  setExpanded((old) =>
-                    old.includes(group.id)
-                      ? old.filter((id) => id !== group.id)
-                      : [...old, group.id],
-                  );
+                  toggle(group.id);
                 }}
               >
                 <Icon name={group.icon} />
@@ -168,18 +219,7 @@ export function Navigation({
               </button>
               {open && (
                 <div className="nav-children">
-                  {group.items.map((item) => (
-                    <Link
-                      key={item.id}
-                      href={hrefOf(item.id)}
-                      aria-current={activeItem === item.id ? "page" : undefined}
-                      className={activeItem === item.id ? "active" : ""}
-                      onClick={navigate}
-                    >
-                      <Icon name={item.icon} size={14} />
-                      <span>{l(item.label)}</span>
-                    </Link>
-                  ))}
+                  {group.items.map(sidebarEntry)}
                 </div>
               )}
             </div>
@@ -205,19 +245,23 @@ export function Navigation({
             {flyoutGroup ? (
               <>
                 <div className="nav-flyout-title">{l(flyoutGroup.label)}</div>
-                {flyoutGroup.items.map((item) => (
-                  <Link
-                    key={item.id}
-                    href={hrefOf(item.id)}
-                    role="menuitem"
-                    aria-current={activeItem === item.id ? "page" : undefined}
-                    className={activeItem === item.id ? "active" : ""}
-                    onClick={navigate}
-                  >
-                    <Icon name={item.icon} size={15} />
-                    <span>{l(item.label)}</span>
-                  </Link>
-                ))}
+                {flyoutGroup.items.map((entry) =>
+                  isFolder(entry) ? (
+                    <div
+                      key={entry.id}
+                      className="nav-flyout-folder"
+                      role="group"
+                    >
+                      <div className="nav-flyout-subtitle">
+                        <Icon name={entry.icon} size={15} />
+                        <span>{l(entry.label)}</span>
+                      </div>
+                      {entry.items.map((item) => childLink(item, 14, true))}
+                    </div>
+                  ) : (
+                    childLink(entry, 15, true)
+                  ),
+                )}
               </>
             ) : (
               flyoutSingle && <span>{l(flyoutSingle.label)}</span>

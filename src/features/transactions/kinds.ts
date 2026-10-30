@@ -9,6 +9,8 @@ export type TransactionKind =
   | "purchase-order"
   | "purchase-return"
   | "sale-return"
+  | "stock-receive"
+  | "stock-issue"
   | "adjustment";
 
 export type KindDef = {
@@ -27,6 +29,8 @@ export type KindDef = {
   expiry?: boolean;
   statuses: string[];
   payment?: boolean;
+  /** Show order tax, discount and shipping (off for stock movements). */
+  charges?: boolean;
 };
 
 export const KINDS: Record<TransactionKind, KindDef> = {
@@ -91,10 +95,32 @@ export const KINDS: Record<TransactionKind, KindDef> = {
     statuses: ["completed"],
     payment: true,
   },
+  "stock-receive": {
+    collection: "stockReceives",
+    listHref: "/inventory/stock-receive",
+    title: ["Add Stock Receive", "បន្ថែមការទទួលស្តុក"],
+    icon: "download",
+    prefixSetting: "stockReceivePrefix",
+    stock: 1,
+    price: "cost",
+    statuses: ["completed"],
+    charges: false,
+  },
+  "stock-issue": {
+    collection: "stockIssues",
+    listHref: "/inventory/stock-issue",
+    title: ["Add Stock Issue", "បន្ថែមការបញ្ចេញស្តុក"],
+    icon: "upload",
+    prefixSetting: "stockIssuePrefix",
+    stock: -1,
+    price: "cost",
+    statuses: ["completed"],
+    charges: false,
+  },
   adjustment: {
     collection: "adjustments",
-    listHref: "/inventory/quantity-adjustments",
-    title: ["Add Adjustment", "បន្ថែមការកែសម្រួល"],
+    listHref: "/inventory/stock-adjustment",
+    title: ["Add Stock Adjustment", "បន្ថែមការកែតម្រូវស្តុក"],
     icon: "filter",
     prefixSetting: "adjustmentPrefix",
     stock: 1,

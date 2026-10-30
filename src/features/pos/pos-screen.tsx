@@ -294,7 +294,13 @@ function PosScreen() {
                 ariaLabel={t.customer}
                 value={customer}
                 onChange={setCustomer}
+                searchable
                 searchPlaceholder={`${t.searchLabel}…`}
+                footer={{
+                  icon: "userPlus",
+                  label: l(["Add new customer", "បន្ថែមអតិថិជនថ្មី"]),
+                  onClick: () => setPanel("customer"),
+                }}
                 options={customers.rows.map((row) => ({
                   value: String(row.name),
                   label: String(row.name),

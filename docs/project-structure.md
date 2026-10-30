@@ -9,7 +9,7 @@
 | Add or change a simple list page (table + add/edit modal) | `src/features/resources/definitions/`             |
 | Change the header, sidebar or breadcrumbs                 | `src/components/layout/workspace-shell.tsx`       |
 | Change tables everywhere                                  | `src/components/ui/data-table.tsx`                |
-| Change purchase / return / adjustment forms               | `src/features/transactions/`                      |
+| Change purchase / return / stock forms                    | `src/features/transactions/`                      |
 | Change the POS                                            | `src/features/pos/`                               |
 | Change System or POS settings fields                      | `src/features/settings/definitions.ts`            |
 | Change reports                                            | `src/features/reports/`                           |
@@ -32,7 +32,7 @@ Folders in brackets are Next.js **route groups**: they organise routes without c
 
 ## How pages are built
 
-`src/config/modules.ts` lists every page once. Its `id` is the URL (`inventory/products` is `/inventory/products`), and the same list drives the sidebar and breadcrumbs. All admin pages share one route, `src/app/(private)/(workspace)/[[...slug]]/page.tsx`, which returns 404 for unknown paths and renders `ModuleView`.
+`src/config/modules.ts` lists every page once. Its `id` is the URL (`inventory/products` is `/inventory/products`), and the same list drives the sidebar and breadcrumbs. A group can hold one level of sub-menu (`NavFolder`), as Inventory does with Stock Management. All admin pages share one route, `src/app/(private)/(workspace)/[[...slug]]/page.tsx`, which returns 404 for unknown paths and renders `ModuleView`.
 
 `ModuleView` (`src/features/registry.tsx`) picks the page:
 
@@ -50,7 +50,7 @@ Amounts are stored in riel. The USD figure in the POS uses the USD exchange rate
 
 Products are standard (stocked), service (never stocked) or combo. Selling or buying a combo moves the stock of its component products instead (`adjustStock` in `src/features/products/store.ts`). Only products with an alert quantity above 0 count as low stock.
 
-Stock moves when records are saved: POS sales and purchase returns remove stock; received purchases and sale returns add it; adjustments follow each line's type. Deleting such a record reverses its stock change. Reports are computed from these records, never stored.
+Stock moves when records are saved: POS sales and purchase returns remove stock; received purchases, sale returns and stock receives add it; stock issues remove it; adjustments follow each line's type. Deleting such a record reverses its stock change. Reports are computed from these records, never stored.
 
 ## Sign-in
 

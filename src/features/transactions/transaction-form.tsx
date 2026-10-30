@@ -122,13 +122,15 @@ export function TransactionForm({ kind: kindId }: { kind: TransactionKind }) {
     taxRates.rows.find((row) => row.name === form.taxRate)?.rate,
   );
   const rateType = taxRates.rows.find((row) => row.name === form.taxRate)?.type;
-  const discount = toNumber(form.discount);
-  const orderTax =
-    rateType === "Percentage" ? ((total - discount) * rate) / 100 : rate;
-  const grandTotal = Math.max(
-    0,
-    total - discount + orderTax + toNumber(form.shipping),
-  );
+  const charges = kind.price !== "none" && kind.charges !== false;
+  const discount = charges ? toNumber(form.discount) : 0;
+  const orderTax = !charges
+    ? 0
+    : rateType === "Percentage"
+      ? ((total - discount) * rate) / 100
+      : rate;
+  const shipping = charges ? toNumber(form.shipping) : 0;
+  const grandTotal = Math.max(0, total - discount + orderTax + shipping);
   const totalQty = items.reduce((sum, line) => sum + line.quantity, 0);
 
   function save() {
@@ -153,7 +155,7 @@ export function TransactionForm({ kind: kindId }: { kind: TransactionKind }) {
       total,
       orderTax,
       discount,
-      shipping: toNumber(form.shipping),
+      shipping,
       grandTotal,
       paid,
       returned: 0,
@@ -497,6 +499,10 @@ export function TransactionForm({ kind: kindId }: { kind: TransactionKind }) {
               <span>
                 {t.total} <b>{formatMoney(total)}</b>
               </span>
+            </>
+          )}
+          {charges && (
+            <>
               <span>
                 {t.orderTax} <b>{formatMoney(orderTax)}</b>
               </span>
@@ -523,7 +529,7 @@ export function TransactionForm({ kind: kindId }: { kind: TransactionKind }) {
         </label>
         {moreOptions && (
           <FormGrid columns={3}>
-            {kind.price !== "none" && (
+            {charges && (
               <>
                 <Field label={t.orderTax}>
                   <select

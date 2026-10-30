@@ -27,9 +27,9 @@ English and Khmer (ភាសាខ្មែរ) interface.
 ## Features
 
 - **Point of sale:** barcode/search, product grid by category, cart, discount, tax and shipping, suspend and resume, cash in riel or US dollars with quick-cash buttons, printable bill and receipt.
-- **Products:** standard, service and combo products, with images, suppliers, promotions, price history, CSV import/export and barcode label printing.
+- **Products:** standard, service and combo products, with images, suppliers, promotions, price history and CSV export.
 - **Purchasing:** purchase requests, orders, purchases and returns, plus expenses.
-- **Stock:** every sale, purchase, return and quantity adjustment updates stock automatically. Low-stock alerts appear in the header.
+- **Stock management** (under Inventory): stock receive, stock issue and stock adjustment pages. Every sale, purchase, return, receive, issue and adjustment updates stock automatically. Low-stock alerts appear in the header.
 - **People:** customers (with award points), suppliers and users.
 - **Settings:** system and POS settings, branches, warehouses, categories, units, currencies, tax rates, group permissions, printers and email templates.
 - **Reports:** overview, warehouse stock, category and best-seller charts, plus stock in/out, expiry, adjustment and sales reports. All of them can be exported as CSV or printed.
@@ -98,9 +98,9 @@ src/
 ├── data/                   Stored collections and sample data
 ├── features/
 │   ├── dashboard/          Totals, quick links, latest five
-│   ├── products/           Product list, add/edit page, import, barcode labels
+│   ├── products/           Product list, add/edit page
 │   ├── pos/                Point of sale, cart, payment, receipt
-│   ├── transactions/       Purchase, return and adjustment forms
+│   ├── transactions/       Purchase, return, stock receive / issue / adjustment forms
 │   ├── resources/          Config-driven list pages (customers, units, ...)
 │   ├── settings/           System/POS settings, logo, permissions, emails
 │   └── reports/            Charts and report tables
@@ -126,7 +126,7 @@ This is a front-end prototype:
 
 - **Data stays in one browser.** It is saved in localStorage and is not shared between devices. Clearing browser data removes it.
 - **Sign-in runs in the browser.** It keeps casual users out, but it is not real security, because someone with browser devtools can get past it. Group permissions are saved but not enforced. Proper authentication needs the backend.
-- **Not connected yet:** barcode graphics on labels, receipt printers, payment gateways (ABA / KHQR) and the weighing scale.
+- **Not connected yet:** receipt printers, payment gateways (ABA / KHQR) and the weighing scale.
 - **Placeholder pages:** Shop Settings, Transfers and Notifications.
 
 The storage layer is isolated in [`src/lib/store.ts`](src/lib/store.ts), so it can be replaced with a real API later.
