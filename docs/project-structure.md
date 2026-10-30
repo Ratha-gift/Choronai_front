@@ -17,9 +17,22 @@
 | Change shared English or Khmer text                       | `src/i18n/locales/en.ts` and `km.ts`              |
 | Change styling                                            | `src/styles/`                                     |
 
+## Routes: public and private
+
+Folders in brackets are Next.js **route groups**: they organise routes without changing the URL.
+
+| Folder                           | Who can open it                    | Pages                                 |
+| -------------------------------- | ---------------------------------- | ------------------------------------- |
+| `src/app/(public)/`              | Anyone                             | `/login`                              |
+| `src/app/(private)/`             | Signed-in users only               | everything else                       |
+| `src/app/(private)/(workspace)/` | Signed-in, with header and sidebar | `/`, `/inventory/…`, `/settings/…`, … |
+| `src/app/(private)/pos/`         | Signed-in, full screen             | `/pos`                                |
+
+`(private)/layout.tsx` wraps the whole group in `AuthGate`, so a new private page needs no sign-in code of its own: create it inside `(private)/`. A page visitors must reach before signing in (for example password reset) goes in `(public)/`. Two groups must never contain the same URL.
+
 ## How pages are built
 
-`src/config/modules.ts` lists every page once. Its `id` is the URL (`inventory/products` is `/inventory/products`), and the same list drives the sidebar and breadcrumbs. All admin pages share one route, `src/app/(workspace)/[[...slug]]/page.tsx`, which returns 404 for unknown paths and renders `ModuleView`.
+`src/config/modules.ts` lists every page once. Its `id` is the URL (`inventory/products` is `/inventory/products`), and the same list drives the sidebar and breadcrumbs. All admin pages share one route, `src/app/(private)/(workspace)/[[...slug]]/page.tsx`, which returns 404 for unknown paths and renders `ModuleView`.
 
 `ModuleView` (`src/features/registry.tsx`) picks the page:
 
@@ -41,7 +54,7 @@ Stock moves when records are saved: POS sales and purchase returns remove stock;
 
 ## Sign-in
 
-`src/lib/auth.ts` holds the prototype sign-in. Users live in the `users` collection with a SHA-256 `passwordHash` (salted with the username). People → Users hashes the password on save, through the resource's `prepare` hook. `AuthGate` wraps the admin layout and the POS and sends signed-out visitors to `/login?next=…`. New records are stamped with `currentUsername()`. This runs only in the browser and is not real security: replace it with server-side sessions when the API exists.
+`src/lib/auth.ts` holds the prototype sign-in. Users live in the `users` collection with a SHA-256 `passwordHash` (salted with the username). People → Users hashes the password on save, through the resource's `prepare` hook. `AuthGate` wraps the `(private)` route group (admin pages and POS) and sends signed-out visitors to `/login?next=…`. New records are stamped with `currentUsername()`. This runs only in the browser and is not real security: replace it with server-side sessions when the API exists.
 
 ## Languages
 

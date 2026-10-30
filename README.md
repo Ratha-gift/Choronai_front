@@ -83,7 +83,14 @@ The first visit shows sample products, sales and customers so every screen has s
 
 ```text
 src/
-├── app/                    Routes (one catch-all route for admin pages, plus /pos)
+├── app/
+│   ├── (public)/           Open to everyone — no sign-in
+│   │   └── login/          /login
+│   ├── (private)/          Sign-in required (AuthGate in layout.tsx)
+│   │   ├── (workspace)/    Back office: header + sidebar, one catch-all route
+│   │   └── pos/            /pos — full-screen point of sale
+│   ├── layout.tsx          Root HTML, toasts, confirm dialog
+│   └── not-found.tsx       404 page
 ├── components/
 │   ├── layout/             Header, sidebar, language menu, calculator
 │   └── ui/                 Box, DataTable, Modal, form fields, tabs, charts
