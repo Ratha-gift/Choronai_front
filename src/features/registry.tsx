@@ -45,11 +45,16 @@ const PAGES: Record<string, (params: string[]) => ReactNode> = {
   "inventory/stock-receive/add": () => <TransactionForm kind="stock-receive" />,
   "inventory/stock-issue/add": () => <TransactionForm kind="stock-issue" />,
   "inventory/stock-adjustment/add": () => <TransactionForm kind="adjustment" />,
+  "inventory/stock-receive/edit": ([id]) => (
+    <TransactionForm key={id} kind="stock-receive" recordId={id} />
+  ),
+  "inventory/stock-issue/edit": ([id]) => (
+    <TransactionForm key={id} kind="stock-issue" recordId={id} />
+  ),
+  "inventory/stock-adjustment/edit": ([id]) => (
+    <TransactionForm key={id} kind="adjustment" recordId={id} />
+  ),
   "sales/returns/add": () => <TransactionForm kind="sale-return" />,
-  "purchases/requests/add": () => <TransactionForm kind="purchase-request" />,
-  "purchases/orders/add": () => <TransactionForm kind="purchase-order" />,
-  "purchases/list/add": () => <TransactionForm kind="purchase" />,
-  "purchases/returns/add": () => <TransactionForm kind="purchase-return" />,
   "settings/system": () => (
     <SettingsPage
       name="system"

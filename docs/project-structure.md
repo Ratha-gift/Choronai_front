@@ -9,7 +9,7 @@
 | Add or change a simple list page (table + add/edit modal) | `src/features/resources/definitions/`             |
 | Change the header, sidebar or breadcrumbs                 | `src/components/layout/workspace-shell.tsx`       |
 | Change tables everywhere                                  | `src/components/ui/data-table.tsx`                |
-| Change purchase / return / stock forms                    | `src/features/transactions/`                      |
+| Change sale return / stock forms                          | `src/features/transactions/`                      |
 | Change the POS                                            | `src/features/pos/`                               |
 | Change System or POS settings fields                      | `src/features/settings/definitions.ts`            |
 | Change reports                                            | `src/features/reports/`                           |
@@ -50,7 +50,7 @@ Amounts are stored in riel. The USD figure in the POS uses the USD exchange rate
 
 Products are standard (stocked), service (never stocked) or combo. Selling or buying a combo moves the stock of its component products instead (`adjustStock` in `src/features/products/store.ts`). Only products with an alert quantity above 0 count as low stock.
 
-Stock moves when records are saved: POS sales and purchase returns remove stock; received purchases, sale returns and stock receives add it; stock issues remove it; adjustments follow each line's type. Deleting such a record reverses its stock change. Reports are computed from these records, never stored.
+Stock moves when records are saved: POS sales and stock issues remove stock; sale returns and stock receives add it; adjustments follow each line's type. Deleting such a record reverses its stock change. Reports are computed from these records, never stored.
 
 ## Sign-in
 
@@ -66,4 +66,4 @@ Shared interface text lives in `src/i18n/locales/en.ts` and `km.ts`; TypeScript 
 
 ## Before sharing
 
-Run `npm run format:check`, `npm run typecheck` and `npm run build`. In the browser, check the dashboard, a POS sale through to the receipt, adding a purchase, a list page's add/edit/delete, a report, the language toggle and the mobile menu. Leave out `.next`, `node_modules`, `.git`, local secrets and previous ZIP files when packaging.
+Run `npm run format:check`, `npm run typecheck` and `npm run build`. In the browser, check the dashboard, a POS sale through to the receipt, adding a stock receive, a list page's add/edit/delete, a report, the language toggle and the mobile menu. Leave out `.next`, `node_modules`, `.git`, local secrets and previous ZIP files when packaging.

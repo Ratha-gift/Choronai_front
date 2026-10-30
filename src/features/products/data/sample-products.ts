@@ -1,8 +1,8 @@
 import {
   SEED_ADJUSTMENTS,
-  SEED_PURCHASES,
   SEED_SALE_RETURNS,
   SEED_SALES,
+  SEED_STOCK_RECEIVES,
 } from "@/data/seed";
 import type { Transaction } from "@/data/types";
 import type { Product } from "../types";
@@ -24,7 +24,7 @@ function seededStock(productId: string) {
       0,
     );
   return (
-    qty(SEED_PURCHASES) +
+    qty(SEED_STOCK_RECEIVES) +
     qty(SEED_SALE_RETURNS) +
     qty(SEED_ADJUSTMENTS) -
     qty(SEED_SALES)

@@ -16,7 +16,7 @@ const USER_ERRORS: Record<UserError, Label> = {
   ],
 };
 import type { ResourceDef } from "../types";
-import { col, field, nextCode, nextRef, now, required } from "./helpers";
+import { col, field, nextCode, required } from "./helpers";
 
 const YES: [string, Label][] = [
   ["active", ["Active", "សកម្ម"]],
@@ -85,43 +85,6 @@ export const recordResources: ResourceDef[] = [
         default: 0,
       }),
       field("expiry", "Expiry Date", "ថ្ងៃផុតកំណត់", { type: "date" }),
-      field("createdBy", "Created by", "បង្កើតដោយ", {
-        default: () => currentUsername(),
-      }),
-    ],
-  },
-  // Purchases
-  {
-    id: "purchases/expenses",
-    collection: "expenses",
-    title: ["Expenses (All Branches)", "ចំណាយ (គ្រប់សាខា)"],
-    noun: ["Expense", "ចំណាយ"],
-    icon: "dollar",
-    initialSort: { key: "date", desc: true },
-    columns: [
-      col("date", "Date", "កាលបរិច្ឆេទ", "datetime"),
-      col("reference", "Reference", "លេខយោង"),
-      col("category", "Category", "ប្រភេទ"),
-      col("amount", "Amount", "ចំនួនទឹកប្រាក់", "money", { total: true }),
-      col("note", "Note", "កំណត់ចំណាំ"),
-      col("createdBy", "Created by", "បង្កើតដោយ"),
-    ],
-    fields: [
-      required("date", "Date", "កាលបរិច្ឆេទ", {
-        type: "datetime-local",
-        default: now,
-      }),
-      field("reference", "Reference", "លេខយោង", {
-        default: nextRef("expensePrefix"),
-      }),
-      required("category", "Category", "ប្រភេទ", {
-        type: "select",
-        collection: { name: "expenseCategories", field: "name" },
-      }),
-      required("amount", "Amount (៛)", "ចំនួនទឹកប្រាក់ (៛)", {
-        type: "number",
-      }),
-      field("note", "Note", "កំណត់ចំណាំ", { type: "textarea", full: true }),
       field("createdBy", "Created by", "បង្កើតដោយ", {
         default: () => currentUsername(),
       }),

@@ -4,19 +4,14 @@ import type { IconName } from "@/components/icons";
 import type { Label } from "@/i18n";
 
 export type TransactionKind =
-  | "purchase"
-  | "purchase-request"
-  | "purchase-order"
-  | "purchase-return"
-  | "sale-return"
-  | "stock-receive"
-  | "stock-issue"
-  | "adjustment";
+  "sale-return" | "stock-receive" | "stock-issue" | "adjustment";
 
 export type KindDef = {
   collection: CollectionName;
   listHref: string;
   title: Label;
+  /** Title when editing a saved record (only kinds that can be edited). */
+  editTitle?: Label;
   icon: IconName;
   prefixSetting: string;
   party?: "customer" | "supplier";
@@ -24,7 +19,7 @@ export type KindDef = {
   source?: CollectionName;
   /** Stock direction when saved: +1 in, -1 out, 0 none. */
   stock: 1 | -1 | 0;
-  /** Item price is the cost (purchases) or the selling price (sales). */
+  /** Item price is the cost (stock receive / issue) or the selling price (sales). */
   price: "cost" | "price" | "none";
   expiry?: boolean;
   statuses: string[];
@@ -34,54 +29,6 @@ export type KindDef = {
 };
 
 export const KINDS: Record<TransactionKind, KindDef> = {
-  purchase: {
-    collection: "purchases",
-    listHref: "/purchases/list",
-    title: ["Add Purchase", "បន្ថែមការទិញ"],
-    icon: "star",
-    prefixSetting: "purchasePrefix",
-    party: "supplier",
-    stock: 1,
-    price: "cost",
-    expiry: true,
-    statuses: ["received", "pending", "ordered"],
-    payment: true,
-  },
-  "purchase-request": {
-    collection: "purchaseRequests",
-    listHref: "/purchases/requests",
-    title: ["Add Purchase Request", "បន្ថែមសំណើទិញ"],
-    icon: "star",
-    prefixSetting: "purchaseRequestPrefix",
-    party: "supplier",
-    stock: 0,
-    price: "cost",
-    statuses: ["pending", "approved", "rejected"],
-  },
-  "purchase-order": {
-    collection: "purchaseOrders",
-    listHref: "/purchases/orders",
-    title: ["Add Purchase Order", "បន្ថែមបញ្ជាទិញ"],
-    icon: "star",
-    prefixSetting: "purchaseOrderPrefix",
-    party: "supplier",
-    stock: 0,
-    price: "cost",
-    statuses: ["pending", "approved", "completed"],
-  },
-  "purchase-return": {
-    collection: "purchaseReturns",
-    listHref: "/purchases/returns",
-    title: ["Return Purchase", "ទិញត្រឡប់"],
-    icon: "undo",
-    prefixSetting: "returnPurchasePrefix",
-    party: "supplier",
-    source: "purchases",
-    stock: -1,
-    price: "cost",
-    statuses: ["completed"],
-    payment: true,
-  },
   "sale-return": {
     collection: "saleReturns",
     listHref: "/sales/returns",
@@ -99,17 +46,20 @@ export const KINDS: Record<TransactionKind, KindDef> = {
     collection: "stockReceives",
     listHref: "/inventory/stock-receive",
     title: ["Add Stock Receive", "បន្ថែមការទទួលស្តុក"],
+    editTitle: ["Edit Stock Receive", "កែការទទួលស្តុក"],
     icon: "download",
     prefixSetting: "stockReceivePrefix",
     stock: 1,
     price: "cost",
     statuses: ["completed"],
     charges: false,
+    expiry: true,
   },
   "stock-issue": {
     collection: "stockIssues",
     listHref: "/inventory/stock-issue",
     title: ["Add Stock Issue", "បន្ថែមការបញ្ចេញស្តុក"],
+    editTitle: ["Edit Stock Issue", "កែការបញ្ចេញស្តុក"],
     icon: "upload",
     prefixSetting: "stockIssuePrefix",
     stock: -1,
@@ -121,6 +71,7 @@ export const KINDS: Record<TransactionKind, KindDef> = {
     collection: "adjustments",
     listHref: "/inventory/stock-adjustment",
     title: ["Add Stock Adjustment", "បន្ថែមការកែតម្រូវស្តុក"],
+    editTitle: ["Edit Stock Adjustment", "កែការកែតម្រូវស្តុក"],
     icon: "filter",
     prefixSetting: "adjustmentPrefix",
     stock: 1,

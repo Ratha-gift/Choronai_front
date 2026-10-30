@@ -2,7 +2,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Icon, type IconName } from "@/components/icons";
-import { Field } from "@/components/ui/fields";
+import { Field, NumberInput } from "@/components/ui/fields";
 import { useCollection, type CollectionName } from "@/data/collections";
 import { resources } from "@/features/resources";
 import {
@@ -46,8 +46,8 @@ const QUICK_ADD: Record<
   unit: { resource: "settings/units", collection: "units", value: "code" },
 };
 
-type NumberInput = number | "";
-const num = (value: string): NumberInput =>
+type NumberOrBlank = number | "";
+const num = (value: string): NumberOrBlank =>
   value === "" ? "" : toNumber(value);
 
 function formFrom(product?: Product) {
@@ -61,16 +61,16 @@ function formFrom(product?: Product) {
     unit: product ? productUnit(product) : "",
     saleUnit: product?.saleUnit ?? "",
     purchaseUnit: product?.purchaseUnit ?? "",
-    cost: (product ? productCost(product) : "") as NumberInput,
-    price: (product?.price ?? "") as NumberInput,
+    cost: (product ? productCost(product) : "") as NumberOrBlank,
+    price: (product?.price ?? "") as NumberOrBlank,
     additional: product?.additional ?? 0,
     promotion: !!product?.promotion,
-    promoPrice: (product?.promotion?.price ?? "") as NumberInput,
+    promoPrice: (product?.promotion?.price ?? "") as NumberOrBlank,
     promoStart: product?.promotion?.start ?? "",
     promoEnd: product?.promotion?.end ?? "",
     trackAlert: (product?.alertQuantity ?? 0) > 0,
-    alertQuantity: (product?.alertQuantity ?? "") as NumberInput,
-    openingStock: "" as NumberInput,
+    alertQuantity: (product?.alertQuantity ?? "") as NumberOrBlank,
+    openingStock: "" as NumberOrBlank,
     image: product?.image ?? "",
     gallery: product?.gallery ?? [],
     showCustom: (product?.customFields ?? []).some(Boolean),
@@ -143,8 +143,8 @@ function MoneyInput({
   required,
   min = 0,
 }: {
-  value: NumberInput;
-  onChange: (value: NumberInput) => void;
+  value: NumberOrBlank;
+  onChange: (value: NumberOrBlank) => void;
   required?: boolean;
   min?: number;
 }) {
@@ -756,8 +756,8 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                   <Field
                     label={t.openingStock}
                     hint={l([
-                      "Later changes go through purchases and adjustments.",
-                      "ការផ្លាស់ប្ដូរក្រោយធ្វើតាមការទិញ ឬកែសម្រួល។",
+                      "Later changes go through Stock Management (receive, issue, adjustment).",
+                      "ការផ្លាស់ប្ដូរក្រោយធ្វើតាម គ្រប់គ្រងស្តុក (ទទួល បញ្ចេញ កែតម្រូវ)។",
                     ])}
                   >
                     <input
@@ -975,27 +975,21 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                         </b>
                         <small>{product?.sku}</small>
                       </div>
-                      <input
-                        type="number"
+                      <NumberInput
                         min="0.001"
                         step="any"
                         aria-label={t.quantity}
                         title={t.quantity}
                         value={item.quantity}
-                        onChange={(event) =>
-                          change({ quantity: toNumber(event.target.value) })
-                        }
+                        onChange={(next) => change({ quantity: next })}
                       />
                       <span className="times">×</span>
-                      <input
-                        type="number"
+                      <NumberInput
                         min="0"
                         aria-label={t.unitPriceShort}
                         title={t.unitPriceShort}
                         value={item.price}
-                        onChange={(event) =>
-                          change({ price: toNumber(event.target.value) })
-                        }
+                        onChange={(next) => change({ price: next })}
                       />
                       <button
                         type="button"
@@ -1110,9 +1104,8 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                           change({ partNumber: event.target.value })
                         }
                       />
-                      <input
+                      <NumberInput
                         className="form-control"
-                        type="number"
                         min="0"
                         placeholder={l(["Price (៛)", "តម្លៃ (៛)"])}
                         aria-label={l([
@@ -1120,9 +1113,7 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                           "តម្លៃអ្នកផ្គត់ផ្គង់ (៛)",
                         ])}
                         value={row.price || ""}
-                        onChange={(event) =>
-                          change({ price: toNumber(event.target.value) })
-                        }
+                        onChange={(next) => change({ price: next })}
                       />
                     </div>
                   </div>

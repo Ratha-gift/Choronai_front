@@ -39,6 +39,8 @@ export type ResourceDef = {
   fields?: FieldDef[];
   /** Open a full page instead of the modal to add records. */
   addHref?: string;
+  /** Open a full page instead of the modal to edit a record. */
+  editHref?: (row: Row) => string;
   rowActions?: "menu" | "icons";
   /** Body of the "details" modal. */
   details?: (row: Row) => ReactNode;

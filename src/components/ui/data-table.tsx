@@ -443,12 +443,14 @@ export function DataTable<T extends { id: string }>({
               </tr>
             )}
           </tbody>
-          {hasTotals && footer !== "none" && total > 0 && (
+          {/* With a single row the total would just repeat it. */}
+          {hasTotals && footer !== "none" && total > 1 && (
             <tfoot>
-              <tr>
+              <tr className="totals-row">
                 {selectable && <td className="check-col" />}
-                {columns.map((column) => (
+                {columns.map((column, index) => (
                   <td key={column.key} className={`align-${align(column)}`}>
+                    {index === 0 && !column.total && <b>{t.total}</b>}
                     {column.total && (
                       <b>
                         {column.type === "money"

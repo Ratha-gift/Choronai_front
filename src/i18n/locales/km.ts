@@ -130,7 +130,6 @@ export const km = {
   orderTax: "ពន្ធការបញ្ជា",
   previousPrice: "តម្លៃចាស់",
   productCodeName: "មុខទំនិញ (កូដ - ឈ្មោះ)",
-  purchaseReference: "លេខយោងការទិញ",
   referenceTo: "យោងទៅ",
   reportIntro: "សូមកែតម្រូវរបាយការណ៍ខាងក្រោម។ អាចទាញយកជា CSV ឬបោះពុម្ព។",
   saleReference: "លេខយោងការលក់",

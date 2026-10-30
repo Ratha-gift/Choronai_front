@@ -81,17 +81,20 @@ export const SEED_SALES: Transaction[] = Array.from({ length: 18 }, (_, i) =>
   ),
 );
 
-export const SEED_PURCHASES: Transaction[] = Array.from({ length: 6 }, (_, i) =>
-  transaction(
-    `purchase-${i + 1}`,
-    daysAgo(i * 14 + 3, 8),
-    `PU/2026/${String(i + 1).padStart(4, "0")}`,
-    [
-      { ...item(i % 5, 20, true), expiry: daysAgo(-10 - i * 9).slice(0, 10) },
-      { ...item((i + 1) % 5, 15, true), expiry: daysAgo(-40).slice(0, 10) },
-    ],
-    { supplier: i % 2 ? "Mekong Fresh Supply" : "General", status: "received" },
-  ),
+/** Goods that came in, with expiry dates (feeds the expiry reports). */
+export const SEED_STOCK_RECEIVES: Transaction[] = Array.from(
+  { length: 6 },
+  (_, i) =>
+    transaction(
+      `stock-receive-${i + 1}`,
+      daysAgo(i * 14 + 3, 8),
+      `SRC/2026/${String(i + 1).padStart(4, "0")}`,
+      [
+        { ...item(i % 5, 20, true), expiry: daysAgo(-10 - i * 9).slice(0, 10) },
+        { ...item((i + 1) % 5, 15, true), expiry: daysAgo(-40).slice(0, 10) },
+      ],
+      { status: "completed" },
+    ),
 );
 
 export const SEED_SALE_RETURNS: Transaction[] = [
@@ -229,11 +232,6 @@ export const SEED = {
       address: "Phnom Penh",
     },
   ]),
-  expenseCategories: rows("expense-category", [
-    { code: "UTIL", name: "Utilities" },
-    { code: "TRAN", name: "Transport" },
-    { code: "ICE", name: "Ice & packaging" },
-  ]),
   categories: rows("category", [
     { code: "Meat", name: "Meat / សាច់", parent: "" },
     { code: "Fish", name: "Fish / ត្រី", parent: "" },
@@ -298,24 +296,6 @@ export const SEED = {
       port: "9100",
     },
   ]),
-  expenses: rows("expense", [
-    {
-      date: daysAgo(3),
-      reference: "EXP/2026/0001",
-      category: "Ice & packaging",
-      amount: 45000,
-      note: "Ice for display",
-      createdBy: "admin021",
-    },
-    {
-      date: daysAgo(12),
-      reference: "EXP/2026/0002",
-      category: "Utilities",
-      amount: 320000,
-      note: "Electricity",
-      createdBy: "admin021",
-    },
-  ]),
   productRewards: rows("product-reward", [
     { code: "RW001", name: "Free 1 kg pork", type: "standard", points: 300 },
     {
@@ -345,11 +325,7 @@ export const SEED = {
   ]),
   sales: SEED_SALES as Row[],
   saleReturns: SEED_SALE_RETURNS as Row[],
-  purchases: SEED_PURCHASES as Row[],
-  purchaseRequests: [] as Row[],
-  purchaseOrders: [] as Row[],
-  purchaseReturns: [] as Row[],
-  stockReceives: [] as Row[],
+  stockReceives: SEED_STOCK_RECEIVES as Row[],
   stockIssues: [] as Row[],
   adjustments: SEED_ADJUSTMENTS as Row[],
   suspendedSales: [] as Row[],
