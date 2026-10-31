@@ -10,11 +10,12 @@ import type { LineItem, Transaction } from "@/data/types";
 import {
   adjustStock,
   productCost,
+  productStock,
   productUnit,
   useProducts,
 } from "@/features/products/store";
 import { useSettings } from "@/features/settings/store";
-import { useLanguage } from "@/i18n";
+import { useLanguage, type Label } from "@/i18n";
 import {
   formatMoney,
   formatNumber,
@@ -26,6 +27,9 @@ import { notify } from "@/lib/toast";
 import { KINDS, lineDelta, type TransactionKind } from "./kinds";
 
 const round = (value: number) => Math.round(value * 1000) / 1000;
+
+const currentStockLabel: Label = ["Current Stock", "ស្តុកបច្ចុប្បន្ន"];
+const stockAfterLabel: Label = ["Stock After", "ស្តុកក្រោយកែ"];
 
 export function TransactionForm({
   kind: kindId,
@@ -61,6 +65,7 @@ export function TransactionForm({
     ),
     referenceTo: "",
     branch: String(settings.defaultBranch ?? ""),
+    toBranch: "",
     warehouse: String(settings.defaultWarehouse ?? ""),
     party: "",
     status: kind.statuses[0],
@@ -77,6 +82,7 @@ export function TransactionForm({
     reference: record.reference,
     referenceTo: record.referenceTo ?? "",
     branch: record.branch ?? "",
+    toBranch: record.toBranch ?? "",
     warehouse: record.warehouse ?? "",
     status: record.status,
     discount: record.discount,
@@ -177,6 +183,7 @@ export function TransactionForm({
       reference: form.reference,
       referenceTo: form.referenceTo || undefined,
       branch: form.branch,
+      ...(kind.toBranch ? { toBranch: form.toBranch || undefined } : {}),
       warehouse: form.warehouse,
       ...(kind.party === "customer" ? { customer: form.party } : {}),
       ...(kind.party === "supplier" ? { supplier: form.party } : {}),
@@ -244,6 +251,22 @@ export function TransactionForm({
   }
 
   const priceLabel = kind.price === "cost" ? t.netUnitCost : t.netUnitPrice;
+  // Stock adjustments show the stock now and the stock after saving.
+  const isAdjust = kind.price === "none";
+  const qoh = (productId: string) => {
+    const product = products.find((item) => item.id === productId);
+    const now = product ? productStock(product) : 0;
+    // When editing, this record's own change is already in the stock.
+    const own = (existing?.items ?? [])
+      .filter((line) => line.productId === productId)
+      .reduce((sum, line) => sum + lineDelta(kind, line), 0);
+    return round(now - own);
+  };
+  const newQoh = (line: LineItem) =>
+    round(
+      qoh(line.productId) +
+        (line.type === "subtraction" ? -line.quantity : line.quantity),
+    );
 
   if (recordId && !existing)
     return (
@@ -303,18 +326,45 @@ export function TransactionForm({
               onChange={(event) => set({ reference: event.target.value })}
             />
           </Field>
-          <Field label={t.branch} required>
+          <Field
+            label={kind.toBranch ? l(["From Branch", "ពីសាខា"]) : t.branch}
+            required
+          >
             <select
               className="form-control"
               required
               value={form.branch}
-              onChange={(event) => set({ branch: event.target.value })}
+              onChange={(event) =>
+                set({
+                  branch: event.target.value,
+                  // A branch cannot send to itself.
+                  ...(event.target.value === form.toBranch
+                    ? { toBranch: "" }
+                    : {}),
+                })
+              }
             >
               {branches.rows.map((row) => (
                 <option key={row.id}>{String(row.name)}</option>
               ))}
             </select>
           </Field>
+          {kind.toBranch && (
+            <Field label={l(["To Branch", "ទៅសាខា"])}>
+              <select
+                className="form-control"
+                value={form.toBranch}
+                onChange={(event) => set({ toBranch: event.target.value })}
+              >
+                <option value="">{t.select}</option>
+                {branches.rows
+                  .filter((row) => String(row.name) !== form.branch)
+                  .map((row) => (
+                    <option key={row.id}>{String(row.name)}</option>
+                  ))}
+              </select>
+            </Field>
+          )}
           <Field label={t.warehouse} required>
             <select
               className="form-control"
@@ -434,11 +484,15 @@ export function TransactionForm({
             <thead>
               <tr>
                 <th>{t.productCodeName}</th>
-                {kind.expiry && <th>{t.expiryDate}</th>}
-                {kind.price !== "none" && <th>{priceLabel}</th>}
-                {kind.price === "none" && <th>{t.type}</th>}
+                {isAdjust && <th>{l(["Description", "ពិពណ៌នា"])}</th>}
+                {isAdjust && <th>{l(currentStockLabel)}</th>}
+                {kind.expiry && !isAdjust && <th>{t.expiryDate}</th>}
+                {!isAdjust && <th>{priceLabel}</th>}
+                {isAdjust && <th>{t.type}</th>}
                 <th>{t.quantity}</th>
-                {kind.price !== "none" && <th>{t.subtotal}</th>}
+                {!isAdjust && <th>{t.subtotal}</th>}
+                {isAdjust && <th>{l(stockAfterLabel)}</th>}
+                {kind.expiry && isAdjust && <th>{t.expiryDate}</th>}
                 <th className="icon-col">
                   <button
                     type="button"
@@ -460,23 +514,41 @@ export function TransactionForm({
                       i === index ? { ...item, ...patch } : item,
                     ),
                   );
+                const expiryCell = (
+                  <td className="cell-input">
+                    <input
+                      type="date"
+                      aria-label={t.expiryDate}
+                      value={line.expiry ?? ""}
+                      onChange={(event) =>
+                        change({ expiry: event.target.value })
+                      }
+                    />
+                  </td>
+                );
                 return (
                   <tr key={line.productId}>
                     <td>
                       {line.code} - {line.name}
                     </td>
-                    {kind.expiry && (
+                    {isAdjust && (
                       <td className="cell-input">
                         <input
-                          type="date"
-                          aria-label={t.expiryDate}
-                          value={line.expiry ?? ""}
+                          aria-label={l(["Description", "ពិពណ៌នា"])}
+                          value={line.description ?? ""}
                           onChange={(event) =>
-                            change({ expiry: event.target.value })
+                            change({ description: event.target.value })
                           }
                         />
                       </td>
                     )}
+                    {isAdjust && (
+                      <td className="align-right qoh-cell">
+                        {formatNumber(qoh(line.productId), 3)}{" "}
+                        <span className="unit">{line.unit}</span>
+                      </td>
+                    )}
+                    {kind.expiry && !isAdjust && expiryCell}
                     {kind.price !== "none" && (
                       <td className="cell-input">
                         <NumberInput
@@ -512,11 +584,29 @@ export function TransactionForm({
                         onChange={(next) => change({ quantity: next })}
                       />
                     </td>
-                    {kind.price !== "none" && (
+                    {!isAdjust && (
                       <td className="align-right">
                         {formatMoney(line.price * line.quantity)}
                       </td>
                     )}
+                    {isAdjust && (
+                      <td className="cell-input qty-col">
+                        <NumberInput
+                          step="any"
+                          aria-label={l(stockAfterLabel)}
+                          value={newQoh(line)}
+                          onChange={(next) => {
+                            // Typing the counted stock works out the change.
+                            const diff = round(next - qoh(line.productId));
+                            change({
+                              type: diff < 0 ? "subtraction" : "addition",
+                              quantity: Math.abs(diff),
+                            });
+                          }}
+                        />
+                      </td>
+                    )}
+                    {kind.expiry && isAdjust && expiryCell}
                     <td className="icon-col">
                       <button
                         type="button"
@@ -534,7 +624,7 @@ export function TransactionForm({
               })}
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="no-data">
+                  <td colSpan={9} className="no-data">
                     {t.noItemsYet}
                   </td>
                 </tr>

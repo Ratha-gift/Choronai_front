@@ -26,6 +26,8 @@ export type KindDef = {
   payment?: boolean;
   /** Show order tax, discount and shipping (off for stock movements). */
   charges?: boolean;
+  /** Goods leave for another branch: "From Branch" → "To Branch". */
+  toBranch?: boolean;
 };
 
 export const KINDS: Record<TransactionKind, KindDef> = {
@@ -62,6 +64,7 @@ export const KINDS: Record<TransactionKind, KindDef> = {
     editTitle: ["Edit Stock Issue", "កែការបញ្ចេញស្តុក"],
     icon: "upload",
     prefixSetting: "stockIssuePrefix",
+    toBranch: true,
     stock: -1,
     price: "cost",
     statuses: ["completed"],
@@ -76,6 +79,7 @@ export const KINDS: Record<TransactionKind, KindDef> = {
     prefixSetting: "adjustmentPrefix",
     stock: 1,
     price: "none",
+    expiry: true,
     statuses: ["approved", "pending"],
   },
 };
