@@ -179,6 +179,8 @@ export const transactionResources: ResourceDef[] = [
     columns: [
       date,
       reference,
+      col("branch", "From Branch", "ពីសាខា"),
+      col("toBranch", "To Branch", "ទៅសាខា"),
       col("warehouse", "Warehouse", "ឃ្លាំង"),
       col("grandTotal", "Total Cost", "ថ្លៃដើមសរុប", "money", { total: true }),
       col("createdBy", "Created by", "បង្កើតដោយ"),
