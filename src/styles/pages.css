@@ -765,3 +765,12 @@ label.btn.disabled {
   opacity: 0.55;
   cursor: default;
 }
+
+/* Stock adjustment: line description under the product name */
+.line-note {
+  display: block;
+  color: var(--muted);
+}
+.qoh-cell {
+  white-space: nowrap;
+}

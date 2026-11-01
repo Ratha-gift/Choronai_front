@@ -11,6 +11,8 @@ export type LineItem = {
   expiry?: string;
   /** Quantity adjustments only. */
   type?: "addition" | "subtraction";
+  /** Stock adjustments: why this line changed. */
+  description?: string;
 };
 
 export type Transaction = Row & {
@@ -18,6 +20,8 @@ export type Transaction = Row & {
   reference: string;
   referenceTo?: string;
   branch?: string;
+  /** Stock issue: the branch the goods go to. */
+  toBranch?: string;
   warehouse?: string;
   customer?: string;
   supplier?: string;
