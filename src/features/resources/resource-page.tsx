@@ -156,6 +156,7 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
       >
         <DataTable
           columns={def.columns}
+          rowClassName={def.rowClassName}
           rows={rows}
           actions={rowActions}
           selected={selected}

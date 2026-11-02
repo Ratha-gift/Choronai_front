@@ -5,6 +5,7 @@ import { Icon } from "@/components/icons";
 import { useLanguage, type Label } from "@/i18n";
 
 export type FilterValue = {
+  text?: string;
   from?: string;
   to?: string;
   min?: string;
@@ -14,6 +15,7 @@ export type FilterValue = {
 export type Filters = Record<string, FilterValue>;
 
 export type FilterSection =
+  | { key: string; label: Label; kind: "text" | "phone" }
   | { key: string; label: Label; kind: "date" }
   | { key: string; label: Label; kind: "range" }
   | { key: string; label: Label; kind: "chips"; options: string[] };
@@ -21,6 +23,7 @@ export type FilterSection =
 export const isActive = (value?: FilterValue) =>
   !!value &&
   !!(
+    value.text?.trim() ||
     value.from ||
     value.to ||
     value.min ||
@@ -96,6 +99,18 @@ export function FilterDrawer({
             return (
               <section key={section.key} className="drawer-section">
                 <h3>{l(section.label)}</h3>
+                {(section.kind === "text" || section.kind === "phone") && (
+                  <input
+                    className="form-control"
+                    type={section.kind === "phone" ? "tel" : "search"}
+                    aria-label={l(section.label)}
+                    placeholder={`${t.searchLabel}…`}
+                    value={current.text ?? ""}
+                    onChange={(event) =>
+                      change(section.key, { text: event.target.value })
+                    }
+                  />
+                )}
                 {section.kind === "date" && (
                   <div className="date-range">
                     <input

@@ -51,6 +51,7 @@ export const transactionResources: ResourceDef[] = [
   {
     id: "sales/registers",
     collection: "registers",
+    rowClassName: (row) => (row.status === "open" ? "register-open" : ""),
     title: ["Registers (cashier shifts)", "បញ្ជរគិតលុយ (វេនអ្នកគិតលុយ)"],
     noun: ["Register", "បញ្ជរ"],
     icon: "lock",

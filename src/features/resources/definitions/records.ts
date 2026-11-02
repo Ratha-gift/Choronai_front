@@ -63,19 +63,25 @@ export const recordResources: ResourceDef[] = [
     icon: "card",
     rowActions: "icons",
     columns: [
-      col("cardNo", "Card Nº", "លេខកាត"),
+      col("cardNo", "Card ID", "លេខកាត", undefined, {
+        filter: "phone",
+        filterLabel: ["Card ID or Phone Number", "លេខកាត ឬលេខទូរស័ព្ទ"],
+        filterValue: (row) => `${row.cardNo ?? ""}|${row.customer ?? ""}`,
+      }),
       col("awardPoints", "Award Points", "ពិន្ទុរង្វាន់", "number"),
       col("spent", "Total Spent", "ចំណាយសរុប", "money"),
       col("createdBy", "Created by", "បង្កើតដោយ"),
-      col("customer", "Customer", "អតិថិជន"),
+      col("customer", "Phone Number", "លេខទូរស័ព្ទ", undefined, {
+        filter: false,
+      }),
       col("expiry", "Expiry", "ផុតកំណត់", "date"),
     ],
     formColumns: 1,
     fields: [
-      required("cardNo", "Card Nº", "លេខកាត", {
+      required("cardNo", "Card ID", "លេខកាត", {
         default: (rows) => String(rows.length + 1).padStart(5, "0"),
       }),
-      field("customer", "Customer phone", "ទូរស័ព្ទអតិថិជន", { type: "tel" }),
+      field("customer", "Phone Number", "លេខទូរស័ព្ទ", { type: "tel" }),
       required("awardPoints", "Award Points", "ពិន្ទុរង្វាន់", {
         type: "number",
         default: 0,
