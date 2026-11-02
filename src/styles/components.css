@@ -849,3 +849,20 @@ input[type="checkbox"] {
 .password-toggle[aria-pressed="true"] {
   color: var(--primary);
 }
+
+
+/*-------------------------------------------end -------------------------*/
+/* ក្បាលជួរ និងតួលេខ នៅកណ្តាលទាំងអស់ */
+.data-table th,
+.data-table td {
+  text-align: center !important;
+  vertical-align: middle;
+}
+
+/* ឱ្យតួលេខមានទំហំស្មើគ្នា ងាយមើល */
+.data-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+
+/*-------------------------------------------end -------------------------*/

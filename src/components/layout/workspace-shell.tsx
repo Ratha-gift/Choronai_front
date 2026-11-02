@@ -1,5 +1,10 @@
 "use client";
-import { useState, useSyncExternalStore, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/icons";
@@ -29,6 +34,65 @@ import { LanguageMenu } from "./language-menu";
 import { UserMenu } from "./user-menu";
 import { Navigation } from "./navigation";
 
+
+const REGISTER_MARK = "register-open";
+const OPEN_WORDS = ["open", "បើក"];
+
+const REGISTER_CSS = `
+tr.${REGISTER_MARK} td {
+  background: #fee2e2 !important;
+  color: #b91c1c !important;
+  font-weight: 600;
+}
+tr.${REGISTER_MARK} td:first-child {
+  box-shadow: inset 4px 0 0 #dc2626;
+}
+`;
+
+const isOpenRow = (row: Element) =>
+  Array.from(row.querySelectorAll("td")).some((cell) =>
+    OPEN_WORDS.includes(cell.textContent?.trim().toLowerCase() ?? ""),
+  );
+
+function useOpenRegisterMarker(pathname: string) {
+  useEffect(() => {
+    if (!pathname.toLowerCase().includes("register")) return;
+
+    const scan = () => {
+      document.querySelectorAll<HTMLElement>("table tbody tr").forEach((row) => {
+        const open = isOpenRow(row);
+        if (row.classList.contains(REGISTER_MARK) !== open) {
+          row.classList.toggle(REGISTER_MARK, open);
+        }
+      });
+    };
+
+    let frame = 0;
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(scan);
+    };
+
+    scan();
+    const observer = new MutationObserver(schedule);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      document
+        .querySelectorAll(`.${REGISTER_MARK}`)
+        .forEach((row) => row.classList.remove(REGISTER_MARK));
+    };
+  }, [pathname]);
+}
+
 function useMediaQuery(query: string) {
   return useSyncExternalStore(
     (onChange) => {
@@ -41,7 +105,7 @@ function useMediaQuery(query: string) {
   );
 }
 
-/** Store logo shipped with the app; Settings → Change Logo overrides it. */
+
 const DEFAULT_LOGO = "/brand/choronai-mark.png";
 
 export function WorkspaceShell({ children }: { children: ReactNode }) {
@@ -63,7 +127,11 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
   const [calculator, setCalculator] = useState(false);
   const session = useSession();
   const router = useRouter();
-  // The POS button asks for the cash in hand first when no register is open.
+
+
+  useOpenRegisterMarker(pathname);
+
+
   const register = useOpenRegister(session?.username ?? "").open;
   const [openingRegister, setOpeningRegister] = useState(false);
   const usdRate =
@@ -83,6 +151,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
     <div
       className={`app-shell ${rail ? "collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`}
     >
+      <style>{REGISTER_CSS}</style>
       <header className="header">
         <button
           className="menu-toggle"
@@ -223,6 +292,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
               `${t.signedIn} ${session.username} ( ${t.lastVisit}: ${formatDate(session.signedInAt, true)} )`}
           </span>
         </div>
+
         <main className="page">{children}</main>
       </div>
       <div className="mobile-scrim" onClick={() => setMobileOpen(false)} />

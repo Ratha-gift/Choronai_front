@@ -765,3 +765,298 @@ label.btn.disabled {
   opacity: 0.55;
   cursor: default;
 }
+
+/*------------------------------------------ Server Status --------------------------------*/
+
+.tile {
+  cursor: pointer;
+}
+.tile strong,
+.tile > span:last-child {
+  grid-area: 1 / 1;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+
+.tile {
+  display: grid;
+  place-items: center;
+  place-content: center;
+}
+
+
+.tile > span:last-child {
+  font-size: 20px;
+  font-weight: 700;
+  opacity: 1;
+}
+.tile strong {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+
+.tile:hover strong,
+.tile:focus-within strong,
+.tile:active strong {
+  opacity: 1;
+  transform: none;
+}
+.tile:hover > span:last-child,
+.tile:focus-within > span:last-child,
+.tile:active > span:last-child {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/*------------------------------------------ បានកែ --------------------------------*/
+
+/*------------------------------------------ បានកែ --------------------------------*/
+
+/* ===== Tile: បង្ហាញ label ធម្មតា, hover ទើបឃើញតួលេខ ===== */
+.tile {
+  display: grid;
+  place-items: center;
+  place-content: center;
+  cursor: pointer;
+}
+.tile strong,
+.tile > span:last-child {
+  grid-area: 1 / 1;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+.tile > span:last-child {
+  font-size: 20px;
+  font-weight: 700;
+  opacity: 1;
+}
+.tile strong {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.tile:hover strong,
+.tile:focus-within strong,
+.tile:active strong {
+  opacity: 1;
+  transform: none;
+}
+.tile:hover > span:last-child,
+.tile:focus-within > span:last-child,
+.tile:active > span:last-child {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* ===== Server Status card ក្នុង sidebar ===== */
+.erp-navigation {
+  min-height: 100%;
+}
+.nav-system {
+  margin-top: auto;
+  padding: 14px 12px 16px;
+  border-top: 1px solid #ffffff14;
+}
+.nav-system-label {
+  padding: 0 4px 8px;
+  color: #ffffff6b;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.nav-server {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 12px;
+  border: 1px solid #ffffff1a;
+  border-radius: 10px;
+  background: #ffffff0d;
+  color: #fff;
+  text-decoration: none;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.nav-server:hover {
+  background: #ffffff1a;
+  border-color: #ffffff33;
+}
+.nav-server.active {
+  background: #ffffff1f;
+  border-color: var(--primary);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+.nav-server-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: #ffffff1a;
+  color: #cfe0f7;
+}
+.nav-server-text {
+  display: grid;
+  min-width: 0;
+  line-height: 1.25;
+}
+.nav-server-text b {
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.nav-server-text small {
+  color: #3ddc84;
+  font-size: 11px;
+}
+.nav-server-dot {
+  width: 8px;
+  height: 8px;
+  margin-left: auto;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #3ddc84;
+  box-shadow: 0 0 0 3px #3ddc8433;
+  animation: server-pulse 2s ease-in-out infinite;
+}
+@keyframes server-pulse {
+  50% {
+    box-shadow: 0 0 0 6px #3ddc8400;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-server-dot {
+    animation: none;
+  }
+}
+.app-shell.collapsed .nav-system {
+  padding: 12px 8px;
+}
+.app-shell.collapsed .nav-server {
+  justify-content: center;
+  padding: 6px;
+}
+.app-shell.collapsed .nav-server-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  margin: 0;
+}
+
+/* ===== Server Status page ===== */
+.sv-page {
+  display: grid;
+  gap: 18px;
+}
+.sv-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  margin-bottom: 12px;
+}
+.sv-toolbar .segmented {
+  margin: 0;
+}
+.sv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+.sv-card {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 14px;
+  background: #fff;
+  border: 1px solid #dde3ea;
+  border-radius: 6px;
+}
+.sv-card-head {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  color: #2a3a4a;
+}
+.sv-big {
+  font-size: 22px;
+  font-weight: 600;
+}
+.sv-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sv-status > div {
+  display: grid;
+}
+.sv-ok {
+  color: #2e9e5b;
+  font-weight: 600;
+}
+.sv-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.sv-dot.good {
+  background: #3ddc84;
+  box-shadow: 0 0 0 4px #3ddc8433;
+}
+.sv-dot.bad {
+  background: #e53935;
+  box-shadow: 0 0 0 4px #e5393533;
+}
+.sv-meter {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #e8edf2;
+}
+.sv-meter i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s;
+}
+.sv-meter i.good {
+  background: #3ddc84;
+}
+.sv-meter i.warn {
+  background: #fabb3d;
+}
+.sv-meter i.bad {
+  background: #e53935;
+}
+.sv-net {
+  display: flex;
+  gap: 8px;
+}
+.sv-logs {
+  display: grid;
+  gap: 4px;
+  max-height: 320px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+.sv-logs li {
+  display: grid;
+  grid-template-columns: 80px 80px 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-bottom: 1px solid #eef1f4;
+}
+
+/*------------------------------------------ បានកែ --------------------------------*/
+
+/*------------------------------------------ បានកែ --------------------------------*/

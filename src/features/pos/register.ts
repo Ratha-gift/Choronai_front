@@ -1,5 +1,7 @@
+import { useMemo } from "react";
 import { useCollection } from "@/data/collections";
 import type { Row, Transaction } from "@/data/types";
+import { useSession } from "@/lib/auth";
 import { toNumber } from "@/lib/format";
 import { METHODS } from "./payment-modal";
 
@@ -81,4 +83,22 @@ export function summarize(
     expectedCash: toNumber(register.cashInHand) + cash - refunds,
     invoices: mine.length,
   };
+}
+
+/**
+ * Register ថ្មីបំផុតតែមួយ ដែលនៅបើក ហើយជារបស់ user ផ្សេង (ភ្លេចបិទ)។
+ * ប្រើដើម្បីដាក់ជួរក្រហមក្នុងតារាង Registers។ បើគ្មាន ត្រឡប់ null។
+ */
+export function useForgottenRegister(rows: Register[]): Register | null {
+  const me = useSession()?.username;
+  return useMemo(() => {
+    if (!me) return null;
+    const left = rows.filter(
+      (r) => r.status === "open" && !r.closedAt && r.username !== me,
+    );
+    left.sort(
+      (a, b) => new Date(b.openedAt).getTime() - new Date(a.openedAt).getTime(),
+    );
+    return left[0] ?? null;
+  }, [rows, me]);
 }
