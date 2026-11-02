@@ -35,6 +35,8 @@ export type ResourceDef = {
   noun: Label;
   icon: IconName;
   columns: Column<Row>[];
+  /** Highlight rows based on their current state. */
+  rowClassName?: (row: Row) => string;
   /** Fields of the add/edit modal. Omit for read-only lists. */
   fields?: FieldDef[];
   /** Open a full page instead of the modal to add records. */

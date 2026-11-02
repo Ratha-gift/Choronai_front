@@ -15,13 +15,18 @@ export const settingResources: ResourceDef[] = [
     noun: ["Branch", "សាខា"],
     icon: "chart",
     columns: [
-      col("nameKm", "Name (Khmer)", "ឈ្មោះ (ខ្មែរ)"),
-      col("name", "Name", "ឈ្មោះ"),
+      col("nameKm", "Branch Name (Khmer)", "ឈ្មោះសាខា (ខ្មែរ)", undefined, {
+        filter: false,
+      }),
+      col("name", "Branch Name", "ឈ្មោះសាខា", undefined, {
+        filter: "text",
+        filterValue: (row) => `${row.name ?? ""} ${row.nameKm ?? ""}`,
+      }),
       col("vat", "VAT Number", "លេខ VAT"),
       col("phone", "Phone", "ទូរស័ព្ទ"),
       col("email", "Email Address", "អ៊ីមែល"),
-      col("city", "City", "ទីក្រុង"),
-      col("country", "Country", "ប្រទេស"),
+      col("city", "City", "ទីក្រុង", undefined, { filter: "chips" }),
+      col("country", "Country", "ប្រទេស", undefined, { filter: "chips" }),
     ],
     fields: [
       required("nameKm", "Name (Khmer)", "ឈ្មោះ (ខ្មែរ)"),
