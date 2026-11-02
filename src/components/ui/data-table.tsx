@@ -241,10 +241,10 @@ export function DataTable<T extends { id: string }>({
       // Chips only help for short lists (status, category, warehouse …);
       // free text like names is covered by the search box.
       const useful =
-        options.length >= 2 &&
-        (column.filter === "chips" ||
-          column.type === "status" ||
-          options.length <= Math.min(12, rows.length / 1.5));
+        column.filter === "chips" ||
+        (options.length >= 2 &&
+          (column.type === "status" ||
+            options.length <= Math.min(12, rows.length / 1.5)));
       return useful ? [{ ...base, kind: "chips", options }] : [];
     });
   }, [canFilter, columns, rows]);

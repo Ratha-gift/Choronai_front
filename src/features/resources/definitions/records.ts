@@ -160,8 +160,8 @@ export const recordResources: ResourceDef[] = [
       col("lastName", "Last Name", "នាមត្រកូល"),
       col("username", "Username", "ឈ្មោះគណនី"),
       col("email", "Email Address", "អ៊ីមែល"),
-      col("group", "Group", "ក្រុម"),
-      col("status", "Status", "ស្ថានភាព", "status"),
+      col("group", "Group", "ក្រុម", undefined, { filter: "chips" }),
+      col("status", "Status", "ស្ថានភាព", "status", { filter: "chips" }),
     ],
     fields: [
       required("firstName", "First Name", "នាមខ្លួន"),
