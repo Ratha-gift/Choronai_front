@@ -1,3 +1,4 @@
+import { getRows } from "@/data/collections";
 import type { ResourceDef } from "../types";
 import { col, field, required } from "./helpers";
 
@@ -25,18 +26,39 @@ export const settingResources: ResourceDef[] = [
       col("vat", "VAT Number", "លេខ VAT"),
       col("phone", "Phone", "ទូរស័ព្ទ"),
       col("email", "Email Address", "អ៊ីមែល"),
+      col("warehouse", "Warehouse", "ឃ្លាំង", undefined, { filter: "chips" }),
       col("city", "City", "ទីក្រុង", undefined, { filter: "chips" }),
       col("country", "Country", "ប្រទេស", undefined, { filter: "chips" }),
     ],
     fields: [
       required("nameKm", "Name (Khmer)", "ឈ្មោះ (ខ្មែរ)"),
       required("name", "Name", "ឈ្មោះ"),
+      // One branch = one warehouse: the POS and stock forms use it.
+      required("warehouse", "Warehouse", "ឃ្លាំង", {
+        type: "select",
+        collection: { name: "warehouses", field: "name" },
+      }),
       field("vat", "VAT Number", "លេខ VAT"),
       field("phone", "Phone", "ទូរស័ព្ទ", { type: "tel" }),
       field("email", "Email Address", "អ៊ីមែល", { type: "email" }),
       field("city", "City", "ទីក្រុង"),
       field("country", "Country", "ប្រទេស", { default: "Cambodia" }),
     ],
+    prepare: (values, existing) => {
+      const taken = getRows("branches").find(
+        (row) =>
+          row.id !== existing?.id &&
+          String(row.warehouse) === String(values.warehouse),
+      );
+      return taken
+        ? {
+            error: [
+              `${String(values.warehouse)} already belongs to the branch ${String(taken.name)}. Each branch needs its own warehouse.`,
+              `${String(values.warehouse)} ជាឃ្លាំងរបស់សាខា ${String(taken.name)} រួចហើយ។ សាខានីមួយៗត្រូវមានឃ្លាំងផ្ទាល់ខ្លួន។`,
+            ],
+          }
+        : { values };
+    },
   }),
   settings({
     id: "settings/warehouses",

@@ -814,17 +814,67 @@ input[type="checkbox"] {
 }
 
 /* ---------- Toast ---------- */
+/* Notification: white card at the top centre that slides down. */
 .toast {
   position: fixed;
-  right: 20px;
-  bottom: 20px;
-  z-index: 1000;
-  padding: 12px 18px;
-  background: #dff0d8;
-  border: 1px solid #d6e9c6;
-  border-radius: 2px;
-  color: #3c763d;
-  box-shadow: 0 4px 12px #00000026;
+  top: 18px;
+  left: 50%;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(480px, calc(100vw - 32px));
+  padding: 10px 18px 10px 10px;
+  background: #fff;
+  border: 1px solid #e3e8ef;
+  border-radius: 14px;
+  box-shadow:
+    0 12px 32px #0f254a24,
+    0 2px 6px #0f254a14;
+  color: #1f2a37;
+  font-weight: 500;
+  line-height: 1.4;
+  transform: translateX(-50%);
+  animation: toast-in 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+/* Popover defaults (centred box, hidden when closed) replaced by the above. */
+.toast[popover] {
+  right: auto;
+  bottom: auto;
+  margin: 0;
+  overflow: visible;
+}
+.toast[popover]:not(:popover-open) {
+  display: none;
+}
+.toast-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #e7f6ec;
+  color: #1e8e4a;
+}
+.toast.error .toast-icon {
+  background: #fdecec;
+  color: #d93025;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
 }
 .nowrap {
   white-space: nowrap;

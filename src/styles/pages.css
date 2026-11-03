@@ -185,6 +185,17 @@
 .totals-bar b {
   margin-left: 6px;
 }
+.totals-bar + .field {
+  margin-top: 16px;
+}
+/* Return Sale: who and where the chosen sale was made. */
+.return-sale-info {
+  margin: 14px 0 0;
+  padding: 8px 12px;
+  background: #f5f8fc;
+  border: 1px solid #dde5ef;
+  border-radius: 4px;
+}
 
 /* ---------- Details modal ---------- */
 .details-grid {
@@ -1069,4 +1080,39 @@ label.btn.disabled {
 }
 .qoh-cell {
   white-space: nowrap;
+}
+
+/* Products: "All Warehouses" / one warehouse picker next to the search. */
+.warehouse-picker {
+  width: 220px;
+}
+
+/* View Payments: grand total / paid / due under the list. */
+.payment-summary {
+  margin: 12px 0 0;
+}
+
+/* Page the user's group may not open. */
+.no-access {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  max-width: 520px;
+  margin: 40px auto;
+  padding: 32px 24px;
+  text-align: center;
+  color: var(--muted);
+}
+.no-access h2 {
+  margin: 0;
+  color: #c9302c;
+}
+
+/* Server Status: page bar fixed to the top while the sections scroll. */
+.sv-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border: 1px solid #e2eaf5;
+  box-shadow: 0 2px 8px #0f254a14;
 }

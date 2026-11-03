@@ -43,6 +43,7 @@ export function ChangeLogo() {
                     "Choose an image smaller than 300 KB",
                     "សូមជ្រើសរូបភាពតូចជាង 300 KB",
                   ]),
+                  "error",
                 );
                 return;
               }
