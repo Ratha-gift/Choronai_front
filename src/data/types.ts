@@ -13,6 +13,8 @@ export type LineItem = {
   type?: "addition" | "subtraction";
   /** Stock adjustments: why this line changed. */
   description?: string;
+  /** Sale returns: false when the goods do not go back into stock (spoiled). */
+  returnStock?: boolean;
 };
 
 export type Transaction = Row & {
@@ -30,6 +32,8 @@ export type Transaction = Row & {
   orderTax: number;
   discount: number;
   shipping: number;
+  /** Sale returns: fee kept from the refund. */
+  surcharge?: number;
   grandTotal: number;
   paid: number;
   returned: number;

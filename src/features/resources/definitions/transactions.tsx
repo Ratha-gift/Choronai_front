@@ -24,6 +24,14 @@ const reverseStock = (kind: TransactionKind) => (row: Row) => {
   );
 };
 
+const stockFilters = {
+  branch: "branches",
+  toBranch: "branches",
+  warehouse: "warehouses",
+  createdBy: "users",
+} as const;
+const saleFilters = { ...stockFilters, customer: "customers" } as const;
+
 const date = col("date", "Date", "កាលបរិច្ឆេទ", "datetime");
 const reference = col("reference", "Reference No", "លេខយោង");
 const referenceTo = col("referenceTo", "Reference No To", "យោងទៅ");
@@ -101,6 +109,7 @@ export const transactionResources: ResourceDef[] = [
         onClick: () => navigate("/sales/returns/add"),
       },
     ],
+    filterFrom: saleFilters,
     columns: [
       date,
       reference,
@@ -113,6 +122,7 @@ export const transactionResources: ResourceDef[] = [
       col("discount", "Discount", "បញ្ចុះតម្លៃ", "money", { total: true }),
       balance,
       paymentStatus,
+      col("createdBy", "Created by", "បង្កើតដោយ"),
     ],
   },
   {
@@ -129,15 +139,19 @@ export const transactionResources: ResourceDef[] = [
     details,
     canEdit: false,
     onDelete: reverseStock("sale-return"),
+    filterFrom: saleFilters,
     columns: [
       date,
       reference,
       referenceTo,
+      col("branch", "Branch", "សាខា"),
+      col("warehouse", "Warehouse", "ឃ្លាំង"),
       col("customer", "Customer", "អតិថិជន"),
       col("grandTotal", "Total Return", "សរុបត្រឡប់", "money", { total: true }),
       paid,
       balance,
       paymentStatus,
+      col("createdBy", "Created by", "បង្កើតដោយ"),
     ],
   },
   {
@@ -154,9 +168,11 @@ export const transactionResources: ResourceDef[] = [
     details,
     editHref: (row) => `/inventory/stock-receive/edit/${row.id}`,
     onDelete: reverseStock("stock-receive"),
+    filterFrom: stockFilters,
     columns: [
       date,
       reference,
+      col("branch", "Branch", "សាខា"),
       col("warehouse", "Warehouse", "ឃ្លាំង"),
       col("grandTotal", "Total Cost", "ថ្លៃដើមសរុប", "money", { total: true }),
       col("createdBy", "Created by", "បង្កើតដោយ"),
@@ -177,6 +193,7 @@ export const transactionResources: ResourceDef[] = [
     details,
     editHref: (row) => `/inventory/stock-issue/edit/${row.id}`,
     onDelete: reverseStock("stock-issue"),
+    filterFrom: stockFilters,
     columns: [
       date,
       reference,
@@ -202,9 +219,11 @@ export const transactionResources: ResourceDef[] = [
     details,
     editHref: (row) => `/inventory/stock-adjustment/edit/${row.id}`,
     onDelete: reverseStock("adjustment"),
+    filterFrom: stockFilters,
     columns: [
       date,
       reference,
+      col("branch", "Branch", "សាខា"),
       col("warehouse", "Warehouse", "ឃ្លាំង"),
       col("createdBy", "Created by", "បង្កើតដោយ"),
       col("note", "Note", "កំណត់ចំណាំ"),
