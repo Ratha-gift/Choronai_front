@@ -7,3 +7,4 @@
 @import "../styles/theme.css";
 @import "../styles/auth.css";
 @import "../styles/responsive.css";
+td.user-abandoned { color: #dc2626; font-weight: 600; background: #fee2e2; }

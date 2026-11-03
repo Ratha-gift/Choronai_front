@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   DASHBOARD,
@@ -33,6 +34,7 @@ export function Navigation({
   onNavigate: () => void;
 }) {
   const { l, language } = useLanguage();
+  const pathname = usePathname();
   const activeGroup = groupOf(current)?.id;
   const activeFolder = folderOf(current)?.id;
   const activeItem = findModule(current)?.parent ?? current;
@@ -226,6 +228,24 @@ export function Navigation({
           );
         })}
         {single(SHOP_SETTINGS)}
+
+        {!collapsed && (
+          <div className="nav-system-label">
+            {language === "en" ? "System" : "ប្រព័ន្ធ"}
+          </div>
+        )}
+        <Link
+          href="/server-status"
+          className={`nav-item nav-server ${pathname === "/server-status" ? "active" : ""}`}
+          aria-label={collapsed ? "Server Status" : undefined}
+          title="Server Status"
+          onClick={navigate}
+        >
+          <Icon name="list" />
+          <span>
+            {language === "en" ? "Server Status" : "ស្ថានភាព Server"}
+          </span>
+        </Link>
       </nav>
 
       {collapsed &&
