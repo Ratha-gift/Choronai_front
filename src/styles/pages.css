@@ -185,6 +185,17 @@
 .totals-bar b {
   margin-left: 6px;
 }
+.totals-bar + .field {
+  margin-top: 16px;
+}
+/* Return Sale: who and where the chosen sale was made. */
+.return-sale-info {
+  margin: 14px 0 0;
+  padding: 8px 12px;
+  background: #f5f8fc;
+  border: 1px solid #dde5ef;
+  border-radius: 4px;
+}
 
 /* ---------- Details modal ---------- */
 .details-grid {

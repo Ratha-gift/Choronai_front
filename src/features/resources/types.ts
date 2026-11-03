@@ -27,6 +27,9 @@ export type FieldDef = {
   full?: boolean;
 };
 
+/** Settings lists a column filter can offer as choices (see ResourcePage). */
+export type FilterSource = "branches" | "warehouses" | "users" | "customers";
+
 export type ResourceDef = {
   id: string;
   collection: CollectionName;
@@ -35,6 +38,11 @@ export type ResourceDef = {
   noun: Label;
   icon: IconName;
   columns: Column<Row>[];
+  /**
+   * Columns filtered with a searchable select whose choices are every
+   * branch / warehouse / user / customer, not only the ones in the current rows.
+   */
+  filterFrom?: Record<string, FilterSource>;
   /** Highlight rows based on their current state. */
   rowClassName?: (row: Row) => string;
   /** Fields of the add/edit modal. Omit for read-only lists. */

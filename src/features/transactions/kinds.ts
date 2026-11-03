@@ -86,8 +86,10 @@ export const KINDS: Record<TransactionKind, KindDef> = {
 
 /** Signed stock change of one line for a kind (adjustments use the line type). */
 export const lineDelta = (kind: KindDef, line: LineItem) =>
-  kind.price === "none"
-    ? line.type === "subtraction"
-      ? -line.quantity
-      : line.quantity
-    : kind.stock * line.quantity;
+  line.returnStock === false
+    ? 0
+    : kind.price === "none"
+      ? line.type === "subtraction"
+        ? -line.quantity
+        : line.quantity
+      : kind.stock * line.quantity;

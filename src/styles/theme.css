@@ -666,6 +666,9 @@
 /* Actions menu rendered on <body> */
 .dropdown-menu.floating {
   position: fixed;
+  /* Placed by inline top or bottom (ActionMenu). The plain .dropdown-menu
+     top would squeeze menus that open upwards off the screen. */
+  top: auto;
   z-index: 1000;
   border-radius: 8px;
   box-shadow: 0 10px 24px #02254f2e;
