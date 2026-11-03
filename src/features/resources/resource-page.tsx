@@ -13,13 +13,25 @@ import { downloadText, toCsv } from "@/lib/csv";
 import { formatDate } from "@/lib/format";
 import { notify } from "@/lib/toast";
 import { ResourceForm, initialValues } from "./resource-form";
+import { usePermissions } from "@/features/settings/permissions";
 import type { FilterSource, ResourceDef } from "./types";
 
 /** List page for one collection: table, add/edit modal, delete, export. */
 export function ResourcePage({ def }: { def: ResourceDef }) {
   const { l, t } = useLanguage();
   const router = useRouter();
-  const { rows, add, update, remove } = useCollection(def.collection);
+  const collection = useCollection(def.collection);
+  const { add, update, remove } = collection;
+  // Users without "See all branches" only get their own branch's records.
+  const { branch, warehouse } = usePermissions();
+  const rows =
+    branch && def.branchOf
+      ? collection.rows.filter((row) =>
+          def.branchOf!(row).some(
+            (name) => name === branch || (warehouse && name === warehouse),
+          ),
+        )
+      : collection.rows;
   const [selected, setSelected] = useState<string[]>([]);
   const [editing, setEditing] = useState<Row | "new" | null>(null);
   const [viewing, setViewing] = useState<Row | null>(null);
@@ -151,7 +163,11 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
     <>
       <Box
         icon={def.icon}
-        title={l(def.title)}
+        title={
+          branch && def.branchOf
+            ? l(def.title).replace(/\(.*\)$/, `(${branch})`)
+            : l(def.title)
+        }
         intro={t.tableIntro}
         actions={actions}
       >
@@ -185,7 +201,7 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
             const prepared = def.prepare
               ? def.prepare(input, existing)
               : { values: input };
-            if ("error" in prepared) return notify(l(prepared.error));
+            if ("error" in prepared) return notify(l(prepared.error), "error");
             const { values } = prepared;
             if (!existing) add(values);
             else update(existing.id, values);

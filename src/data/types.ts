@@ -17,6 +17,18 @@ export type LineItem = {
   returnStock?: boolean;
 };
 
+/** One payment towards a sale (a sale can be paid in several parts). */
+export type Payment = {
+  id: string;
+  date: string;
+  reference: string;
+  method: string;
+  /** Riel. */
+  amount: number;
+  note?: string;
+  createdBy: string;
+};
+
 export type Transaction = Row & {
   date: string;
   reference: string;
@@ -45,4 +57,6 @@ export type Transaction = Row & {
   /** POS sales: how it was paid and the cashier register it belongs to. */
   paymentMethod?: string;
   registerId?: string;
+  /** Sales: every payment; older sales only have `paid` + `paymentMethod`. */
+  payments?: Payment[];
 };

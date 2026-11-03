@@ -8,6 +8,8 @@ import {
   useProducts,
 } from "@/features/products/store";
 import type { Product } from "@/features/products/types";
+import { useWarehouseStock } from "@/features/products/warehouse-stock";
+import { usePermissions } from "@/features/settings/permissions";
 
 export type Movement = {
   product: Product;
@@ -36,12 +38,29 @@ const empty = (product: Product): Movement => ({
 
 /** Everything the reports need, computed once from the stored records. */
 export function useReportData() {
-  const { products } = useProducts();
-  const sales = useCollection<Transaction>("sales").rows;
-  const saleReturns = useCollection<Transaction>("saleReturns").rows;
-  const adjustments = useCollection<Transaction>("adjustments").rows;
-  const stockReceives = useCollection<Transaction>("stockReceives").rows;
-  const stockIssues = useCollection<Transaction>("stockIssues").rows;
+  // Users without "See all branches" get their branch's records and the
+  // stock of its warehouse only.
+  const { branch, warehouse } = usePermissions();
+  const mine = (rows: Transaction[]) =>
+    branch ? rows.filter((row) => row.branch === branch) : rows;
+  const all = useProducts().products;
+  const inWarehouse = useWarehouseStock(warehouse ?? "");
+  const products = useMemo(
+    () =>
+      inWarehouse
+        ? all.map((product) => ({
+            ...product,
+            quantity: inWarehouse.get(product.id) ?? 0,
+          }))
+        : all,
+    [all, inWarehouse],
+  );
+  const sales = mine(useCollection<Transaction>("sales").rows);
+  const saleReturns = mine(useCollection<Transaction>("saleReturns").rows);
+  const adjustments = mine(useCollection<Transaction>("adjustments").rows);
+  const stockReceives = mine(useCollection<Transaction>("stockReceives").rows);
+  // Goods sent out from this branch.
+  const stockIssues = mine(useCollection<Transaction>("stockIssues").rows);
 
   const movements = useMemo(() => {
     const map = new Map(

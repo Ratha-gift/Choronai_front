@@ -1,7 +1,7 @@
 "use client";
 import { currentUsername } from "@/lib/auth";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Icon } from "@/components/icons";
 import { Box } from "@/components/ui/box";
 import { Field, FormGrid, NumberInput } from "@/components/ui/fields";
@@ -18,8 +18,10 @@ import {
   nextReference,
   toNumber,
 } from "@/lib/format";
+import { useHydrated } from "@/lib/store";
 import { notify } from "@/lib/toast";
 import { KINDS, lineDelta } from "./kinds";
+import { usePermissions } from "@/features/settings/permissions";
 
 const kind = KINDS["sale-return"];
 const round = (value: number) => Math.round(value * 1000) / 1000;
@@ -81,14 +83,38 @@ export function ReturnForm() {
   }, [sales.rows, returns.rows]);
 
   const sale = sales.rows.find((row) => row.reference === form.sale);
-  const openSales = sales.rows.filter((row) =>
-    returnable.get(row.reference)?.some((line) => line.sold > 0),
+  const { branch } = usePermissions();
+  const openSales = sales.rows.filter(
+    (row) =>
+      (!branch || row.branch === branch) &&
+      returnable.get(row.reference)?.some((line) => line.sold > 0),
   );
 
   function chooseSale(reference: string) {
     set({ sale: reference });
     setLines((returnable.get(reference) ?? []).filter((line) => line.sold > 0));
   }
+
+  // "Return Sale" in the POS Sales menu opens this page with ?sale=<reference>.
+  const preset = useSearchParams().get("sale") ?? "";
+  const hydrated = useHydrated();
+  const presetDone = useRef(false);
+  useEffect(() => {
+    // Wait for the saved data, so earlier returns are counted.
+    if (!hydrated || !preset || presetDone.current) return;
+    presetDone.current = true;
+    if (openSales.some((row) => row.reference === preset)) chooseSale(preset);
+    else
+      notify(
+        l([
+          "Everything in this sale has already been returned.",
+          "ទំនិញក្នុងការលក់នេះត្រឡប់អស់ហើយ។",
+        ]),
+        "error",
+      );
+    // Runs once, when the saved data is ready.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, preset]);
 
   // The sale's order discount and tax are shared out by value returned.
   const total = lines.reduce(
@@ -108,11 +134,11 @@ export function ReturnForm() {
 
   function save() {
     if (!sale) {
-      notify(l(["Select the sale first.", "សូមជ្រើសការលក់ជាមុនសិន។"]));
+      notify(l(["Select the sale first.", "សូមជ្រើសការលក់ជាមុនសិន។"]), "error");
       return;
     }
     if (!counted.length) {
-      notify(t.addItemsFirst);
+      notify(t.addItemsFirst, "error");
       return;
     }
     const items: LineItem[] = counted.map(({ sold: _sold, ...line }) => line);

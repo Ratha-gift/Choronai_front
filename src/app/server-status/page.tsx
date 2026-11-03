@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Icon } from "@/components/icons";
 import { Box } from "@/components/ui/box";
 import { useCollection } from "@/data/collections";
 import { useLanguage } from "@/i18n";
@@ -171,6 +172,19 @@ export default function ServerStatusPage() {
 
   return (
     <div className="sv-page">
+      {/* Page bar that stays at the top while the sections scroll. */}
+      <header className="box-header sv-topbar">
+        <span className="box-icon">
+          <Icon name="dashboard" />
+        </span>
+        <h2>{l(["Server Status", "ស្ថានភាព Server"])}</h2>
+        <div className="box-actions">
+          <a href="/">
+            <Icon name="home" size={15} />
+            <span>{l(["Back to Dashboard", "ត្រឡប់ទៅផ្ទាំងគ្រប់គ្រង"])}</span>
+          </a>
+        </div>
+      </header>
       <Box icon="list" title="System Overview">
         <div className="sv-toolbar">
           <span className="muted">

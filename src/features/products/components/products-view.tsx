@@ -21,6 +21,7 @@ import {
 } from "../store";
 import type { Product } from "../types";
 import { useWarehouseStock } from "../warehouse-stock";
+import { usePermissions } from "@/features/settings/permissions";
 
 export function ProductsView() {
   const { l, t, language } = useLanguage();
@@ -28,7 +29,10 @@ export function ProductsView() {
   const { products } = useProducts();
   const unit = (product: Product) => productUnit(product);
   // "" = All Warehouses; otherwise the quantity column shows that warehouse.
-  const [warehouse, setWarehouse] = useState("");
+  const [picked, setWarehouse] = useState("");
+  // Users without "See all branches" only see their branch's warehouse.
+  const own = usePermissions().warehouse;
+  const warehouse = own ?? picked;
   const warehouses = useCollection("warehouses").rows;
   const inWarehouse = useWarehouseStock(warehouse);
   const quantity = (product: Product) =>
@@ -124,21 +128,23 @@ export function ProductsView() {
         rows={products}
         initialSort={{ key: "name" }}
         toolbar={
-          <div className="warehouse-picker">
-            <Select
-              ariaLabel={t.warehouse}
-              searchPlaceholder={`${t.searchLabel}…`}
-              value={warehouse}
-              options={[
-                { value: "", label: l(["All Warehouses", "គ្រប់ឃ្លាំង"]) },
-                ...warehouses.map((row) => ({
-                  value: String(row.name),
-                  label: String(row.name),
-                })),
-              ]}
-              onChange={setWarehouse}
-            />
-          </div>
+          !own && (
+            <div className="warehouse-picker">
+              <Select
+                ariaLabel={t.warehouse}
+                searchPlaceholder={`${t.searchLabel}…`}
+                value={warehouse}
+                options={[
+                  { value: "", label: l(["All Warehouses", "គ្រប់ឃ្លាំង"]) },
+                  ...warehouses.map((row) => ({
+                    value: String(row.name),
+                    label: String(row.name),
+                  })),
+                ]}
+                onChange={setWarehouse}
+              />
+            </div>
+          )
         }
         rowClassName={(product) => (isLowStock(product) ? "row-warning" : "")}
         actions={(product) => (
