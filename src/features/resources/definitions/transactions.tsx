@@ -51,6 +51,7 @@ export const transactionResources: ResourceDef[] = [
   {
     id: "sales/registers",
     collection: "registers",
+    rowClassName: (row) => (row.status === "open" ? "register-open" : ""),
     title: ["Registers (cashier shifts)", "បញ្ជរគិតលុយ (វេនអ្នកគិតលុយ)"],
     noun: ["Register", "បញ្ជរ"],
     icon: "lock",
@@ -179,6 +180,8 @@ export const transactionResources: ResourceDef[] = [
     columns: [
       date,
       reference,
+      col("branch", "From Branch", "ពីសាខា"),
+      col("toBranch", "To Branch", "ទៅសាខា"),
       col("warehouse", "Warehouse", "ឃ្លាំង"),
       col("grandTotal", "Total Cost", "ថ្លៃដើមសរុប", "money", { total: true }),
       col("createdBy", "Created by", "បង្កើតដោយ"),

@@ -32,10 +32,12 @@ import { EmailTemplates } from "./settings/email-templates";
 import { GroupPermissions } from "./settings/group-permissions";
 import { SettingsPage } from "./settings/settings-page";
 import { TransactionForm } from "./transactions/transaction-form";
+import { UsersPage } from "./users/users-page";
 
 // Pages with their own component. Everything listed in `resources` renders
 // through ResourcePage; anything else shows the "planned" placeholder.
 const PAGES: Record<string, (params: string[]) => ReactNode> = {
+  "people/users": () => <UsersPage />,
   "": () => <DashboardView />,
   "inventory/products": () => <ProductsView />,
   "inventory/products/add": () => <ProductFormPage />,
