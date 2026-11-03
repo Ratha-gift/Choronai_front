@@ -185,6 +185,17 @@
 .totals-bar b {
   margin-left: 6px;
 }
+.totals-bar + .field {
+  margin-top: 16px;
+}
+/* Return Sale: who and where the chosen sale was made. */
+.return-sale-info {
+  margin: 14px 0 0;
+  padding: 8px 12px;
+  background: #f5f8fc;
+  border: 1px solid #dde5ef;
+  border-radius: 4px;
+}
 
 /* ---------- Details modal ---------- */
 .details-grid {
@@ -766,7 +777,6 @@ label.btn.disabled {
   cursor: default;
 }
 
-<<<<<<< HEAD
 /*------------------------------------------ Server Status --------------------------------*/
 
 .tile {
@@ -1061,7 +1071,6 @@ label.btn.disabled {
 /*------------------------------------------ បានកែ --------------------------------*/
 
 /*------------------------------------------ បានកែ --------------------------------*/
-=======
 /* Stock adjustment: line description under the product name */
 .line-note {
   display: block;
@@ -1070,4 +1079,8 @@ label.btn.disabled {
 .qoh-cell {
   white-space: nowrap;
 }
->>>>>>> cceabab1d68b68b4479272b4dd6925040fb879f2
+
+/* Products: "All Warehouses" / one warehouse picker next to the search. */
+.warehouse-picker {
+  width: 220px;
+}

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Box, type BoxAction } from "@/components/ui/box";
 import { ActionMenu, IconActions } from "@/components/ui/action-menu";
@@ -13,7 +13,7 @@ import { downloadText, toCsv } from "@/lib/csv";
 import { formatDate } from "@/lib/format";
 import { notify } from "@/lib/toast";
 import { ResourceForm, initialValues } from "./resource-form";
-import type { ResourceDef } from "./types";
+import type { FilterSource, ResourceDef } from "./types";
 
 /** List page for one collection: table, add/edit modal, delete, export. */
 export function ResourcePage({ def }: { def: ResourceDef }) {
@@ -27,6 +27,7 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
   const edit = (row: Row) =>
     def.editHref ? router.push(def.editHref(row)) : setEditing(row);
   const noun = l(def.noun);
+  const columns = useFilterColumns(def);
 
   async function deleteRows(targets: Row[]) {
     if (!targets.length) return;
@@ -155,7 +156,7 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
         actions={actions}
       >
         <DataTable
-          columns={def.columns}
+          columns={columns}
           rowClassName={def.rowClassName}
           rows={rows}
           actions={rowActions}
@@ -213,4 +214,33 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
       )}
     </>
   );
+}
+
+/** Gives the `filterFrom` columns a select filter listing every branch / warehouse / user / customer. */
+function useFilterColumns(def: ResourceDef) {
+  const branches = useCollection("branches").rows;
+  const warehouses = useCollection("warehouses").rows;
+  const users = useCollection("users").rows;
+  const customers = useCollection("customers").rows;
+  return useMemo(() => {
+    if (!def.filterFrom) return def.columns;
+    const names = (rows: Row[], field: string) =>
+      rows.map((row) => String(row[field] ?? ""));
+    const options: Record<FilterSource, string[]> = {
+      branches: names(branches, "name"),
+      warehouses: names(warehouses, "name"),
+      users: names(users, "username"),
+      customers: names(customers, "name"),
+    };
+    return def.columns.map((column) => {
+      const source = def.filterFrom?.[column.key];
+      return source
+        ? {
+            ...column,
+            filter: "select" as const,
+            filterOptions: options[source],
+          }
+        : column;
+    });
+  }, [def, branches, warehouses, users, customers]);
 }

@@ -31,6 +31,7 @@ import { POS_SECTIONS, SYSTEM_SECTIONS } from "./settings/definitions";
 import { EmailTemplates } from "./settings/email-templates";
 import { GroupPermissions } from "./settings/group-permissions";
 import { SettingsPage } from "./settings/settings-page";
+import { ReturnForm } from "./transactions/return-form";
 import { TransactionForm } from "./transactions/transaction-form";
 import { UsersPage } from "./users/users-page";
 
@@ -56,7 +57,7 @@ const PAGES: Record<string, (params: string[]) => ReactNode> = {
   "inventory/stock-adjustment/edit": ([id]) => (
     <TransactionForm key={id} kind="adjustment" recordId={id} />
   ),
-  "sales/returns/add": () => <TransactionForm kind="sale-return" />,
+  "sales/returns/add": () => <ReturnForm />,
   "settings/system": () => (
     <SettingsPage
       name="system"
