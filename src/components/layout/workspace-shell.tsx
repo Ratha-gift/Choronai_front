@@ -34,20 +34,26 @@ import { LanguageMenu } from "./language-menu";
 import { UserMenu } from "./user-menu";
 import { Navigation } from "./navigation";
 
-
 const REGISTER_MARK = "register-open";
 const OPEN_WORDS = ["open", "បើក"];
 
+/** Red highlight applies only while the shell is on the Registers page. */
 const REGISTER_CSS = `
-tr.${REGISTER_MARK} td {
+.app-shell[data-registers="true"] tr.${REGISTER_MARK} td {
   background: #fee2e2 !important;
   color: #b91c1c !important;
   font-weight: 600;
 }
-tr.${REGISTER_MARK} td:first-child {
+.app-shell[data-registers="true"] tr.${REGISTER_MARK} td:first-child {
   box-shadow: inset 4px 0 0 #dc2626;
 }
 `;
+
+/** Only the Registers page itself (e.g. /sale/registers), never /people/users. */
+const isRegistersPage = (pathname: string) => {
+  const last = pathname.split("/").filter(Boolean).pop() ?? "";
+  return last === "registers" || last === "register";
+};
 
 const isOpenRow = (row: Element) =>
   Array.from(row.querySelectorAll("td")).some((cell) =>
@@ -56,15 +62,17 @@ const isOpenRow = (row: Element) =>
 
 function useOpenRegisterMarker(pathname: string) {
   useEffect(() => {
-    if (!pathname.toLowerCase().includes("register")) return;
+    if (!isRegistersPage(pathname)) return;
 
     const scan = () => {
-      document.querySelectorAll<HTMLElement>("table tbody tr").forEach((row) => {
-        const open = isOpenRow(row);
-        if (row.classList.contains(REGISTER_MARK) !== open) {
-          row.classList.toggle(REGISTER_MARK, open);
-        }
-      });
+      document
+        .querySelectorAll<HTMLElement>("main.page table tbody tr")
+        .forEach((row) => {
+          const open = isOpenRow(row);
+          if (row.classList.contains(REGISTER_MARK) !== open) {
+            row.classList.toggle(REGISTER_MARK, open);
+          }
+        });
     };
 
     let frame = 0;
@@ -75,12 +83,10 @@ function useOpenRegisterMarker(pathname: string) {
 
     scan();
     const observer = new MutationObserver(schedule);
-    observer.observe(document.body, {
+    observer.observe(document.querySelector("main.page") ?? document.body, {
       childList: true,
       subtree: true,
       characterData: true,
-      attributes: true,
-      attributeFilter: ["class"],
     });
 
     return () => {
@@ -105,7 +111,6 @@ function useMediaQuery(query: string) {
   );
 }
 
-
 const DEFAULT_LOGO = "/brand/choronai-mark.png";
 
 export function WorkspaceShell({ children }: { children: ReactNode }) {
@@ -128,9 +133,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
   const session = useSession();
   const router = useRouter();
 
-
   useOpenRegisterMarker(pathname);
-
 
   const register = useOpenRegister(session?.username ?? "").open;
   const [openingRegister, setOpeningRegister] = useState(false);
@@ -146,10 +149,12 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
   const parent = module.parent ? findModule(module.parent) : undefined;
   const alerts = products.filter(isLowStock).length;
   const siteName = String(settings.siteName || "CHORONAI");
+  const onRegistersPage = isRegistersPage(pathname);
 
   return (
     <div
       className={`app-shell ${rail ? "collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`}
+      data-registers={onRegistersPage}
     >
       <style>{REGISTER_CSS}</style>
       <header className="header">

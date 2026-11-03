@@ -766,7 +766,7 @@ label.btn.disabled {
   cursor: default;
 }
 
-<<<<<<< HEAD
+
 /*------------------------------------------ Server Status --------------------------------*/
 
 .tile {
@@ -1061,7 +1061,7 @@ label.btn.disabled {
 /*------------------------------------------ បានកែ --------------------------------*/
 
 /*------------------------------------------ បានកែ --------------------------------*/
-=======
+
 /* Stock adjustment: line description under the product name */
 .line-note {
   display: block;
@@ -1070,4 +1070,3 @@ label.btn.disabled {
 .qoh-cell {
   white-space: nowrap;
 }
->>>>>>> cceabab1d68b68b4479272b4dd6925040fb879f2
