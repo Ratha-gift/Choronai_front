@@ -13,6 +13,8 @@ import { categoriesOf, categoryLabel } from "@/features/products/labels";
 import { useLanguage, type Label } from "@/i18n";
 import { formatMoney, formatNumber } from "@/lib/format";
 import { lastMonths, monthKey, useReportData } from "./use-report-data";
+import { useCollection } from "@/data/collections";
+import { stockAt, productCost } from "@/features/products/store";
 
 const REPORT_LINKS: {
   href: string;
@@ -176,7 +178,26 @@ export function OverviewChart() {
 
 export function WarehouseStockChart() {
   const { l } = useLanguage();
-  const { products, stockValue } = useReportData();
+  const { products } = useReportData();
+  const warehouses = useCollection("warehouses").rows;
+  const [warehouseId, setWarehouseId] = useState("");
+  const selected = warehouses.find((row) => row.id === warehouseId);
+  const stockValue = products.reduce(
+    (totals, product) => {
+      const quantity = selected
+        ? stockAt(product, {
+            branch: String(selected.branch || "Central"),
+            warehouse: String(selected.name),
+          })
+        : (product.quantity ?? 0);
+      return {
+        quantity: totals.quantity + quantity,
+        byCost: totals.byCost + quantity * productCost(product),
+        byPrice: totals.byPrice + quantity * product.price,
+      };
+    },
+    { quantity: 0, byCost: 0, byPrice: 0 },
+  );
   return (
     <Box
       icon="chart"
@@ -189,6 +210,21 @@ export function WarehouseStockChart() {
         "តម្លៃស្តុកឃ្លាំងតាមថ្លៃដើម និងតម្លៃលក់។",
       ])}
     >
+      <label className="field">
+        <span>{l(["Warehouse", "ឃ្លាំង"])}</span>
+        <select
+          className="form-control"
+          value={warehouseId}
+          onChange={(event) => setWarehouseId(event.target.value)}
+        >
+          <option value="">{l(["All warehouses", "គ្រប់ឃ្លាំង"])}</option>
+          {warehouses.map((row) => (
+            <option key={row.id} value={row.id}>
+              {String(row.branch || "Central")} / {String(row.name)}
+            </option>
+          ))}
+        </select>
+      </label>
       <div className="tiles two">
         <StatTile
           color="blue"

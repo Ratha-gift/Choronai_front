@@ -1,4 +1,5 @@
 "use client";
+import { postPoints, phoneKey, cardOwner } from "./loyalty";
 import { currentUsername, useSession } from "@/lib/auth";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -13,6 +14,7 @@ import { addRow, setRows, useCollection } from "@/data/collections";
 import type { LineItem, Row, Transaction } from "@/data/types";
 import {
   adjustStock,
+  stockAt,
   isLowStock,
   productStock,
   productUnit,
@@ -110,6 +112,12 @@ function PosScreen() {
   const [memberCode, setMemberCode] = useState("");
   const [member, setMember] = useState<Row | null>(null);
   const [warehouse, setWarehouse] = useState(String(system.defaultWarehouse));
+  const currentBranch = String(
+    warehouses.rows.find((row) => row.name === warehouse)?.branch || "Central",
+  );
+  useEffect(() => {
+    if (register?.warehouse) setWarehouse(register.warehouse);
+  }, [register?.id, register?.warehouse]);
   const [weighing, setWeighing] = useState<Product | null>(null);
   const [category, setCategory] = useState<"all" | Category>(
     (pos.defaultCategory as "all" | Category) || "all",
@@ -128,7 +136,7 @@ function PosScreen() {
   const allowOversell = system.overSelling !== "no";
   // Shop details for the receipt come from the selected branch record.
   const branchRow = branches.rows.find(
-    (row) => String(row.name) === String(pos.defaultBranch),
+    (row) => String(row.name) === currentBranch,
   );
   const branchPhone = String(branchRow?.phone ?? "").trim();
   const branchAddress = [branchRow?.city, branchRow?.country]
@@ -172,7 +180,7 @@ function PosScreen() {
     if (
       !allowOversell &&
       tracksStock(product) &&
-      inCart + quantity > productStock(product)
+      inCart + quantity > stockAt(product, { branch: currentBranch, warehouse })
     ) {
       notify(l(["Not enough stock for this product", "ស្តុកមិនគ្រប់គ្រាន់"]));
       return false;
@@ -203,7 +211,8 @@ function PosScreen() {
       (row) =>
         String(row.cardNo ?? "")
           .trim()
-          .toLowerCase() === wanted,
+          .toLowerCase() === wanted ||
+        phoneKey(row.customer) === phoneKey(wanted),
     );
     if (!card) {
       notify(l(["Membership card not found", "រកមិនឃើញកាតសមាជិក"]));
@@ -224,11 +233,7 @@ function PosScreen() {
 
   /** Uses a card for this sale; its owner (matched by phone) becomes the customer. */
   function applyCard(card: Row) {
-    const owner = customers.rows.find(
-      (row) =>
-        String(row.phone ?? "").replace(/\s/g, "") ===
-        String(card.customer ?? "").replace(/\s/g, ""),
-    );
+    const owner = cardOwner(card);
     if (owner) setCustomer(String(owner.name));
     setMember(card);
     setMemberCode("");
@@ -298,6 +303,71 @@ function PosScreen() {
   }
 
   function finalize(payment: Payment) {
+    if (member) {
+      const latest = memberCards.rows.find((row) => row.id === member.id);
+      if (
+        !latest ||
+        (latest.expiry && String(latest.expiry) < localDateTime().slice(0, 10))
+      ) {
+        notify(
+          l([
+            "Membership card is missing or expired.",
+            "កាតសមាជិកផុតកំណត់ ឬរកមិនឃើញ។",
+          ]),
+        );
+        return;
+      }
+    }
+    if (!register || register.status !== "open") {
+      notify(l(["Open a register first.", "សូមបើកវេនជាមុន។"]));
+      return;
+    }
+    if (
+      !warehouses.rows.some(
+        (row) =>
+          row.name === warehouse &&
+          (row.branch || "Central") === payment.branch,
+      )
+    ) {
+      notify(
+        l([
+          "Select the branch that owns this warehouse.",
+          "សូមជ្រើសសាខាដែលជាម្ចាស់ឃ្លាំងនេះ។",
+        ]),
+      );
+      return;
+    }
+    const available = products.every((product) => {
+      const needed = cart.items.reduce((sum, line) => {
+        const sold = products.find((item) => item.id === line.productId);
+        if (sold?.type === "combo")
+          return (
+            sum +
+            (sold.comboItems ?? [])
+              .filter((item) => item.productId === product.id)
+              .reduce((qty, item) => qty + item.quantity * line.quantity, 0)
+          );
+        return (
+          sum +
+          (line.productId === product.id && tracksStock(product)
+            ? line.quantity
+            : 0)
+        );
+      }, 0);
+      return (
+        needed === 0 ||
+        needed <= stockAt(product, { branch: payment.branch, warehouse })
+      );
+    });
+    if (!allowOversell && !available) {
+      notify(
+        l([
+          "Not enough stock in this branch and warehouse.",
+          "ស្តុកក្នុងសាខា និងឃ្លាំងនេះមិនគ្រប់គ្រាន់។",
+        ]),
+      );
+      return;
+    }
     const { totals } = cart;
     const sale: Omit<Transaction, "id"> = {
       date: new Date(payment.date).toISOString(),
@@ -328,6 +398,8 @@ function PosScreen() {
       createdBy: currentUsername(),
       paymentMethod: payment.method,
       ...(member ? { memberCard: String(member.cardNo) } : {}),
+      ...(member ? { memberCardId: member.id } : {}),
+      customerId: customers.rows.find((row) => row.name === customer)?.id,
       registerId: register?.id,
     };
     const record = addRow("sales", sale) as Transaction;
@@ -335,6 +407,7 @@ function PosScreen() {
       cart.items.map((line) => ({
         productId: line.productId,
         delta: -line.quantity,
+        location: { branch: payment.branch, warehouse },
       })),
     );
     // Award points: every `customerSpent` riel earns `customerPoints`.
@@ -343,26 +416,28 @@ function PosScreen() {
       spent > 0
         ? Math.floor(totals.payable / spent) * toNumber(system.customerPoints)
         : 0;
-    if (points > 0)
-      setRows("customers", (rows) =>
+    postPoints({
+      eventId: `sale:${record.id}`,
+      cardId: member?.id,
+      customerId: String(record.customerId ?? ""),
+      points,
+      spent: totals.payable,
+      kind: "earn",
+      reference: record.reference,
+    });
+    const pointsBalance = member
+      ? toNumber(
+          memberCards.rows.find((row) => row.id === member.id)?.awardPoints,
+        ) + points
+      : undefined;
+    if (pointsBalance !== undefined) {
+      record.pointsBalance = pointsBalance;
+      setRows("sales", (rows) =>
         rows.map((row) =>
-          row.name === customer
-            ? { ...row, awardPoints: toNumber(row.awardPoints) + points }
-            : row,
+          row.id === record.id ? { ...row, pointsBalance } : row,
         ),
       );
-    if (member)
-      setRows("memberCards", (rows) =>
-        rows.map((row) =>
-          row.id === member.id
-            ? {
-                ...row,
-                awardPoints: toNumber(row.awardPoints) + points,
-                spent: toNumber(row.spent) + totals.payable,
-              }
-            : row,
-        ),
-      );
+    }
     setMember(null);
     cart.clear();
     setPanel(null);
@@ -543,6 +618,7 @@ function PosScreen() {
               <Select
                 className="grow"
                 ariaLabel={t.warehouse}
+                disabled={!!register}
                 value={warehouse}
                 onChange={setWarehouse}
                 searchPlaceholder={`${t.searchLabel}…`}
@@ -844,7 +920,10 @@ function PosScreen() {
 
           <div className={`pos-grid accent-${pos.productButtonColor}`}>
             {visible.map((product) => {
-              const stock = productStock(product);
+              const stock = stockAt(product, {
+                branch: currentBranch,
+                warehouse,
+              });
               const count = inCart(product.id);
               return (
                 <button
@@ -958,7 +1037,7 @@ function PosScreen() {
           payable={cart.totals.payable}
           itemCount={cart.totals.count}
           rate={rate}
-          defaultBranch={String(pos.defaultBranch)}
+          defaultBranch={currentBranch}
           onSubmit={finalize}
         />
       )}
@@ -1318,7 +1397,7 @@ function Receipt({
         Transaction,
         "customer" | "discount" | "orderTax" | "shipping" | "total"
       >
-    >;
+    > & { pointsBalance?: number };
   onClose: () => void;
   logo: string;
   siteName: string;
@@ -1373,6 +1452,12 @@ function Receipt({
             <div>
               <span>{l(["Cashier", "អ្នកលក់"])}</span>
               <b>{cashier}</b>
+            </div>
+          )}
+          {record.pointsBalance !== undefined && (
+            <div>
+              <span>{l(["Points balance", "ពិន្ទុនៅសល់"])}</span>
+              <b>{formatNumber(record.pointsBalance)}</b>
             </div>
           )}
         </div>

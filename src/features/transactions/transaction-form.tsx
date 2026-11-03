@@ -1,16 +1,17 @@
 "use client";
 import { currentUsername } from "@/lib/auth";
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Icon } from "@/components/icons";
 import { Box } from "@/components/ui/box";
 import { Field, FormGrid, NumberInput } from "@/components/ui/fields";
-import { addRow, setRows, useCollection } from "@/data/collections";
+import { addRow, getRows, setRows, useCollection } from "@/data/collections";
 import type { LineItem, Transaction } from "@/data/types";
 import {
   adjustStock,
   productCost,
   productStock,
+  stockAt,
   productUnit,
   useProducts,
 } from "@/features/products/store";
@@ -24,7 +25,9 @@ import {
   toNumber,
 } from "@/lib/format";
 import { notify } from "@/lib/toast";
-import { KINDS, lineDelta, type TransactionKind } from "./kinds";
+import { KINDS, lineDelta, appliedStock, type TransactionKind } from "./kinds";
+import { canPerform } from "@/lib/permissions";
+import { reverseSalePoints } from "@/features/pos/loyalty";
 
 const round = (value: number) => Math.round(value * 1000) / 1000;
 
@@ -42,6 +45,7 @@ export function TransactionForm({
   const kind = KINDS[kindId];
   const { l, t } = useLanguage();
   const router = useRouter();
+  const requestedIssue = useSearchParams().get("issue") ?? "";
   const [settings] = useSettings("system");
   const { products } = useProducts();
   const records = useCollection(kind.collection);
@@ -52,6 +56,25 @@ export function TransactionForm({
   const branches = useCollection("branches");
   const warehouses = useCollection("warehouses");
   const taxRates = useCollection("taxRates");
+  const issues = useCollection<Transaction>("stockIssues");
+  const receives = useCollection<Transaction>("stockReceives");
+  const remainingItems = (issue: Transaction) =>
+    issue.items
+      .map((line) => ({
+        ...line,
+        quantity: round(
+          line.quantity -
+            receives.rows
+              .filter((row) => row.transferId === issue.id)
+              .flatMap((row) => row.items)
+              .filter((item) => item.productId === line.productId)
+              .reduce((sum, item) => sum + item.quantity, 0),
+        ),
+      }))
+      .filter((line) => line.quantity > 0);
+  const requestedTransfer = issues.rows.find(
+    (row) => row.id === requestedIssue,
+  );
   const existing = recordId
     ? (records.rows.find((row) => row.id === recordId) as
         Transaction | undefined)
@@ -66,6 +89,8 @@ export function TransactionForm({
     referenceTo: "",
     branch: String(settings.defaultBranch ?? ""),
     toBranch: "",
+    toWarehouse: "",
+    transferId: "",
     warehouse: String(settings.defaultWarehouse ?? ""),
     party: "",
     status: kind.statuses[0],
@@ -83,6 +108,8 @@ export function TransactionForm({
     referenceTo: record.referenceTo ?? "",
     branch: record.branch ?? "",
     toBranch: record.toBranch ?? "",
+    toWarehouse: String(record.toWarehouse ?? ""),
+    transferId: String(record.transferId ?? ""),
     warehouse: record.warehouse ?? "",
     status: record.status,
     discount: record.discount,
@@ -92,10 +119,24 @@ export function TransactionForm({
     document: String(record.document ?? ""),
   });
   const [form, setForm] = useState(() =>
-    existing ? fromExisting(existing) : fresh(),
+    existing
+      ? fromExisting(existing)
+      : requestedTransfer && kindId === "stock-receive"
+        ? {
+            ...fresh(),
+            transferId: requestedTransfer.id,
+            branch: requestedTransfer.toBranch ?? "",
+            warehouse: String(requestedTransfer.toWarehouse ?? ""),
+            referenceTo: requestedTransfer.reference,
+          }
+        : fresh(),
   );
   const [items, setItems] = useState<LineItem[]>(() =>
-    existing ? existing.items.map((line) => ({ ...line })) : [],
+    existing
+      ? existing.items.map((line) => ({ ...line }))
+      : requestedTransfer && kindId === "stock-receive"
+        ? remainingItems(requestedTransfer)
+        : [],
   );
   const [search, setSearch] = useState("");
   const [moreOptions, setMoreOptions] = useState(true);
@@ -145,6 +186,9 @@ export function TransactionForm({
     set({
       referenceTo: reference,
       party: String(source?.customer ?? source?.supplier ?? ""),
+      ...(source
+        ? { branch: source.branch ?? "", warehouse: source.warehouse ?? "" }
+        : {}),
     });
     setItems(source ? source.items.map((line) => ({ ...line })) : []);
   }
@@ -169,6 +213,165 @@ export function TransactionForm({
   const totalQty = items.reduce((sum, line) => sum + line.quantity, 0);
 
   function save() {
+    if (
+      !branches.rows.some((row) => row.name === form.branch) ||
+      !warehouses.rows.some(
+        (row) =>
+          row.name === form.warehouse &&
+          (row.branch || "Central") === form.branch,
+      )
+    ) {
+      notify(
+        l([
+          "Select a warehouse belonging to this branch.",
+          "សូមជ្រើសឃ្លាំងដែលជារបស់សាខានេះ។",
+        ]),
+      );
+      return;
+    }
+    if (kindId === "sale-return") {
+      const source = getRows<Transaction>("sales").find(
+        (row) => row.reference === form.referenceTo,
+      );
+      const prior = getRows<Transaction>("saleReturns").filter(
+        (row) => row.referenceTo === form.referenceTo,
+      );
+      if (
+        !source ||
+        items.some((line) => {
+          const sold = source.items
+            .filter((item) => item.productId === line.productId)
+            .reduce((sum, item) => sum + item.quantity, 0);
+          const refunded = prior
+            .flatMap((row) => row.items)
+            .filter((item) => item.productId === line.productId)
+            .reduce((sum, item) => sum + item.quantity, 0);
+          return !sold || line.quantity > round(sold - refunded);
+        }) ||
+        grandTotal >
+          source.grandTotal -
+            prior.reduce((sum, row) => sum + row.grandTotal, 0)
+      ) {
+        notify(
+          l([
+            "Return exceeds the remaining sale quantity or amount.",
+            "ការត្រឡប់លើសបរិមាណ ឬទឹកប្រាក់លក់ដែលនៅសល់។",
+          ]),
+        );
+        return;
+      }
+    }
+    if (
+      existing?.transferId ||
+      (existing &&
+        kindId === "stock-issue" &&
+        receives.rows.some((row) => row.transferId === existing.id))
+    ) {
+      notify(
+        l([
+          "A received transfer cannot be edited. Create a correction instead.",
+          "មិនអាចកែការផ្ទេរដែលបានទទួលរួចទេ។",
+        ]),
+      );
+      return;
+    }
+    if (
+      items.some(
+        (line) =>
+          !Number.isFinite(line.quantity) ||
+          line.quantity <= 0 ||
+          !Number.isFinite(line.price) ||
+          line.price < 0,
+      )
+    ) {
+      notify(
+        l([
+          "Enter valid positive quantities and prices.",
+          "សូមបញ្ចូលបរិមាណ និងតម្លៃត្រឹមត្រូវ។",
+        ]),
+      );
+      return;
+    }
+    if (
+      kindId === "stock-issue" &&
+      items.some((line) => line.quantity > qoh(line.productId))
+    ) {
+      notify(
+        l([
+          "Not enough stock in the sending warehouse.",
+          "ស្តុកក្នុងឃ្លាំងផ្ញើមិនគ្រប់គ្រាន់។",
+        ]),
+      );
+      return;
+    }
+    if (
+      kindId === "adjustment" &&
+      form.status === "approved" &&
+      items.some((line) => newQoh(line) < 0)
+    ) {
+      notify(
+        l([
+          "Approved adjustment cannot create negative stock.",
+          "ការកែស្តុកមិនអាចធ្វើឱ្យស្តុកអវិជ្ជមានបានទេ។",
+        ]),
+      );
+      return;
+    }
+    if (
+      kindId === "adjustment" &&
+      (form.status === "approved" || existing?.status === "approved") &&
+      !canPerform("stock.approve")
+    ) {
+      notify(
+        l([
+          "You do not have permission to approve or change an approved adjustment.",
+          "អ្នកមិនមានសិទ្ធិអនុម័តការកែស្តុកទេ។",
+        ]),
+      );
+      return;
+    }
+    if (
+      kind.toBranch &&
+      form.toBranch &&
+      (!form.toWarehouse || form.toBranch === form.branch)
+    ) {
+      notify(
+        l([
+          "Select a different destination branch and its warehouse.",
+          "សូមជ្រើសរើសសាខា និងឃ្លាំងគោលដៅ។",
+        ]),
+      );
+      return;
+    }
+    if (form.transferId) {
+      const source = getRows<Transaction>("stockIssues").find(
+        (row) => row.id === form.transferId,
+      );
+      if (
+        !source ||
+        source.toBranch !== form.branch ||
+        source.toWarehouse !== form.warehouse ||
+        items.some((line) => {
+          const sent = source.items
+            .filter((item) => item.productId === line.productId)
+            .reduce((sum, item) => sum + item.quantity, 0);
+          const received = getRows<Transaction>("stockReceives")
+            .filter((row) => row.transferId === source.id)
+            .flatMap((row) => row.items)
+            .filter((item) => item.productId === line.productId)
+            .reduce((sum, item) => sum + item.quantity, 0);
+          return !sent || line.quantity > round(sent - received);
+        })
+      ) {
+        notify(
+          l([
+            "Receipt exceeds the remaining transfer quantity or destination does not match.",
+            "បរិមាណទទួលលើសការផ្ទេរ ឬគោលដៅមិនត្រឹមត្រូវ។",
+          ]),
+        );
+        return;
+      }
+    }
     if (!items.length) {
       notify(t.addItemsFirst);
       return;
@@ -183,8 +386,10 @@ export function TransactionForm({
       reference: form.reference,
       referenceTo: form.referenceTo || undefined,
       branch: form.branch,
+      ...(form.transferId ? { transferId: form.transferId } : {}),
       ...(kind.toBranch ? { toBranch: form.toBranch || undefined } : {}),
       warehouse: form.warehouse,
+      ...(kind.toBranch ? { toWarehouse: form.toWarehouse } : {}),
       ...(kind.party === "customer" ? { customer: form.party } : {}),
       ...(kind.party === "supplier" ? { supplier: form.party } : {}),
       items,
@@ -197,7 +402,14 @@ export function TransactionForm({
       returned: 0,
       balance: grandTotal - paid,
       paymentStatus: paid >= grandTotal ? "paid" : paid > 0 ? "partial" : "due",
-      status: form.status,
+      status: kind.toBranch && form.toBranch ? "dispatched" : form.status,
+      stockApplied: kindId !== "adjustment" || form.status === "approved",
+      ...(kindId === "adjustment" && form.status === "approved"
+        ? {
+            approvedBy: currentUsername(),
+            approvedAt: new Date().toISOString(),
+          }
+        : {}),
       note: form.note,
       createdBy: currentUsername(),
       ...(form.document ? { document: form.document } : {}),
@@ -214,26 +426,58 @@ export function TransactionForm({
       );
       if (movesStock)
         adjustStock([
-          ...existing.items.map((line) => ({
-            productId: line.productId,
-            delta: -lineDelta(kind, line),
-          })),
-          ...items.map((line) => ({
+          ...(appliedStock(kindId, existing) ? existing.items : []).map(
+            (line) => ({
+              productId: line.productId,
+              delta: -lineDelta(kind, line),
+              location: existing,
+            }),
+          ),
+          ...(record.stockApplied ? items : []).map((line) => ({
             productId: line.productId,
             delta: lineDelta(kind, line),
+            location: form,
           })),
         ]);
       notify(t.saved);
       router.push(kind.listHref);
       return;
     }
-    addRow(kind.collection, record);
-    if (movesStock)
+    const savedRecord = addRow(kind.collection, record) as Transaction;
+    if (kindId === "sale-return") {
+      const source = getRows<Transaction>("sales").find(
+        (row) => row.reference === form.referenceTo,
+      );
+      if (source) reverseSalePoints(source, savedRecord);
+    }
+    if (movesStock && record.stockApplied)
       adjustStock(
         items.map((line) => ({
           productId: line.productId,
           delta: lineDelta(kind, line),
+          location: form,
         })),
+      );
+    if (form.transferId)
+      setRows("stockIssues", (rows) =>
+        rows.map((row) => {
+          if (row.id !== form.transferId) return row;
+          const source = row as Transaction;
+          const confirmed = getRows<Transaction>("stockReceives")
+            .filter((receipt) => receipt.transferId === source.id)
+            .flatMap((receipt) => receipt.items);
+          const complete = source.items.every(
+            (line) =>
+              confirmed
+                .filter((item) => item.productId === line.productId)
+                .reduce((sum, item) => sum + item.quantity, 0) >= line.quantity,
+          );
+          return {
+            ...row,
+            status: complete ? "received" : "partial",
+            receivedAt: new Date().toISOString(),
+          };
+        }),
       );
     if (kind.source && form.referenceTo)
       setRows(kind.source, (rows) =>
@@ -255,9 +499,16 @@ export function TransactionForm({
   const isAdjust = kind.price === "none";
   const qoh = (productId: string) => {
     const product = products.find((item) => item.id === productId);
-    const now = product ? productStock(product) : 0;
+    const now = product ? stockAt(product, form) : 0;
     // When editing, this record's own change is already in the stock.
-    const own = (existing?.items ?? [])
+    const own = (
+      existing &&
+      appliedStock(kindId, existing) &&
+      existing.branch === form.branch &&
+      existing.warehouse === form.warehouse
+        ? existing.items
+        : []
+    )
       .filter((line) => line.productId === productId)
       .reduce((sum, line) => sum + lineDelta(kind, line), 0);
     return round(now - own);
@@ -293,6 +544,41 @@ export function TransactionForm({
         }}
       >
         <FormGrid columns={3}>
+          {kindId === "stock-receive" && !existing && (
+            <Field label={l(["Receive a transfer", "ទទួលការផ្ទេរ"])}>
+              <select
+                className="form-control"
+                value={form.transferId}
+                onChange={(event) => {
+                  const issue = issues.rows.find(
+                    (row) => row.id === event.target.value,
+                  );
+                  set({
+                    transferId: issue?.id ?? "",
+                    referenceTo: issue?.reference ?? "",
+                    ...(issue
+                      ? {
+                          branch: issue.toBranch ?? "",
+                          warehouse: String(issue.toWarehouse ?? ""),
+                        }
+                      : {}),
+                  });
+                  setItems(issue ? remainingItems(issue) : []);
+                }}
+              >
+                <option value="">
+                  {l(["Other stock receipt", "ទទួលស្តុកផ្សេង"])}
+                </option>
+                {issues.rows
+                  .filter((row) => row.toBranch && remainingItems(row).length)
+                  .map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {row.reference} → {row.toBranch}
+                    </option>
+                  ))}
+              </select>
+            </Field>
+          )}
           <Field label={t.date} required>
             <input
               className="form-control"
@@ -337,6 +623,7 @@ export function TransactionForm({
               onChange={(event) =>
                 set({
                   branch: event.target.value,
+                  warehouse: "",
                   // A branch cannot send to itself.
                   ...(event.target.value === form.toBranch
                     ? { toBranch: "" }
@@ -354,11 +641,30 @@ export function TransactionForm({
               <select
                 className="form-control"
                 value={form.toBranch}
-                onChange={(event) => set({ toBranch: event.target.value })}
+                onChange={(event) =>
+                  set({ toBranch: event.target.value, toWarehouse: "" })
+                }
               >
                 <option value="">{t.select}</option>
                 {branches.rows
                   .filter((row) => String(row.name) !== form.branch)
+                  .map((row) => (
+                    <option key={row.id}>{String(row.name)}</option>
+                  ))}
+              </select>
+            </Field>
+          )}
+          {kind.toBranch && form.toBranch && (
+            <Field label={l(["Destination warehouse", "ឃ្លាំងគោលដៅ"])} required>
+              <select
+                className="form-control"
+                required
+                value={form.toWarehouse}
+                onChange={(event) => set({ toWarehouse: event.target.value })}
+              >
+                <option value="">{t.select}</option>
+                {warehouses.rows
+                  .filter((row) => (row.branch || "Central") === form.toBranch)
                   .map((row) => (
                     <option key={row.id}>{String(row.name)}</option>
                   ))}
@@ -372,9 +678,12 @@ export function TransactionForm({
               value={form.warehouse}
               onChange={(event) => set({ warehouse: event.target.value })}
             >
-              {warehouses.rows.map((row) => (
-                <option key={row.id}>{String(row.name)}</option>
-              ))}
+              <option value="">{t.select}</option>
+              {warehouses.rows
+                .filter((row) => (row.branch || "Central") === form.branch)
+                .map((row) => (
+                  <option key={row.id}>{String(row.name)}</option>
+                ))}
             </select>
           </Field>
           {kind.statuses.length > 1 && (
@@ -384,11 +693,16 @@ export function TransactionForm({
                 value={form.status}
                 onChange={(event) => set({ status: event.target.value })}
               >
-                {kind.statuses.map((status) => (
-                  <option key={status} value={status}>
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
-                  </option>
-                ))}
+                {kind.statuses
+                  .filter(
+                    (status) =>
+                      status !== "approved" || canPerform("stock.approve"),
+                  )
+                  .map((status) => (
+                    <option key={status} value={status}>
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </option>
+                  ))}
               </select>
             </Field>
           )}

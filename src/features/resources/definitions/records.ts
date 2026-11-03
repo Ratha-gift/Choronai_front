@@ -1,4 +1,5 @@
 import type { Label } from "@/i18n";
+import { getRows } from "@/data/collections";
 import { currentUsername, prepareUser, type UserError } from "@/lib/auth";
 
 const USER_ERRORS: Record<UserError, Label> = {
@@ -58,6 +59,31 @@ export const recordResources: ResourceDef[] = [
   {
     id: "sales/member-cards",
     collection: "memberCards",
+    prepare: (values, existing) => {
+      const cardNo = String(values.cardNo ?? "").trim();
+      if (
+        !cardNo ||
+        getRows("memberCards").some(
+          (row) =>
+            row.id !== existing?.id &&
+            String(row.cardNo).trim().toLowerCase() === cardNo.toLowerCase(),
+        )
+      ) {
+        return {
+          error: ["Enter a unique Card ID.", "សូមបញ្ចូលលេខកាតដែលមិនស្ទួន។"],
+        };
+      }
+      const phone = (value: unknown) =>
+        String(value ?? "").replace(/[\s().-]/g, "");
+      const customerId =
+        existing?.customerId && values.customer === existing.customer
+          ? existing.customerId
+          : getRows("customers").find(
+              (row) =>
+                phone(row.phone) && phone(row.phone) === phone(values.customer),
+            )?.id;
+      return { values: { ...values, cardNo, customerId: customerId ?? "" } };
+    },
     title: ["Member Cards", "កាតសមាជិក"],
     noun: ["Member Card", "កាតសមាជិក"],
     icon: "card",

@@ -8,6 +8,7 @@ import {
   useProducts,
 } from "@/features/products/store";
 import type { Product } from "@/features/products/types";
+import { appliedStock } from "@/features/transactions/kinds";
 
 export type Movement = {
   product: Product;
@@ -62,10 +63,13 @@ export function useReportData() {
       move.soldAmount += line.quantity * line.price;
     });
     each(saleReturns, (move, line) => (move.saleReturnQty += line.quantity));
-    each(adjustments, (move, line) => {
-      if (line.type === "subtraction") move.adjustOut += line.quantity;
-      else move.adjustIn += line.quantity;
-    });
+    each(
+      adjustments.filter((row) => appliedStock("adjustment", row)),
+      (move, line) => {
+        if (line.type === "subtraction") move.adjustOut += line.quantity;
+        else move.adjustIn += line.quantity;
+      },
+    );
     each(stockReceives, (move, line) => {
       move.receivedQty += line.quantity;
       move.receivedAmount += line.quantity * line.price;

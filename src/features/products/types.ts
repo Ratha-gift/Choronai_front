@@ -29,6 +29,8 @@ export type Product = {
   // Added after the first release; older saved products may not have them.
   cost?: number;
   quantity?: number;
+  /** Balances keyed by [branch ID, warehouse ID]; quantity is the combined total. */
+  stockByLocation?: Record<string, number>;
   alertQuantity?: number;
   unit?: string;
   type?: ProductType;

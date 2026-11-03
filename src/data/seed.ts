@@ -330,4 +330,5 @@ export const SEED = {
   adjustments: SEED_ADJUSTMENTS as Row[],
   suspendedSales: [] as Row[],
   registers: [] as Row[],
+  rewardLedger: [] as Row[],
 };

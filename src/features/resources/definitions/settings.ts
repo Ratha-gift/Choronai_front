@@ -55,6 +55,11 @@ export const settingResources: ResourceDef[] = [
     fields: [
       required("code", "Code", "កូដ"),
       required("name", "Name", "ឈ្មោះ"),
+      required("branch", "Branch", "សាខា", {
+        type: "select",
+        collection: { name: "branches", field: "name" },
+        default: "Central",
+      }),
       field("priceGroup", "Price Group", "ក្រុមតម្លៃ", {
         type: "select",
         collection: { name: "priceGroups", field: "name" },
