@@ -785,3 +785,8 @@ label.btn.disabled {
 .qoh-cell {
   white-space: nowrap;
 }
+
+/* Products: "All Warehouses" / one warehouse picker next to the search. */
+.warehouse-picker {
+  width: 220px;
+}

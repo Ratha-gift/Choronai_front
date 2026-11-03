@@ -1,9 +1,12 @@
 "use client";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Box } from "@/components/ui/box";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { confirmAction } from "@/components/ui/confirm";
 import { DataTable, type Column } from "@/components/ui/data-table";
+import { Select } from "@/components/ui/select";
+import { useCollection } from "@/data/collections";
 import { useLanguage } from "@/i18n";
 import { downloadText, toCsv } from "@/lib/csv";
 import { notify } from "@/lib/toast";
@@ -17,12 +20,19 @@ import {
   useProducts,
 } from "../store";
 import type { Product } from "../types";
+import { useWarehouseStock } from "../warehouse-stock";
 
 export function ProductsView() {
   const { l, t, language } = useLanguage();
   const router = useRouter();
   const { products } = useProducts();
   const unit = (product: Product) => productUnit(product);
+  // "" = All Warehouses; otherwise the quantity column shows that warehouse.
+  const [warehouse, setWarehouse] = useState("");
+  const warehouses = useCollection("warehouses").rows;
+  const inWarehouse = useWarehouseStock(warehouse);
+  const quantity = (product: Product) =>
+    inWarehouse ? (inWarehouse.get(product.id) ?? 0) : productStock(product);
 
   const columns: Column<Product>[] = [
     {
@@ -55,7 +65,7 @@ export function ProductsView() {
       key: "quantity",
       label: ["Quantity", "បរិមាណ"],
       type: "qty",
-      value: productStock,
+      value: quantity,
       unit,
     },
     {
@@ -69,7 +79,11 @@ export function ProductsView() {
   return (
     <Box
       icon="barcode"
-      title={l(["Products (All Warehouses)", "មុខទំនិញ (គ្រប់ឃ្លាំង)"])}
+      title={
+        warehouse
+          ? `${l(["Products", "មុខទំនិញ"])} (${warehouse})`
+          : l(["Products (All Warehouses)", "មុខទំនិញ (គ្រប់ឃ្លាំង)"])
+      }
       intro={t.tableIntro}
       actions={[
         {
@@ -87,7 +101,7 @@ export function ProductsView() {
                   productUnit(product),
                   productCost(product),
                   product.price,
-                  productStock(product),
+                  quantity(product),
                   product.alertQuantity ?? 0,
                 ]),
               ]),
@@ -109,6 +123,23 @@ export function ProductsView() {
         columns={columns}
         rows={products}
         initialSort={{ key: "name" }}
+        toolbar={
+          <div className="warehouse-picker">
+            <Select
+              ariaLabel={t.warehouse}
+              searchPlaceholder={`${t.searchLabel}…`}
+              value={warehouse}
+              options={[
+                { value: "", label: l(["All Warehouses", "គ្រប់ឃ្លាំង"]) },
+                ...warehouses.map((row) => ({
+                  value: String(row.name),
+                  label: String(row.name),
+                })),
+              ]}
+              onChange={setWarehouse}
+            />
+          </div>
+        }
         rowClassName={(product) => (isLowStock(product) ? "row-warning" : "")}
         actions={(product) => (
           <ActionMenu
