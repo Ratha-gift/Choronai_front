@@ -875,7 +875,7 @@
   }
 }
 
-/* ---------- Animated select (components/ui/select.tsx) ---------- */
+
 .select {
   position: relative;
   min-width: 0;
@@ -1032,7 +1032,7 @@
 .select-footer button:hover {
   background: var(--brand-soft);
 }
-/* POS: taller controls */
+
 .pos .select-button {
   min-height: 44px;
   height: auto;
@@ -1056,7 +1056,7 @@
   }
 }
 
-/* Sidebar groups slide open */
+
 .nav-children {
   animation: nav-open 0.2s ease-out;
   transform-origin: top;
@@ -1078,7 +1078,7 @@
   }
 }
 
-/* Header buttons show their name beside the icon (icon only on phones). */
+
 .box-actions button,
 .box-actions a {
   display: flex;
