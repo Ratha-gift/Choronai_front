@@ -122,7 +122,14 @@ export const recordResources: ResourceDef[] = [
       required("cardNo", "Card ID", "លេខកាត", {
         default: (rows) => String(rows.length + 1).padStart(5, "0"),
       }),
-      field("customer", "Phone Number", "លេខទូរស័ព្ទ", { type: "tel" }),
+      required("customer", "Customer", "អតិថិជន", {
+        type: "select",
+        collection: {
+          name: "customers",
+          field: "phone",
+          labelField: "name",
+        },
+      }),
       required("awardPoints", "Award Points", "ពិន្ទុរង្វាន់", {
         type: "number",
         default: 0,

@@ -25,12 +25,32 @@ function FieldSelect({
   const { rows } = useCollection(field.collection?.name ?? "units");
   const fromCollection = field.collection
     ? [
-        ...new Set(
-          rows.map((row) => String(row[field.collection!.field] ?? "")),
-        ),
+        ...new Map(
+          rows
+            .map((row) => {
+              const value = String(row[field.collection!.field] ?? "");
+              const label = String(
+                row[field.collection!.labelField ?? field.collection!.field] ??
+                  value,
+              );
+              return value
+                ? [
+                    value,
+                    {
+                      value,
+                      label: label === value ? value : `${label} — ${value}`,
+                      text: `${label} ${value}`,
+                    } satisfies SelectOption,
+                  ]
+                : null;
+            })
+            .filter(
+              (
+                option,
+              ): option is [string, SelectOption] => option !== null,
+            ),
+        ).values(),
       ]
-        .filter(Boolean)
-        .map((text) => ({ value: text, label: text }))
     : [];
   const options: SelectOption[] = [
     ...(field.required ? [] : [{ value: "", label: t.select }]),
