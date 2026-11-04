@@ -1084,14 +1084,23 @@ function PosScreen() {
               )}
             </div>
           </section>
+        </div>
+      </div>
+
+      {selectedProduct && (
+        <Modal
+          open
+          size="sm"
+          title={selectedProduct.name}
+          onClose={() => setSelectedProduct(null)}
+        >
           <ProductSalePanel
-            key={selectedProduct?.id ?? "no-product"}
+            key={selectedProduct.id}
             product={selectedProduct}
             cart={cart}
             rate={rate}
             onAdd={(quantity, productDiscount, generalDiscount) => {
-              if (!selectedProduct || !addLine(selectedProduct, quantity))
-                return false;
+              if (!addLine(selectedProduct, quantity)) return false;
               cart.setProductDiscount(selectedProduct.id, {
                 percent: true,
                 value: Math.min(100, Math.max(0, productDiscount)),
@@ -1101,12 +1110,13 @@ function PosScreen() {
                 discount: Math.min(100, Math.max(0, generalDiscount)),
                 discountPercent: true,
               });
+              setSelectedProduct(null);
               setSearch("");
               return true;
             }}
           />
-        </div>
-      </div>
+        </Modal>
+      )}
 
       {hydrated && session && !register && !leaving && (
         <OpenRegisterModal

@@ -22,7 +22,11 @@ export type FieldDef = {
   required?: boolean;
   options?: [string, Label][];
   /** Offer the values of another collection's field as options. */
-  collection?: { name: CollectionName; field: string };
+  collection?: {
+    name: CollectionName;
+    field: string;
+    labelField?: string;
+  };
   default?: string | number | ((rows: Row[]) => string | number);
   full?: boolean;
 };

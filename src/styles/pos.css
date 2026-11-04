@@ -90,7 +90,17 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
   margin-left: auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pos-nav::-webkit-scrollbar {
+  display: none;
+}
+.pos-nav > * {
+  flex: 0 0 auto;
 }
 .pos-nav-btn {
   display: inline-flex;
@@ -126,7 +136,7 @@
 .pos-layout {
   display: grid;
   /* Give the product and entry panels more room beside the cart. */
-  grid-template-columns: 3fr 2fr;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: 12px;
   height: calc(100dvh - 60px);
   min-height: 0;
@@ -143,6 +153,7 @@
 .pos-panel {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 0;
   overflow-y: auto;
   background: var(--surface);
@@ -150,10 +161,10 @@
   border-radius: 10px;
   box-shadow: 0 2px 10px #0866e90d;
 }
-/* Give the product browser more room than the entry controls. */
+/* Product browser fills the left column until an item is selected. */
 .pos-left {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   gap: 12px;
   min-width: 0;
@@ -713,6 +724,7 @@
 .pos-filter-cats {
   display: flex;
   flex-wrap: wrap;
+  min-width: 0;
   gap: 6px;
 }
 .pos-filter-cats button {
@@ -735,14 +747,13 @@
   color: #fff;
   font-weight: 600;
 }
-/* Product browser fills its column (independent scroll) with a three-column
-   tile grid sized to stay usable beside the weight keypad. */
+/* Product tiles adapt to the browser width while keeping a usable minimum. */
 .pos-products {
   flex: 1;
   min-height: 140px;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   align-content: start;
   gap: 8px;
   padding: 8px;
@@ -761,7 +772,7 @@
 .pos-products-empty b {
   color: var(--ink);
 }
-/* Photo-overlay product cards keep three columns usable beside the keypad. */
+/* Photo-overlay product cards keep names and prices readable. */
 .pos-card {
   position: relative;
   display: block;
