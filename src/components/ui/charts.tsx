@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 // Validated categorical order (light surface): blue, green.
-export const CHART_COLORS = ["#3a7fc0", "#3d9a3d"] as const;
+export const CHART_COLORS = ["#0c64e6", "#3d9a3d"] as const;
 
 export type Series = { label: string; color: string; values: number[] };
 

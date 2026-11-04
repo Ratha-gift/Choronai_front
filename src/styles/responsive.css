@@ -62,18 +62,82 @@
     padding: 24px 20px;
   }
 }
-/* POS: single column below 760px */
-@media (max-width: 760px) {
+@media (max-width: 1100px) {
+  .pos-layout {
+    gap: 10px;
+    padding: 10px;
+  }
+  .pos-left {
+    gap: 10px;
+  }
+  .pos-order,
+  .pos-browser {
+    padding: 10px;
+    gap: 8px;
+  }
+  .pos-actions .pos-btn {
+    min-width: 78px;
+    min-height: 46px;
+    font-size: 14px;
+  }
+}
+/* POS phones: reserve room for product cards and keep category chips usable. */
+@media (max-width: 640px) {
+  .pos-left {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+  }
+  .pos-header {
+    gap: 8px;
+    padding: 0 8px;
+  }
+  .pos-logo {
+    height: 40px;
+    padding: 4px 6px;
+  }
+  .pos-logo img {
+    max-width: 92px;
+    height: 32px;
+  }
+  .pos-nav {
+    gap: 4px;
+  }
+  .pos-nav-btn {
+    min-width: 40px;
+    justify-content: center;
+    padding: 0 8px;
+  }
+  .pos-filter-cats {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+  .pos-filter-cats button {
+    flex: 0 0 auto;
+  }
+  .pos-products {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 45dvh;
+  }
+}
+/* POS tablets and phones: stack panels to preserve usable control widths. */
+@media (max-width: 900px) {
   .pos {
     height: auto;
     min-height: 100dvh;
   }
-  .pos-body {
+  .pos-layout {
     grid-template-columns: minmax(0, 1fr);
+    height: auto;
+    overflow: visible;
   }
-  .pos-grid {
-    max-height: 60dvh;
+  .pos-cart {
+    max-height: 40dvh;
   }
+}
+/* POS: compact single-column details below 760px */
+@media (max-width: 760px) {
   .pos-clock,
   .pos-brand-text,
   .pos-nav-btn span {
@@ -82,6 +146,23 @@
   .pos-order-head,
   .pos-summary {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 380px) {
+  .pos-header {
+    gap: 6px;
+  }
+  .pos-nav-btn {
+    min-width: 36px;
+    padding: 0 6px;
+  }
+  .pos-layout {
+    gap: 8px;
+    padding: 8px;
+  }
+  .pos-order,
+  .pos-browser {
+    padding: 8px;
   }
 }
 @media (max-width: 560px) {

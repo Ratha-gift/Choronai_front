@@ -22,9 +22,10 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
   const router = useRouter();
   const collection = useCollection(def.collection);
   const { add, update, remove } = collection;
-  // Users without "See all branches" only get their own branch's records.
+  // Users without "See all branches" only get their own branch's records,
+  // and a definition can hide rows of its own (filterRows).
   const { branch, warehouse } = usePermissions();
-  const rows =
+  const inBranch =
     branch && def.branchOf
       ? collection.rows.filter((row) =>
           def.branchOf!(row).some(
@@ -32,6 +33,7 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
           ),
         )
       : collection.rows;
+  const rows = def.filterRows ? inBranch.filter(def.filterRows) : inBranch;
   const [selected, setSelected] = useState<string[]>([]);
   const [editing, setEditing] = useState<Row | "new" | null>(null);
   const [viewing, setViewing] = useState<Row | null>(null);
@@ -200,7 +202,8 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
           columns={def.formColumns}
           initial={initialValues(
             def.fields,
-            rows,
+            // Every record (not only the shown ones), e.g. for the next code.
+            collection.rows,
             editing === "new" ? undefined : editing,
           )}
           submitLabel={`${editing === "new" ? t.addVerb : t.editVerb} ${noun}`}

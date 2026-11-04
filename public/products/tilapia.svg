@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Tilapia">
+  <rect width="400" height="300" fill="#e7f1ec"/>
+  <ellipse cx="196" cy="150" rx="104" ry="56" fill="#6f9b86"/>
+  <path d="M292 150l54-32v64z" fill="#5a8270"/>
+  <circle cx="132" cy="140" r="8" fill="#e7f1ec"/>
+  <path d="M98 128c-14-8-26-6-34 4M98 172c-14 8-26 6-34-4" stroke="#5a8270" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <path d="M160 104l24 46M200 98l26 52M240 104l22 44" stroke="#cfe4da" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <text x="200" y="268" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="700" fill="#466b5a">TILAPIA</text>
+</svg>

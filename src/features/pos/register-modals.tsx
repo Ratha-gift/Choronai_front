@@ -5,7 +5,7 @@ import { Modal } from "@/components/ui/modal";
 import { addRow, useCollection } from "@/data/collections";
 import type { Transaction } from "@/data/types";
 import { useLanguage, type Label } from "@/i18n";
-import { formatDate, formatMoney, formatUsd, toNumber } from "@/lib/format";
+import { formatDate, formatUsd, toNumber } from "@/lib/format";
 import { METHODS } from "./payment-modal";
 import { summarize, type Register } from "./register";
 
@@ -36,10 +36,10 @@ export function OpenRegisterModal({
   cancelLabel?: Label;
 }) {
   const { l } = useLanguage();
-  const [riel, setRiel] = useState<number | "">("");
   const [usd, setUsd] = useState<number | "">("");
   const [note, setNote] = useState("");
-  const total = toNumber(riel) + toNumber(usd) * rate;
+  // Opening cash is counted in dollars (main); the warehouse is chosen here (Sethy).
+  const total = Math.round(toNumber(usd) * rate);
   const warehouses = useCollection("warehouses").rows;
   const [selectedWarehouse, setSelectedWarehouse] = useState(warehouse);
 
@@ -97,7 +97,7 @@ export function OpenRegisterModal({
         </label>
         <label className="field">
           <span className="field-label">
-            {l(["Cash in hand (Riel)", "សាច់ប្រាក់ក្នុងដៃ (រៀល)"])} *
+            {l(["Cash in hand (US dollar)", "សាច់ប្រាក់ក្នុងដៃ (ដុល្លារ)"])} *
           </span>
           <input
             className="form-control"
@@ -106,21 +106,6 @@ export function OpenRegisterModal({
             step="any"
             required
             autoFocus
-            value={riel}
-            onChange={(event) =>
-              setRiel(event.target.value === "" ? "" : +event.target.value)
-            }
-          />
-        </label>
-        <label className="field">
-          <span className="field-label">
-            {l(["Cash in hand (US dollar)", "សាច់ប្រាក់ក្នុងដៃ (ដុល្លារ)"])}
-          </span>
-          <input
-            className="form-control"
-            type="number"
-            min="0"
-            step="any"
             value={usd}
             onChange={(event) =>
               setUsd(event.target.value === "" ? "" : +event.target.value)
@@ -129,7 +114,7 @@ export function OpenRegisterModal({
         </label>
         <p className="register-total">
           {l(["Total cash in hand", "សាច់ប្រាក់សរុប"])}:{" "}
-          <b>{formatMoney(total)}</b> <small>({formatUsd(total, rate)})</small>
+          <b>{formatUsd(total, rate)}</b>
         </p>
         <label className="field">
           <span className="field-label">{l(["Note", "កំណត់ចំណាំ"])}</span>
@@ -162,41 +147,35 @@ export function CloseRegisterModal({
   const sales = useCollection<Transaction>("sales").rows;
   const saleReturns = useCollection<Transaction>("saleReturns").rows;
   const [closedAt] = useState(() => new Date().toISOString());
-  const [countedRiel, setCountedRiel] = useState<number | "">("");
   const [countedUsd, setCountedUsd] = useState<number | "">("");
   const [cardSlips, setCardSlips] = useState<number | "">("");
   const [note, setNote] = useState("");
 
   const summary = summarize(register, sales, saleReturns);
-  const counted = toNumber(countedRiel) + toNumber(countedUsd) * rate;
+  const counted = Math.round(toNumber(countedUsd) * rate);
   const difference = counted - summary.expectedCash;
-  const both = (riel: number) => (
-    <>
-      {formatMoney(riel)} <small>({formatUsd(riel, rate)})</small>
-    </>
-  );
+  const dollars = (riel: number) => formatUsd(riel, rate);
 
   const rows: [Label, React.ReactNode, boolean?][] = [
-    [["Cash in hand", "សាច់ប្រាក់ក្នុងដៃ"], both(register.cashInHand)],
+    [["Cash in hand", "សាច់ប្រាក់ក្នុងដៃ"], dollars(register.cashInHand)],
     ...METHODS.map((method): [Label, React.ReactNode] => [
       METHOD_LABELS[method] ?? [method, method],
-      both(summary.byMethod[method] ?? 0),
+      dollars(summary.byMethod[method] ?? 0),
     ]),
-    [["Not yet paid", "មិនទាន់បង់"], both(summary.notPaid)],
-    [["Total Discounts", "បញ្ចុះតម្លៃសរុប"], both(summary.discounts)],
-    [["Total Money Sale", "ទឹកប្រាក់លក់សរុប"], both(summary.totalSales)],
-    [["Refunds", "សងប្រាក់វិញ"], both(summary.refunds)],
+    [["Not yet paid", "មិនទាន់បង់"], dollars(summary.notPaid)],
+    [["Total Discounts", "បញ្ចុះតម្លៃសរុប"], dollars(summary.discounts)],
+    [["Total Money Sale", "ទឹកប្រាក់លក់សរុប"], dollars(summary.totalSales)],
+    [["Refunds", "សងប្រាក់វិញ"], dollars(summary.refunds)],
     [
       ["Total Cash (expected)", "សាច់ប្រាក់សរុប (គួរមាន)"],
-      both(summary.expectedCash),
+      dollars(summary.expectedCash),
       true,
     ],
-    [["Total Count Money KH", "ប្រាក់រាប់បាន (រៀល)"], formatMoney(countedRiel)],
     [
       ["Total Count Money USD", "ប្រាក់រាប់បាន (ដុល្លារ)"],
       `$${toNumber(countedUsd).toFixed(2)}`,
     ],
-    [["Total Count Money", "ប្រាក់រាប់បានសរុប"], both(counted), true],
+    [["Total Count Money", "ប្រាក់រាប់បានសរុប"], dollars(counted), true],
     [
       ["Difference", "ខុសគ្នា"],
       <span
@@ -209,8 +188,11 @@ export function CloseRegisterModal({
               : "text-warning"
         }
       >
-        {difference > 0 ? "+" : ""}
-        {formatMoney(difference)}
+        {difference > 0
+          ? `+${dollars(difference)}`
+          : difference < 0
+            ? `-${dollars(-difference)}`
+            : dollars(0)}
       </span>,
       true,
     ],
@@ -268,7 +250,6 @@ export function CloseRegisterModal({
         registers.update(register.id, {
           status: "closed",
           closedAt,
-          countedRiel: toNumber(countedRiel),
           countedUsd: toNumber(countedUsd),
           countedTotal: counted,
           cardSlips: toNumber(cardSlips),
@@ -301,12 +282,6 @@ export function CloseRegisterModal({
         </dl>
       </div>
       <div className="form-grid cols-2 register-count">
-        {numberField(
-          ["Total Cash (Riel counted)", "សាច់ប្រាក់រាប់បាន (រៀល)"],
-          countedRiel,
-          setCountedRiel,
-          true,
-        )}
         {numberField(
           ["Total Cash (US dollar counted)", "សាច់ប្រាក់រាប់បាន (ដុល្លារ)"],
           countedUsd,

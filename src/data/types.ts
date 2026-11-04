@@ -8,6 +8,11 @@ export type LineItem = {
   quantity: number;
   /** Unit cost for stock receive / issue, unit price for sales. Riel. */
   price: number;
+  productDiscount?: {
+    /** Percentage when true, riel when false. */
+    percent: boolean;
+    value: number;
+  };
   expiry?: string;
   /** Quantity adjustments only. */
   type?: "addition" | "subtraction";
@@ -43,6 +48,7 @@ export type Transaction = Row & {
   total: number;
   orderTax: number;
   discount: number;
+  generalDiscountPercent?: number;
   shipping: number;
   /** Sale returns: fee kept from the refund. */
   surcharge?: number;
