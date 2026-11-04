@@ -1,5 +1,0 @@
-<?php
-
-namespace App\Models;
-
-class PaymentTerm extends Model {}
