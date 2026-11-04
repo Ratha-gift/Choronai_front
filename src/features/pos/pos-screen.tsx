@@ -1,4 +1,5 @@
 "use client";
+import { postPoints, phoneKey, cardOwner } from "./loyalty";
 import { currentUsername, useSession } from "@/lib/auth";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -14,12 +15,13 @@ import { warehouseOfBranch } from "@/features/settings/branches";
 import type { LineItem, Row, Transaction } from "@/data/types";
 import {
   adjustStock,
-  productStock,
+  stockAt,
   productUnit,
   tracksStock,
   useProducts,
 } from "@/features/products/store";
 import type { Category, Product } from "@/features/products/types";
+import { usePosCatalog } from "@/features/products/pos-catalog";
 import { resources } from "@/features/resources";
 import {
   ResourceForm,
@@ -113,6 +115,7 @@ function PosScreen() {
   const customers = useCollection("customers");
   const memberCards = useCollection("memberCards");
   const warehouses = useCollection("warehouses");
+  const users = useCollection("users");
   const currencies = useCollection("currencies");
   const branches = useCollection("branches");
   const suspended = useCollection("suspendedSales");
@@ -133,13 +136,26 @@ function PosScreen() {
   // Scanned membership card; its owner becomes the customer.
   const [memberCode, setMemberCode] = useState("");
   const [member, setMember] = useState<Row | null>(null);
-  // Sell from the warehouse of the cashier's branch (Settings → Branches).
+  const userBranch = String(
+    users.rows.find((row) => row.username === username)?.branch ?? "",
+  );
   const [warehouse, setWarehouse] = useState(() => {
     const me = getRows("users").find((row) => row.username === username);
     const branch = String(me?.branch || pos.defaultBranch || "");
     return warehouseOfBranch(branch) || String(system.defaultWarehouse);
   });
+  const currentBranch = String(
+    warehouses.rows.find((row) => row.name === warehouse)?.branch ||
+      userBranch ||
+      pos.defaultBranch ||
+      "Central",
+  );
+  useEffect(() => {
+    if (register?.warehouse) setWarehouse(register.warehouse);
+  }, [register?.id, register?.warehouse]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  // Page of the product grid (products come from the database, page by page).
+  const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
   const [panel, setPanel] = useState<Panel>(null);
   const [receipt, setReceipt] = useState<Transaction | null>(null);
@@ -151,16 +167,23 @@ function PosScreen() {
 
   const rate =
     toNumber(currencies.rows.find((row) => row.code === "USD")?.rate) || 4100;
-  const allowOversell = system.overSelling !== "no";
-  // The cashier's own branch (People → Users), else the POS default branch.
-  const users = useCollection("users");
-  const userBranch = String(
-    users.rows.find((row) => row.username === username)?.branch ?? "",
+  const perPage = Math.max(6, toNumber(pos.displayProducts) || 30);
+  const warehouseId = String(
+    warehouses.rows.find((row) => row.name === warehouse)?.id ?? "",
   );
-  const shopBranch = userBranch || String(pos.defaultBranch);
+  // Products come from the database (Laravel) with an offline cache.
+  const gridCatalog = usePosCatalog(
+    gridFilter,
+    category,
+    page,
+    perPage,
+    warehouseId,
+  );
+  const searchCatalog = usePosCatalog(search, "all", 0, 8, warehouseId);
+  const allowOversell = system.overSelling !== "no";
   // Shop details for the receipt come from the selected branch record.
   const branchRow = branches.rows.find(
-    (row) => String(row.name) === shopBranch,
+    (row) => String(row.name) === currentBranch,
   );
   const branchPhone = String(branchRow?.phone ?? "").trim();
   const branchAddress = [branchRow?.city, branchRow?.country]
@@ -176,15 +199,10 @@ function PosScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  const matches = useMemo(() => {
-    const term = search.toLowerCase().trim();
-    if (!term) return [];
-    return products
-      .filter((product) =>
-        `${product.sku} ${product.name}`.toLowerCase().includes(term),
-      )
-      .slice(0, 8);
-  }, [products, search]);
+  const pages = Math.max(1, Math.ceil(gridCatalog.total / perPage));
+  useEffect(() => setPage(0), [category, gridFilter]);
+
+  const matches = search.trim() ? searchCatalog.products : [];
 
   const memberMatches = useMemo(() => {
     const term = memberCode.trim().toLowerCase();
@@ -223,7 +241,7 @@ function PosScreen() {
     if (
       !allowOversell &&
       tracksStock(product) &&
-      inCart + quantity > productStock(product)
+      inCart + quantity > stockAt(product, { branch: currentBranch, warehouse })
     ) {
       notify(
         l(["Not enough stock for this product", "ស្តុកមិនគ្រប់គ្រាន់"]),
@@ -251,7 +269,8 @@ function PosScreen() {
       (row) =>
         String(row.cardNo ?? "")
           .trim()
-          .toLowerCase() === wanted,
+          .toLowerCase() === wanted ||
+        phoneKey(row.customer) === phoneKey(wanted),
     );
     if (card) {
       selectMemberCard(card);
@@ -306,11 +325,7 @@ function PosScreen() {
 
   /** Uses a card for this sale; its owner (matched by phone) becomes the customer. */
   function applyCard(card: Row) {
-    const owner = customers.rows.find(
-      (row) =>
-        String(row.phone ?? "").replace(/\s/g, "") ===
-        String(card.customer ?? "").replace(/\s/g, ""),
-    );
+    const owner = cardOwner(card);
     if (owner) setCustomer(String(owner.name));
     setMember(card);
     setMemberCode("");
@@ -387,6 +402,71 @@ function PosScreen() {
   }
 
   function finalize(payment: Payment) {
+    if (member) {
+      const latest = memberCards.rows.find((row) => row.id === member.id);
+      if (
+        !latest ||
+        (latest.expiry && String(latest.expiry) < localDateTime().slice(0, 10))
+      ) {
+        notify(
+          l([
+            "Membership card is missing or expired.",
+            "កាតសមាជិកផុតកំណត់ ឬរកមិនឃើញ។",
+          ]),
+        );
+        return;
+      }
+    }
+    if (!register || register.status !== "open") {
+      notify(l(["Open a register first.", "សូមបើកវេនជាមុន។"]));
+      return;
+    }
+    if (
+      !warehouses.rows.some(
+        (row) =>
+          row.name === warehouse &&
+          (row.branch || "Central") === payment.branch,
+      )
+    ) {
+      notify(
+        l([
+          "Select the branch that owns this warehouse.",
+          "សូមជ្រើសសាខាដែលជាម្ចាស់ឃ្លាំងនេះ។",
+        ]),
+      );
+      return;
+    }
+    const available = products.every((product) => {
+      const needed = cart.items.reduce((sum, line) => {
+        const sold = products.find((item) => item.id === line.productId);
+        if (sold?.type === "combo")
+          return (
+            sum +
+            (sold.comboItems ?? [])
+              .filter((item) => item.productId === product.id)
+              .reduce((qty, item) => qty + item.quantity * line.quantity, 0)
+          );
+        return (
+          sum +
+          (line.productId === product.id && tracksStock(product)
+            ? line.quantity
+            : 0)
+        );
+      }, 0);
+      return (
+        needed === 0 ||
+        needed <= stockAt(product, { branch: payment.branch, warehouse })
+      );
+    });
+    if (!allowOversell && !available) {
+      notify(
+        l([
+          "Not enough stock in this branch and warehouse.",
+          "ស្តុកក្នុងសាខា និងឃ្លាំងនេះមិនគ្រប់គ្រាន់។",
+        ]),
+      );
+      return;
+    }
     const { totals } = cart;
     const date = new Date(payment.date).toISOString();
     const reference = nextReference(
@@ -434,6 +514,8 @@ function PosScreen() {
         createdBy: currentUsername(),
       })),
       ...(member ? { memberCard: String(member.cardNo) } : {}),
+      ...(member ? { memberCardId: member.id } : {}),
+      customerId: customers.rows.find((row) => row.name === customer)?.id,
       registerId: register?.id,
     };
     const record = addRow("sales", sale) as Transaction;
@@ -441,6 +523,7 @@ function PosScreen() {
       cart.items.map((line) => ({
         productId: line.productId,
         delta: -line.quantity,
+        location: { branch: payment.branch, warehouse },
       })),
     );
     // Award points: every `customerSpent` riel earns `customerPoints`.
@@ -449,26 +532,28 @@ function PosScreen() {
       spent > 0
         ? Math.floor(totals.payable / spent) * toNumber(system.customerPoints)
         : 0;
-    if (points > 0)
-      setRows("customers", (rows) =>
+    postPoints({
+      eventId: `sale:${record.id}`,
+      cardId: member?.id,
+      customerId: String(record.customerId ?? ""),
+      points,
+      spent: totals.payable,
+      kind: "earn",
+      reference: record.reference,
+    });
+    const pointsBalance = member
+      ? toNumber(
+          memberCards.rows.find((row) => row.id === member.id)?.awardPoints,
+        ) + points
+      : undefined;
+    if (pointsBalance !== undefined) {
+      record.pointsBalance = pointsBalance;
+      setRows("sales", (rows) =>
         rows.map((row) =>
-          row.name === customer
-            ? { ...row, awardPoints: toNumber(row.awardPoints) + points }
-            : row,
+          row.id === record.id ? { ...row, pointsBalance } : row,
         ),
       );
-    if (member)
-      setRows("memberCards", (rows) =>
-        rows.map((row) =>
-          row.id === member.id
-            ? {
-                ...row,
-                awardPoints: toNumber(row.awardPoints) + points,
-                spent: toNumber(row.spent) + totals.payable,
-              }
-            : row,
-        ),
-      );
+    }
     setMember(null);
     cart.clear();
     setPanel(null);
@@ -486,18 +571,10 @@ function PosScreen() {
   const brandLogo = logo || DEFAULT_LOGO;
   const inCart = (id: string) =>
     cart.items.find((line) => line.productId === id)?.quantity ?? 0;
+  const from = gridCatalog.total ? page * perPage + 1 : 0;
+  const to = Math.min(gridCatalog.total, (page + 1) * perPage);
   const gridCategories = useMemo(() => categoriesOf(products), [products]);
-  const visibleProducts = useMemo(() => {
-    const term = gridFilter.toLowerCase().trim();
-    return products.filter(
-      (product) =>
-        (category === "all" || product.category === category) &&
-        (!term ||
-          `${product.sku} ${product.name}`
-            .toLowerCase()
-            .includes(term)),
-    );
-  }, [products, category, gridFilter]);
+  const visibleProducts = gridCatalog.products;
 
   return (
     <div className="pos">
@@ -719,6 +796,7 @@ function PosScreen() {
               <Select
                 className="grow"
                 ariaLabel={t.warehouse}
+                disabled={!!register}
                 value={warehouse}
                 onChange={setWarehouse}
                 searchPlaceholder={`${t.searchLabel}…`}
@@ -1029,9 +1107,38 @@ function PosScreen() {
                 ))}
               </div>
             </div>
+            {!gridCatalog.online && (
+              <p className="cart-empty" role="status">
+                {l([
+                  "Offline. Only products already cached on this device are available.",
+                  "ក្រៅបណ្ដាញ។ អាចប្រើបានតែទំនិញដែលបាន cache ក្នុងឧបករណ៍នេះរួចប៉ុណ្ណោះ។",
+                ])}
+              </p>
+            )}
+            {gridCatalog.online && gridCatalog.error && (
+              <p className="cart-empty" role="alert">
+                {gridCatalog.error === "unauthenticated"
+                  ? l([
+                      "Sign in again to load products from the database.",
+                      "សូមចូលគណនីម្ដងទៀត ដើម្បីទាញទំនិញពី database។",
+                    ])
+                  : gridCatalog.error === "forbidden"
+                    ? l([
+                        "Your account cannot use the POS product catalog.",
+                        "គណនីនេះមិនមានសិទ្ធិប្រើបញ្ជីទំនិញ POS ទេ។",
+                      ])
+                    : l([
+                        `The product service returned ${gridCatalog.error.replace("http-", "HTTP ")}.`,
+                        `សេវាទំនិញមានបញ្ហា (${gridCatalog.error.replace("http-", "HTTP ")})។`,
+                      ])}
+              </p>
+            )}
             <div className="pos-products">
               {visibleProducts.map((product) => {
-                const stock = productStock(product);
+                const stock = stockAt(product, {
+                  branch: currentBranch,
+                  warehouse,
+                });
                 const count = inCart(product.id);
                 const selected = selectedProduct?.id === product.id;
                 const stockInfo = tracksStock(product)
@@ -1083,6 +1190,34 @@ function PosScreen() {
                 </div>
               )}
             </div>
+            {pages > 1 && (
+              <div className="pos-pager">
+                <span>
+                  {from}–{to} / {gridCatalog.total}
+                </span>
+                <div>
+                  <button
+                    type="button"
+                    disabled={page === 0}
+                    onClick={() => setPage(page - 1)}
+                    aria-label={t.previous}
+                  >
+                    <Icon name="chevronsLeft" size={14} />
+                  </button>
+                  <span>
+                    {page + 1} / {pages}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={page >= pages - 1}
+                    onClick={() => setPage(page + 1)}
+                    aria-label={t.next}
+                  >
+                    <Icon name="chevronsRight" size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
         </div>
       </div>
@@ -1157,7 +1292,7 @@ function PosScreen() {
           payable={cart.totals.payable}
           itemCount={cart.totals.count}
           rate={rate}
-          defaultBranch={shopBranch}
+          defaultBranch={currentBranch}
           onSubmit={finalize}
         />
       )}
@@ -1660,7 +1795,7 @@ function Receipt({
         | "shipping"
         | "total"
       >
-    >;
+    > & { pointsBalance?: number };
   onClose: () => void;
   logo: string;
   siteName: string;
@@ -1735,6 +1870,12 @@ function Receipt({
             <div>
               <span>{l(["Cashier", "អ្នកលក់"])}</span>
               <b>{cashier}</b>
+            </div>
+          )}
+          {record.pointsBalance !== undefined && (
+            <div>
+              <span>{l(["Points balance", "ពិន្ទុនៅសល់"])}</span>
+              <b>{formatNumber(record.pointsBalance)}</b>
             </div>
           )}
         </div>

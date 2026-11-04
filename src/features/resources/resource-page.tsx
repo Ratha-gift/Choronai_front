@@ -45,6 +45,15 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
 
   async function deleteRows(targets: Row[]) {
     if (!targets.length) return;
+    if (targets.some((row) => def.canDelete && !def.canDelete(row))) {
+      notify(
+        l([
+          "This record is linked to a completed workflow and cannot be deleted.",
+          "កំណត់ត្រានេះមិនអាចលុបបានទេ ព្រោះមានប្រតិបត្តិការភ្ជាប់។",
+        ]),
+      );
+      return;
+    }
     const ok = await confirmAction(
       targets.length === 1
         ? t.confirmDeleteOne.replace("{item}", noun)

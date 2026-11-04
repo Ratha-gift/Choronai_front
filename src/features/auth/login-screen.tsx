@@ -27,6 +27,10 @@ const safeNext = (value: string | null) =>
     : "/";
 
 const ERRORS: Record<Exclude<LoginResult, "ok">, Label> = {
+  unavailable: [
+    "Cannot load the shared database. Check the connection; the owner must initialize it first.",
+    "មិនអាចភ្ជាប់ទិន្នន័យបាន។ សូមពិនិត្យការតភ្ជាប់។",
+  ],
   invalid: [
     "Wrong username or password.",
     "ឈ្មោះគណនី ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ។",
@@ -67,10 +71,10 @@ export function LoginScreen() {
     if (hydrated && session) router.replace(next);
   }, [hydrated, session, next, router]);
 
-  function submit(event: FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
-    const result = login(username, password, remember);
+    const result = await login(username, password, remember);
     if (result !== "ok") {
       setError(result);
       setPassword("");

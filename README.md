@@ -36,6 +36,10 @@ English and Khmer (ភាសាខ្មែរ) interface.
 
 ## Getting started
 
+### Backend status
+
+The team's Laravel/PostgreSQL API is included in [`backend/`](backend/README.md). See [backend import and setup](docs/backend-import.md) for its source revision and Docker commands. The frontend currently uses the Next.js/SQLite backend described in [workflow implementation](docs/workflow-implementation.md); connecting it to Laravel is still pending. Older prototype descriptions below predate these backend updates.
+
 You need **Node.js 22 or newer**, which comes with npm.
 
 ```bash

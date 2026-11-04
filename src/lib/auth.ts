@@ -1,13 +1,12 @@
 "use client";
 import { getRows } from "@/data/collections";
-import { SEED } from "@/data/seed";
 import type { Row } from "@/data/types";
 import { readStored, useStored, writeStored } from "./store";
 import { sha256 } from "./sha256";
+import { connectWorkspace, disconnectWorkspace, flush } from "./sync";
 
-// Prototype sign-in that runs entirely in the browser. It keeps casual users
-// out of the back office, but it is NOT security: anyone with devtools can
-// bypass it. Replace with server-side authentication when the API exists.
+// UI session metadata is cached locally. The API independently authenticates
+// every request using an opaque HttpOnly cookie backed by SQLite sessions.
 
 export type Session = {
   userId: string;
@@ -20,7 +19,6 @@ export type Session = {
 
 const SESSION_KEY = "choronai-session-v1";
 const NO_SESSION: Session | null = null;
-const HOUR = 3_600_000;
 
 export const hashPassword = (username: string, password: string) =>
   sha256(`choronai:${username.trim().toLowerCase()}:${password}`);
@@ -38,37 +36,54 @@ export function useSession() {
 export const currentUsername = () =>
   valid(readStored(SESSION_KEY, NO_SESSION))?.username ?? "system";
 
-export type LoginResult = "ok" | "invalid" | "inactive";
+export type LoginResult = "ok" | "invalid" | "inactive" | "unavailable";
 
-export function login(
+export async function login(
   username: string,
   password: string,
   remember: boolean,
-): LoginResult {
-  const name = username.trim().toLowerCase();
-  const user = getRows("users").find(
-    (row) => String(row.username).toLowerCase() === name,
-  );
-  if (!user) return "invalid";
-  // Users saved before passwords existed fall back to their seed password.
-  const stored =
-    user.passwordHash ??
-    SEED.users.find((row) => row.username === user.username)?.passwordHash;
-  if (!stored || stored !== hashPassword(name, password)) return "invalid";
-  if (user.status === "inactive") return "inactive";
-  writeStored(SESSION_KEY, NO_SESSION, {
-    userId: user.id,
-    username: String(user.username),
-    name: `${String(user.firstName ?? "")} ${String(user.lastName ?? "")}`.trim(),
-    group: String(user.group ?? ""),
-    signedInAt: new Date().toISOString(),
-    // "Remember me" keeps the session for 30 days, otherwise one shift.
-    expiresAt: Date.now() + (remember ? 30 * 24 : 12) * HOUR,
-  });
-  return "ok";
+): Promise<LoginResult> {
+  try {
+    // Keep the local workspace session for its existing sync endpoint, and
+    // also establish the Laravel token used by PostgreSQL-backed APIs.
+    const localResponse = await fetch("/api/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password, remember }),
+    });
+    if (!localResponse.ok) return "invalid";
+
+    const apiResponse = await fetch("/api/backend/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password, remember }),
+    });
+    if (!apiResponse.ok) {
+      await fetch("/api/session", { method: "DELETE" }).catch(() => {});
+      if (apiResponse.status === 403) return "inactive";
+      return apiResponse.status >= 500 ? "unavailable" : "invalid";
+    }
+    const { session } = await apiResponse.json();
+    await connectWorkspace(
+      session.username,
+      session.group.toLowerCase() === "owner",
+    );
+    writeStored(SESSION_KEY, NO_SESSION, session);
+    return "ok";
+  } catch {
+    return "unavailable";
+  }
 }
 
-export const logout = () => writeStored(SESSION_KEY, NO_SESSION, null);
+export const logout = async () => {
+  await flush();
+  await Promise.all([
+    fetch("/api/session", { method: "DELETE" }).catch(() => {}),
+    fetch("/api/backend/session", { method: "DELETE" }).catch(() => {}),
+  ]);
+  disconnectWorkspace();
+  writeStored(SESSION_KEY, NO_SESSION, null);
+};
 
 /**
  * Turns the form's plain `password` into `passwordHash`. Returns an error

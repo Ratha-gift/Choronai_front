@@ -73,6 +73,7 @@ export type ResourceDef = {
   headerGroups?: HeaderGroup[];
   formColumns?: 1 | 2 | 3;
   canEdit?: boolean;
+  canDelete?: (row: Row) => boolean;
   /** Called after a record is deleted (e.g. to reverse stock). */
   onDelete?: (row: Row) => void;
   /**

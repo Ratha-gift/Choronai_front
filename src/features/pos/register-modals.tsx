@@ -38,7 +38,10 @@ export function OpenRegisterModal({
   const { l } = useLanguage();
   const [usd, setUsd] = useState<number | "">("");
   const [note, setNote] = useState("");
+  // Opening cash is counted in dollars (main); the warehouse is chosen here (Sethy).
   const total = Math.round(toNumber(usd) * rate);
+  const warehouses = useCollection("warehouses").rows;
+  const [selectedWarehouse, setSelectedWarehouse] = useState(warehouse);
 
   return (
     <Modal
@@ -55,7 +58,11 @@ export function OpenRegisterModal({
           username,
           openedAt: new Date().toISOString(),
           status: "open",
-          warehouse,
+          warehouse: selectedWarehouse,
+          branch: String(
+            warehouses.find((row) => row.name === selectedWarehouse)?.branch ||
+              "Central",
+          ),
           cashInHand: total,
           openNote: note,
         });
@@ -73,6 +80,21 @@ export function OpenRegisterModal({
       }
     >
       <div className="register-form">
+        <label className="field">
+          <span className="field-label">{l(["Warehouse", "ឃ្លាំង"])}</span>
+          <select
+            className="form-control"
+            required
+            value={selectedWarehouse}
+            onChange={(event) => setSelectedWarehouse(event.target.value)}
+          >
+            {warehouses.map((row) => (
+              <option key={row.id} value={String(row.name)}>
+                {String(row.branch || "Central")} / {String(row.name)}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="field">
           <span className="field-label">
             {l(["Cash in hand (US dollar)", "សាច់ប្រាក់ក្នុងដៃ (ដុល្លារ)"])} *

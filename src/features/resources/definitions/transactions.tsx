@@ -2,6 +2,7 @@ import { TransactionDetails } from "@/features/transactions/transaction-details"
 import {
   KINDS,
   lineDelta,
+  appliedStock,
   type TransactionKind,
 } from "@/features/transactions/kinds";
 import { adjustStock } from "@/features/products/store";
@@ -9,6 +10,8 @@ import type { Row, Transaction } from "@/data/types";
 import type { ResourceDef } from "../types";
 import { openPaymentDialog } from "@/features/sales/payments";
 import { balanceOf, col } from "./helpers";
+import { getRows } from "@/data/collections";
+import { canPerform } from "@/lib/permissions";
 
 const details = (row: Row) => <TransactionDetails row={row} />;
 
@@ -16,11 +19,13 @@ const details = (row: Row) => <TransactionDetails row={row} />;
 const reverseStock = (kind: TransactionKind) => (row: Row) => {
   const def = KINDS[kind];
   const record = row as Transaction;
+  if (!appliedStock(kind, record)) return;
   if (def.stock === 0 && def.price !== "none") return;
   adjustStock(
     record.items.map((line) => ({
       productId: line.productId,
       delta: -lineDelta(def, line),
+      location: record,
     })),
   );
 };
@@ -60,6 +65,7 @@ export const transactionResources: ResourceDef[] = [
   {
     id: "sales/registers",
     collection: "registers",
+    canDelete: () => false,
     rowClassName: (row) => (row.status === "open" ? "register-open" : ""),
     title: ["Registers (cashier shifts)", "បញ្ជរគិតលុយ (វេនអ្នកគិតលុយ)"],
     branchOf: (row) => [row.warehouse],
@@ -85,6 +91,7 @@ export const transactionResources: ResourceDef[] = [
   {
     id: "sales/pos-sales",
     collection: "sales",
+    canDelete: () => false,
     title: [
       "POS Sales (All Branches) (All Warehouses)",
       "ការលក់ POS (គ្រប់សាខា) (គ្រប់ឃ្លាំង)",
@@ -101,6 +108,7 @@ export const transactionResources: ResourceDef[] = [
         (row as Transaction).items.map((line) => ({
           productId: line.productId,
           delta: line.quantity,
+          location: row as Transaction,
         })),
       );
     },
@@ -150,6 +158,7 @@ export const transactionResources: ResourceDef[] = [
   {
     id: "sales/returns",
     collection: "saleReturns",
+    canDelete: () => false,
     title: [
       "Returns (All Branches) (All Warehouses)",
       "ការលក់ត្រឡប់ (គ្រប់សាខា) (គ្រប់ឃ្លាំង)",
@@ -180,6 +189,7 @@ export const transactionResources: ResourceDef[] = [
   {
     id: "inventory/stock-receive",
     collection: "stockReceives",
+    canDelete: (row) => !row.transferId,
     title: [
       "Stock Receive (All Branches) (All Warehouses)",
       "ទទួលស្តុក (គ្រប់សាខា) (គ្រប់ឃ្លាំង)",
@@ -206,6 +216,23 @@ export const transactionResources: ResourceDef[] = [
   {
     id: "inventory/stock-issue",
     collection: "stockIssues",
+    canDelete: (row) =>
+      !getRows("stockReceives").some(
+        (receipt) => receipt.transferId === row.id,
+      ),
+    menuItems: (row, { navigate, l }) =>
+      row.toBranch && row.status !== "received"
+        ? [
+            {
+              icon: "download",
+              label: l(["Receive transfer", "ទទួលការផ្ទេរ"]),
+              onClick: () =>
+                navigate(
+                  `/inventory/stock-receive/add?issue=${encodeURIComponent(row.id)}`,
+                ),
+            },
+          ]
+        : [],
     title: [
       "Stock Issue (All Branches) (All Warehouses)",
       "បញ្ចេញស្តុក (គ្រប់សាខា) (គ្រប់ឃ្លាំង)",
@@ -225,6 +252,8 @@ export const transactionResources: ResourceDef[] = [
       reference,
       col("branch", "From Branch", "ពីសាខា"),
       col("toBranch", "To Branch", "ទៅសាខា"),
+      col("toWarehouse", "Destination warehouse", "ឃ្លាំងគោលដៅ"),
+      status,
       col("warehouse", "Warehouse", "ឃ្លាំង"),
       col("grandTotal", "Total Cost", "ថ្លៃដើមសរុប", "money", { total: true }),
       col("createdBy", "Created by", "បង្កើតដោយ"),
@@ -234,6 +263,8 @@ export const transactionResources: ResourceDef[] = [
   {
     id: "inventory/stock-adjustment",
     collection: "adjustments",
+    canDelete: (row) =>
+      row.status !== "approved" || canPerform("stock.approve"),
     title: [
       "Stock Adjustment (All Branches) (All Warehouses)",
       "កែតម្រូវស្តុក (គ្រប់សាខា) (គ្រប់ឃ្លាំង)",

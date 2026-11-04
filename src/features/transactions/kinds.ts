@@ -95,7 +95,7 @@ export const KINDS: Record<TransactionKind, KindDef> = {
     stock: 1,
     price: "none",
     expiry: true,
-    statuses: ["approved", "pending"],
+    statuses: ["pending", "approved"],
   },
 };
 
@@ -108,3 +108,14 @@ export const lineDelta = (kind: KindDef, line: LineItem) =>
         ? -line.quantity
         : line.quantity
       : kind.stock * line.quantity;
+
+/** Legacy saved records already moved stock, including old pending adjustments. */
+export const appliedStock = (
+  kind: TransactionKind,
+  row: { status?: string; stockApplied?: unknown },
+) =>
+  typeof row.stockApplied === "boolean"
+    ? row.stockApplied
+    : kind !== "adjustment" ||
+      row.status === "approved" ||
+      row.status === "pending";

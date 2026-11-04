@@ -27,7 +27,7 @@ function FieldSelect({
     ? [
         ...new Map(
           rows
-            .map((row) => {
+            .map((row): [string, SelectOption] | null => {
               const value = String(row[field.collection!.field] ?? "");
               const label = String(
                 row[field.collection!.labelField ?? field.collection!.field] ??

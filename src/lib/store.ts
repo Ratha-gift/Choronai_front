@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useSyncExternalStore } from "react";
 import { notify } from "./toast";
+import { isSharedKey, queueChange, assertWritable } from "./sync";
 
 // Browser persistence boundary. Every collection and setting goes through
 // these helpers, so swapping localStorage for an API happens in one place.
@@ -55,6 +56,7 @@ export function writeStored<T>(
   seed: T,
   next: T | ((old: T) => T),
 ) {
+  if (isSharedKey(key)) assertWritable();
   const old = readStored(key, seed);
   const value =
     typeof next === "function" ? (next as (old: T) => T)(old) : next;
@@ -70,6 +72,28 @@ export function writeStored<T>(
     );
   }
   listeners.get(key)?.forEach((listener) => listener());
+  queueChange(key, value);
+}
+
+/** Apply a server snapshot without echoing it back as a new write. */
+export function applyRemote(data: Record<string, unknown>) {
+  for (const key of [...cache.keys()]) if (isSharedKey(key)) cache.delete(key);
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const key = localStorage.key(i)!;
+    if (isSharedKey(key) && !(key in data)) localStorage.removeItem(key);
+  }
+  for (const [key, value] of Object.entries(data)) {
+    if (!isSharedKey(key)) continue;
+    cache.set(key, value);
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      notify("Browser storage is full; server data loaded in memory.");
+    }
+  }
+  listeners.forEach((set, key) => {
+    if (isSharedKey(key)) set.forEach((listener) => listener());
+  });
 }
 
 function subscribe(key: string, listener: Listener) {

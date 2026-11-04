@@ -26,6 +26,9 @@ export function saveProduct(input: ProductInput, existing?: Product) {
           ? {
               ...product,
               ...input,
+              ...(input.type === "service" || input.type === "combo"
+                ? { stockByLocation: {}, quantity: 0 }
+                : {}),
               updatedAt: priceChanged ? now : product.updatedAt,
             }
           : product,
