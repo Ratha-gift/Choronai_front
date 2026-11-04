@@ -25,8 +25,16 @@ export const balancesOf = (product: Product) =>
   product.stockByLocation ?? {
     [locationKey()]: product.quantity ?? 0,
   };
-export const stockAt = (product: Product, location: StockLocation) =>
-  balancesOf(product)[locationKey(location)] ?? 0;
+export const stockAt = (product: Product, location: StockLocation) => {
+  if (product.stockWarehouseId) {
+    if (product.stockWarehouseId === "all") return product.quantity ?? 0;
+    const warehouseId = getRows("warehouses").find(
+      (row) => row.id === location.warehouse || row.name === location.warehouse,
+    )?.id;
+    return warehouseId === product.stockWarehouseId ? product.quantity ?? 0 : 0;
+  }
+  return balancesOf(product)[locationKey(location)] ?? 0;
+};
 
 // Keys kept from the first release so saved catalogs survive the upgrade.
 const PRODUCT_KEY = "choronai-next-catalog-v1";

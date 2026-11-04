@@ -24,6 +24,7 @@ import {
 } from "@/features/products/store";
 import { categoriesOf, categoryLabel } from "@/features/products/labels";
 import type { Category, Product } from "@/features/products/types";
+import { usePosCatalog } from "@/features/products/pos-catalog";
 import { resources } from "@/features/resources";
 import {
   ResourceForm,
@@ -164,6 +165,9 @@ function PosScreen() {
   const rate =
     toNumber(currencies.rows.find((row) => row.code === "USD")?.rate) || 4100;
   const perPage = Math.max(6, toNumber(pos.displayProducts) || 30);
+  const warehouseId = String(warehouses.rows.find((row) => row.name === warehouse)?.id ?? "");
+  const gridCatalog = usePosCatalog(gridSearch, category, page, perPage, warehouseId);
+  const searchCatalog = usePosCatalog(search, "all", 0, 8, warehouseId);
   const allowOversell = system.overSelling !== "no";
   // The cashier's own branch (People → Users), else the POS default branch.
   const shopBranch = currentBranch;
@@ -185,27 +189,12 @@ function PosScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  const grid = useMemo(() => {
-    const term = gridSearch.toLowerCase().trim();
-    return products.filter(
-      (product) =>
-        (category === "all" || product.category === category) &&
-        `${product.sku} ${product.name}`.toLowerCase().includes(term),
-    );
-  }, [products, category, gridSearch]);
-  const pages = Math.max(1, Math.ceil(grid.length / perPage));
-  const visible = grid.slice(page * perPage, page * perPage + perPage);
+  const grid = gridCatalog.products;
+  const pages = Math.max(1, Math.ceil(gridCatalog.total / perPage));
+  const visible = grid;
   useEffect(() => setPage(0), [category, gridSearch]);
 
-  const matches = useMemo(() => {
-    const term = search.toLowerCase().trim();
-    if (!term) return [];
-    return products
-      .filter((product) =>
-        `${product.sku} ${product.name}`.toLowerCase().includes(term),
-      )
-      .slice(0, 8);
-  }, [products, search]);
+  const matches = search.trim() ? searchCatalog.products : [];
 
   function addLine(product: Product, quantity: number) {
     const inCart =
@@ -503,8 +492,8 @@ function PosScreen() {
   const brandLogo = logo || DEFAULT_LOGO;
   const inCart = (id: string) =>
     cart.items.find((line) => line.productId === id)?.quantity ?? 0;
-  const from = grid.length ? page * perPage + 1 : 0;
-  const to = Math.min(grid.length, (page + 1) * perPage);
+  const from = gridCatalog.total ? page * perPage + 1 : 0;
+  const to = Math.min(gridCatalog.total, (page + 1) * perPage);
 
   return (
     <div className="pos">
@@ -944,10 +933,7 @@ function PosScreen() {
                 >
                   {label}
                   <span>
-                    {id === "all"
-                      ? products.length
-                      : products.filter((product) => product.category === id)
-                          .length}
+                    {id === category ? gridCatalog.total : ""}
                   </span>
                 </button>
               ))}
@@ -966,6 +952,20 @@ function PosScreen() {
             </label>
           </div>
 
+          {!gridCatalog.online && (
+            <p className="cart-empty" role="status">
+              {l(["Offline. Only products already cached on this device are available.", "ក្រៅបណ្ដាញ។ អាចប្រើបានតែទំនិញដែលបាន cache ក្នុងឧបករណ៍នេះរួចប៉ុណ្ណោះ។"])}
+            </p>
+          )}
+          {gridCatalog.online && gridCatalog.error && (
+            <p className="cart-empty" role="alert">
+              {gridCatalog.error === "unauthenticated"
+                ? l(["Sign in again to load products from the database.", "សូមចូលគណនីម្ដងទៀត ដើម្បីទាញទំនិញពី database។"])
+                : gridCatalog.error === "forbidden"
+                  ? l(["Your account cannot use the POS product catalog.", "គណនីនេះមិនមានសិទ្ធិប្រើបញ្ជីទំនិញ POS ទេ។"])
+                  : l([`The product service returned ${gridCatalog.error.replace("http-", "HTTP ")}.`, `សេវាទំនិញមានបញ្ហា (${gridCatalog.error.replace("http-", "HTTP ")})។`])}
+            </p>
+          )}
           <div className={`pos-grid accent-${pos.productButtonColor}`}>
             {visible.map((product) => {
               const stock = stockAt(product, {

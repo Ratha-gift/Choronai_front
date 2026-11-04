@@ -44,13 +44,26 @@ export async function login(
   remember: boolean,
 ): Promise<LoginResult> {
   try {
-    const response = await fetch("/api/session", {
+    // Keep the local workspace session for its existing sync endpoint, and
+    // also establish the Laravel token used by PostgreSQL-backed APIs.
+    const localResponse = await fetch("/api/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password, remember }),
     });
-    if (!response.ok) return "invalid";
-    const { session } = await response.json();
+    if (!localResponse.ok) return "invalid";
+
+    const apiResponse = await fetch("/api/backend/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password, remember }),
+    });
+    if (!apiResponse.ok) {
+      await fetch("/api/session", { method: "DELETE" }).catch(() => {});
+      if (apiResponse.status === 403) return "inactive";
+      return apiResponse.status >= 500 ? "unavailable" : "invalid";
+    }
+    const { session } = await apiResponse.json();
     await connectWorkspace(
       session.username,
       session.group.toLowerCase() === "owner",
@@ -64,7 +77,10 @@ export async function login(
 
 export const logout = async () => {
   await flush();
-  await fetch("/api/session", { method: "DELETE" }).catch(() => {});
+  await Promise.all([
+    fetch("/api/session", { method: "DELETE" }).catch(() => {}),
+    fetch("/api/backend/session", { method: "DELETE" }).catch(() => {}),
+  ]);
   disconnectWorkspace();
   writeStored(SESSION_KEY, NO_SESSION, null);
 };

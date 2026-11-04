@@ -50,7 +50,10 @@ export async function POST(request: Request) {
       );
     const response = NextResponse.json(
       {
-        session: sessionFromUser(result.user ?? {}, result.expiresAt),
+        session: sessionFromUser(
+          result.user ?? {},
+          result.expiresAt ?? result.expires_at,
+        ),
       },
       { headers: { "Cache-Control": "no-store" } },
     );
@@ -60,7 +63,9 @@ export async function POST(request: Request) {
       sameSite: "strict",
       secure,
       path: "/",
-      expires: result.expiresAt ? new Date(result.expiresAt) : undefined,
+      expires: result.expiresAt || result.expires_at
+        ? new Date(result.expiresAt ?? result.expires_at)
+        : undefined,
     });
     return response;
   } catch {
