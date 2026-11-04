@@ -28,8 +28,13 @@ import { notify } from "@/lib/toast";
 import { KINDS, lineDelta, appliedStock, type TransactionKind } from "./kinds";
 import { canPerform } from "@/lib/permissions";
 import { reverseSalePoints } from "@/features/pos/loyalty";
+import { warehouseOfBranch } from "@/features/settings/branches";
+import { usePermissions } from "@/features/settings/permissions";
 
 const round = (value: number) => Math.round(value * 1000) / 1000;
+
+/** Order tax option that keeps the saved amount when editing. */
+const KEEP_TAX = "__saved";
 
 const currentStockLabel: Label = ["Current Stock", "ស្តុកបច្ចុប្បន្ន"];
 const stockAfterLabel: Label = ["Stock After", "ស្តុកក្រោយកែ"];
@@ -80,6 +85,9 @@ export function TransactionForm({
         Transaction | undefined)
     : undefined;
 
+  // Users without "See all branches" work inside their own branch.
+  const { branch: ownBranch, warehouse: ownWarehouse } = usePermissions();
+  const startBranch = ownBranch ?? String(settings.defaultBranch ?? "");
   const fresh = () => ({
     date: localDateTime(),
     reference: nextReference(
@@ -87,11 +95,14 @@ export function TransactionForm({
       records.rows.length,
     ),
     referenceTo: "",
-    branch: String(settings.defaultBranch ?? ""),
+    branch: startBranch,
     toBranch: "",
     toWarehouse: "",
     transferId: "",
-    warehouse: String(settings.defaultWarehouse ?? ""),
+    warehouse:
+      ownWarehouse ||
+      warehouseOfBranch(startBranch) ||
+      String(settings.defaultWarehouse ?? ""),
     party: "",
     status: kind.statuses[0],
     taxRate: "",
@@ -111,6 +122,9 @@ export function TransactionForm({
     toWarehouse: String(record.toWarehouse ?? ""),
     transferId: String(record.transferId ?? ""),
     warehouse: record.warehouse ?? "",
+    party: String(record.customer ?? record.supplier ?? ""),
+    // Saved records keep the tax amount, not the rate: keep it unless changed.
+    taxRate: toNumber(record.orderTax) > 0 ? KEEP_TAX : "",
     status: record.status,
     discount: record.discount,
     shipping: record.shipping,
@@ -205,9 +219,11 @@ export function TransactionForm({
   const discount = charges ? toNumber(form.discount) : 0;
   const orderTax = !charges
     ? 0
-    : rateType === "Percentage"
-      ? ((total - discount) * rate) / 100
-      : rate;
+    : form.taxRate === KEEP_TAX
+      ? toNumber(existing?.orderTax)
+      : rateType === "Percentage"
+        ? ((total - discount) * rate) / 100
+        : rate;
   const shipping = charges ? toNumber(form.shipping) : 0;
   const grandTotal = Math.max(0, total - discount + orderTax + shipping);
   const totalQty = items.reduce((sum, line) => sum + line.quantity, 0);
@@ -373,14 +389,19 @@ export function TransactionForm({
       }
     }
     if (!items.length) {
-      notify(t.addItemsFirst);
+      notify(t.addItemsFirst, "error");
       return;
     }
     if (kind.party && !form.party) {
-      notify(t.selectPartyFirst);
+      notify(t.selectPartyFirst, "error");
       return;
     }
-    const paid = kind.payment ? Math.min(toNumber(form.paid), grandTotal) : 0;
+    const paid =
+      kind.payment === "keep"
+        ? Math.min(toNumber(existing?.paid), grandTotal)
+        : kind.payment
+          ? Math.min(toNumber(form.paid), grandTotal)
+          : 0;
     const record: Omit<Transaction, "id"> = {
       date: new Date(form.date).toISOString(),
       reference: form.reference,
@@ -399,7 +420,8 @@ export function TransactionForm({
       shipping,
       grandTotal,
       paid,
-      returned: 0,
+      // Editing keeps what was already returned.
+      returned: toNumber(existing?.returned),
       balance: grandTotal - paid,
       paymentStatus: paid >= grandTotal ? "paid" : paid > 0 ? "partial" : "due",
       status: kind.toBranch && form.toBranch ? "dispatched" : form.status,
@@ -623,7 +645,11 @@ export function TransactionForm({
               onChange={(event) =>
                 set({
                   branch: event.target.value,
-                  warehouse: "",
+                  // The branch's own warehouse comes with it.
+                  warehouse:
+                    ownWarehouse ||
+                    warehouseOfBranch(event.target.value) ||
+                    "",
                   // A branch cannot send to itself.
                   ...(event.target.value === form.toBranch
                     ? { toBranch: "" }
@@ -631,9 +657,11 @@ export function TransactionForm({
                 })
               }
             >
-              {branches.rows.map((row) => (
-                <option key={row.id}>{String(row.name)}</option>
-              ))}
+              {branches.rows
+                .filter((row) => !ownBranch || String(row.name) === ownBranch)
+                .map((row) => (
+                  <option key={row.id}>{String(row.name)}</option>
+                ))}
             </select>
           </Field>
           {kind.toBranch && (
@@ -680,7 +708,11 @@ export function TransactionForm({
             >
               <option value="">{t.select}</option>
               {warehouses.rows
-                .filter((row) => (row.branch || "Central") === form.branch)
+                .filter(
+                  (row) =>
+                    (row.branch || "Central") === form.branch &&
+                    (!ownWarehouse || String(row.name) === ownWarehouse),
+                )
                 .map((row) => (
                   <option key={row.id}>{String(row.name)}</option>
                 ))}
@@ -998,6 +1030,12 @@ export function TransactionForm({
                     onChange={(event) => set({ taxRate: event.target.value })}
                   >
                     <option value="">{t.noTax}</option>
+                    {toNumber(existing?.orderTax) > 0 && (
+                      <option value={KEEP_TAX}>
+                        {l(["As saved", "ដូចដែលបានរក្សាទុក"])} (
+                        {formatMoney(existing?.orderTax)})
+                      </option>
+                    )}
                     {taxRates.rows.map((row) => (
                       <option key={row.id}>{String(row.name)}</option>
                     ))}
@@ -1021,7 +1059,7 @@ export function TransactionForm({
                 </Field>
               </>
             )}
-            {kind.payment && (
+            {kind.payment === true && (
               <Field label={t.amountPaid} hint={formatMoney(grandTotal)}>
                 <NumberInput
                   className="form-control"

@@ -13,6 +13,7 @@ import { useHydrated, useStored } from "@/lib/store";
 const DEFAULT_LOGO = "/brand/choronai-logo.png";
 const DEMO_ACCOUNTS = [
   ["admin021", "admin123"],
+  ["manager01", "manager123"],
   ["cashier01", "cashier123"],
 ] as const;
 

@@ -666,6 +666,9 @@
 /* Actions menu rendered on <body> */
 .dropdown-menu.floating {
   position: fixed;
+  /* Placed by inline top or bottom (ActionMenu). The plain .dropdown-menu
+     top would squeeze menus that open upwards off the screen. */
+  top: auto;
   z-index: 1000;
   border-radius: 8px;
   box-shadow: 0 10px 24px #02254f2e;
@@ -872,7 +875,7 @@
   }
 }
 
-/* ---------- Animated select (components/ui/select.tsx) ---------- */
+
 .select {
   position: relative;
   min-width: 0;
@@ -1029,7 +1032,7 @@
 .select-footer button:hover {
   background: var(--brand-soft);
 }
-/* POS: taller controls */
+
 .pos .select-button {
   min-height: 44px;
   height: auto;
@@ -1053,7 +1056,7 @@
   }
 }
 
-/* Sidebar groups slide open */
+
 .nav-children {
   animation: nav-open 0.2s ease-out;
   transform-origin: top;
@@ -1075,7 +1078,7 @@
   }
 }
 
-/* Header buttons show their name beside the icon (icon only on phones). */
+
 .box-actions button,
 .box-actions a {
   display: flex;

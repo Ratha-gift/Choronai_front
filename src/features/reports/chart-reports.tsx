@@ -10,11 +10,12 @@ import {
   StatTile,
 } from "@/components/ui/charts";
 import { categoriesOf, categoryLabel } from "@/features/products/labels";
+import { stockAt, productCost } from "@/features/products/store";
+import { usePermissions, useBranchTitle } from "@/features/settings/permissions";
 import { useLanguage, type Label } from "@/i18n";
 import { formatMoney, formatNumber } from "@/lib/format";
 import { lastMonths, monthKey, useReportData } from "./use-report-data";
 import { useCollection } from "@/data/collections";
-import { stockAt, productCost } from "@/features/products/store";
 
 const REPORT_LINKS: {
   href: string;
@@ -178,8 +179,14 @@ export function OverviewChart() {
 
 export function WarehouseStockChart() {
   const { l } = useLanguage();
+  const branchTitle = useBranchTitle();
+  const { branch, warehouse: ownWarehouse } = usePermissions();
   const { products } = useReportData();
-  const warehouses = useCollection("warehouses").rows;
+  const warehouses = useCollection("warehouses").rows.filter(
+    (row) =>
+      (!branch || String(row.branch || "Central") === branch) &&
+      (!ownWarehouse || String(row.name) === ownWarehouse),
+  );
   const [warehouseId, setWarehouseId] = useState("");
   const selected = warehouses.find((row) => row.id === warehouseId);
   const stockValue = products.reduce(
@@ -201,10 +208,12 @@ export function WarehouseStockChart() {
   return (
     <Box
       icon="chart"
-      title={l([
-        "Warehouse Stock Chart (All Warehouses)",
-        "ក្រាហ្វស្តុកឃ្លាំង (គ្រប់ឃ្លាំង)",
-      ])}
+      title={branchTitle(
+        l([
+          "Warehouse Stock Chart (All Warehouses)",
+          "ក្រាហ្វស្តុកឃ្លាំង (គ្រប់ឃ្លាំង)",
+        ]),
+      )}
       intro={l([
         "Warehouse stock value by cost and price.",
         "តម្លៃស្តុកឃ្លាំងតាមថ្លៃដើម និងតម្លៃលក់។",
@@ -326,6 +335,7 @@ export function CategoryChart() {
 
 export function BestSellers() {
   const { l } = useLanguage();
+  const branchTitle = useBranchTitle();
   const { sales } = useReportData();
   const months = lastMonths(2).reverse();
   const top = months.map((month) => {
@@ -348,7 +358,9 @@ export function BestSellers() {
   return (
     <Box
       icon="trend"
-      title={l(["Best Sellers (All Warehouses)", "ទំនិញលក់ដាច់ (គ្រប់ឃ្លាំង)"])}
+      title={branchTitle(
+        l(["Best Sellers (All Warehouses)", "ទំនិញលក់ដាច់ (គ្រប់ឃ្លាំង)"]),
+      )}
     >
       <div className="best-sellers">
         {top.map(({ month, items }) => (

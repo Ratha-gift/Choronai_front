@@ -8,6 +8,7 @@ import {
 import { adjustStock } from "@/features/products/store";
 import type { Row, Transaction } from "@/data/types";
 import type { ResourceDef } from "../types";
+import { openPaymentDialog } from "@/features/sales/payments";
 import { balanceOf, col } from "./helpers";
 import { getRows } from "@/data/collections";
 import { canPerform } from "@/lib/permissions";
@@ -28,6 +29,14 @@ const reverseStock = (kind: TransactionKind) => (row: Row) => {
     })),
   );
 };
+
+const stockFilters = {
+  branch: "branches",
+  toBranch: "branches",
+  warehouse: "warehouses",
+  createdBy: "users",
+} as const;
+const saleFilters = { ...stockFilters, customer: "customers" } as const;
 
 const date = col("date", "Date", "កាលបរិច្ឆេទ", "datetime");
 const reference = col("reference", "Reference No", "លេខយោង");
@@ -59,6 +68,7 @@ export const transactionResources: ResourceDef[] = [
     canDelete: () => false,
     rowClassName: (row) => (row.status === "open" ? "register-open" : ""),
     title: ["Registers (cashier shifts)", "បញ្ជរគិតលុយ (វេនអ្នកគិតលុយ)"],
+    branchOf: (row) => [row.warehouse],
     noun: ["Register", "បញ្ជរ"],
     icon: "lock",
     initialSort: { key: "openedAt", desc: true },
@@ -102,13 +112,34 @@ export const transactionResources: ResourceDef[] = [
         })),
       );
     },
-    menuItems: (_row, { navigate, l }) => [
+    // Same order as WeERP: details, payments, edit, return, delete.
+    menuItems: (row, { navigate, l }) => [
+      {
+        icon: "money",
+        label: l(["View Payments", "មើលការទូទាត់"]),
+        onClick: () => openPaymentDialog({ kind: "view", saleId: row.id }),
+      },
+      {
+        icon: "plus",
+        label: l(["Add Payment", "បន្ថែមការទូទាត់"]),
+        onClick: () => openPaymentDialog({ kind: "add", saleId: row.id }),
+      },
+      {
+        icon: "edit",
+        label: l(["Edit Sale", "កែការលក់"]),
+        onClick: () => navigate(`/sales/pos-sales/edit/${row.id}`),
+      },
       {
         icon: "undo",
         label: l(["Return Sale", "លក់ត្រឡប់"]),
-        onClick: () => navigate("/sales/returns/add"),
+        onClick: () =>
+          navigate(
+            `/sales/returns/add?sale=${encodeURIComponent(String(row.reference))}`,
+          ),
       },
     ],
+    filterFrom: saleFilters,
+    branchOf: (row) => [row.branch],
     columns: [
       date,
       reference,
@@ -121,6 +152,7 @@ export const transactionResources: ResourceDef[] = [
       col("discount", "Discount", "បញ្ចុះតម្លៃ", "money", { total: true }),
       balance,
       paymentStatus,
+      col("createdBy", "Created by", "បង្កើតដោយ"),
     ],
   },
   {
@@ -138,15 +170,20 @@ export const transactionResources: ResourceDef[] = [
     details,
     canEdit: false,
     onDelete: reverseStock("sale-return"),
+    filterFrom: saleFilters,
+    branchOf: (row) => [row.branch],
     columns: [
       date,
       reference,
       referenceTo,
+      col("branch", "Branch", "សាខា"),
+      col("warehouse", "Warehouse", "ឃ្លាំង"),
       col("customer", "Customer", "អតិថិជន"),
       col("grandTotal", "Total Return", "សរុបត្រឡប់", "money", { total: true }),
       paid,
       balance,
       paymentStatus,
+      col("createdBy", "Created by", "បង្កើតដោយ"),
     ],
   },
   {
@@ -164,9 +201,12 @@ export const transactionResources: ResourceDef[] = [
     details,
     editHref: (row) => `/inventory/stock-receive/edit/${row.id}`,
     onDelete: reverseStock("stock-receive"),
+    branchOf: (row) => [row.branch],
+    filterFrom: stockFilters,
     columns: [
       date,
       reference,
+      col("branch", "Branch", "សាខា"),
       col("warehouse", "Warehouse", "ឃ្លាំង"),
       col("grandTotal", "Total Cost", "ថ្លៃដើមសរុប", "money", { total: true }),
       col("createdBy", "Created by", "បង្កើតដោយ"),
@@ -204,6 +244,9 @@ export const transactionResources: ResourceDef[] = [
     details,
     editHref: (row) => `/inventory/stock-issue/edit/${row.id}`,
     onDelete: reverseStock("stock-issue"),
+    // Goods leaving or arriving at the branch.
+    branchOf: (row) => [row.branch, row.toBranch],
+    filterFrom: stockFilters,
     columns: [
       date,
       reference,
@@ -233,9 +276,12 @@ export const transactionResources: ResourceDef[] = [
     details,
     editHref: (row) => `/inventory/stock-adjustment/edit/${row.id}`,
     onDelete: reverseStock("adjustment"),
+    branchOf: (row) => [row.branch],
+    filterFrom: stockFilters,
     columns: [
       date,
       reference,
+      col("branch", "Branch", "សាខា"),
       col("warehouse", "Warehouse", "ឃ្លាំង"),
       col("createdBy", "Created by", "បង្កើតដោយ"),
       col("note", "Note", "កំណត់ចំណាំ"),

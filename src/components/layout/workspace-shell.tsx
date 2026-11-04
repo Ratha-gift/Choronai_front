@@ -1,5 +1,10 @@
 "use client";
-import { useState, useSyncExternalStore, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/icons";
@@ -13,6 +18,7 @@ import {
   resolvePath,
 } from "@/config/modules";
 import { ProductDialogs } from "@/features/products/components/product-dialogs";
+import { PaymentDialogs } from "@/features/sales/payments";
 import { isLowStock, useProducts } from "@/features/products/store";
 import { LOGO_KEY, NO_LOGO } from "@/features/settings/change-logo";
 import { useOpenRegister } from "@/features/pos/register";
@@ -24,10 +30,76 @@ import { useLanguage } from "@/i18n";
 import { formatDate } from "@/lib/format";
 import { useSession } from "@/lib/auth";
 import { useStored } from "@/lib/store";
+import { usePermissions } from "@/features/settings/permissions";
 import { Calculator } from "./calculator";
 import { LanguageMenu } from "./language-menu";
 import { UserMenu } from "./user-menu";
 import { Navigation } from "./navigation";
+
+const REGISTER_MARK = "register-open";
+const OPEN_WORDS = ["open", "បើក"];
+
+/** Red highlight applies only while the shell is on the Registers page. */
+const REGISTER_CSS = `
+.app-shell[data-registers="true"] tr.${REGISTER_MARK} td {
+  background: #fee2e2 !important;
+  color: #b91c1c !important;
+  font-weight: 600;
+}
+.app-shell[data-registers="true"] tr.${REGISTER_MARK} td:first-child {
+  box-shadow: inset 4px 0 0 #dc2626;
+}
+`;
+
+/** Only the Registers page itself (e.g. /sale/registers), never /people/users. */
+const isRegistersPage = (pathname: string) => {
+  const last = pathname.split("/").filter(Boolean).pop() ?? "";
+  return last === "registers" || last === "register";
+};
+
+const isOpenRow = (row: Element) =>
+  Array.from(row.querySelectorAll("td")).some((cell) =>
+    OPEN_WORDS.includes(cell.textContent?.trim().toLowerCase() ?? ""),
+  );
+
+function useOpenRegisterMarker(pathname: string) {
+  useEffect(() => {
+    if (!isRegistersPage(pathname)) return;
+
+    const scan = () => {
+      document
+        .querySelectorAll<HTMLElement>("main.page table tbody tr")
+        .forEach((row) => {
+          const open = isOpenRow(row);
+          if (row.classList.contains(REGISTER_MARK) !== open) {
+            row.classList.toggle(REGISTER_MARK, open);
+          }
+        });
+    };
+
+    let frame = 0;
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(scan);
+    };
+
+    scan();
+    const observer = new MutationObserver(schedule);
+    observer.observe(document.querySelector("main.page") ?? document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      document
+        .querySelectorAll(`.${REGISTER_MARK}`)
+        .forEach((row) => row.classList.remove(REGISTER_MARK));
+    };
+  }, [pathname]);
+}
 
 function useMediaQuery(query: string) {
   return useSyncExternalStore(
@@ -41,7 +113,6 @@ function useMediaQuery(query: string) {
   );
 }
 
-/** Store logo shipped with the app; Settings → Change Logo overrides it. */
 const DEFAULT_LOGO = "/brand/choronai-mark.png";
 
 export function WorkspaceShell({ children }: { children: ReactNode }) {
@@ -63,7 +134,9 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
   const [calculator, setCalculator] = useState(false);
   const session = useSession();
   const router = useRouter();
-  // The POS button asks for the cash in hand first when no register is open.
+
+  useOpenRegisterMarker(pathname);
+
   const register = useOpenRegister(session?.username ?? "").open;
   const [openingRegister, setOpeningRegister] = useState(false);
   const usdRate =
@@ -73,16 +146,21 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
 
   const segments = pathname.split("/").filter(Boolean);
   const module = resolvePath(segments)?.module ?? DASHBOARD;
+  const { can, canOpen } = usePermissions();
+  const allowed = canOpen(module.id);
   const group = groupOf(module.id);
   const folder = folderOf(module.id);
   const parent = module.parent ? findModule(module.parent) : undefined;
   const alerts = products.filter(isLowStock).length;
   const siteName = String(settings.siteName || "CHORONAI");
+  const onRegistersPage = isRegistersPage(pathname);
 
   return (
     <div
       className={`app-shell ${rail ? "collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`}
+      data-registers={onRegistersPage}
     >
+      <style>{REGISTER_CSS}</style>
       <header className="header">
         <button
           className="menu-toggle"
@@ -122,14 +200,16 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
           >
             <Icon name="home" />
           </Link>
-          <Link
-            href="/settings/system"
-            className="hbtn"
-            title={t.settings}
-            aria-label={t.settings}
-          >
-            <Icon name="cog" />
-          </Link>
+          {canOpen("settings/system") && (
+            <Link
+              href="/settings/system"
+              className="hbtn"
+              title={t.settings}
+              aria-label={t.settings}
+            >
+              <Icon name="cog" />
+            </Link>
+          )}
           <button
             className="hbtn"
             title={l(["Calculator", "ម៉ាស៊ីនគិតលេខ"])}
@@ -138,43 +218,51 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
           >
             <Icon name="calculator" />
           </button>
-          <Link
-            href="/reports/overview"
-            className="hbtn"
-            title={t.reports}
-            aria-label={t.reports}
-          >
-            <Icon name="chart" />
-          </Link>
+          {canOpen("reports/overview") && (
+            <Link
+              href="/reports/overview"
+              className="hbtn"
+              title={t.reports}
+              aria-label={t.reports}
+            >
+              <Icon name="chart" />
+            </Link>
+          )}
           <LanguageMenu />
-          <Link
-            href="/reports/quantity-alerts"
-            className="hbtn yellow badge-host"
-            title={t.quantityAlerts}
-            aria-label={`${t.quantityAlerts}: ${alerts}`}
-          >
-            <Icon name="alert" />
-            {alerts > 0 && <i className="badge">{alerts}</i>}
-          </Link>
-          <Link
-            href="/pos"
-            className="hbtn green wide"
-            onClick={(event) => {
-              if (register || !session) return;
-              event.preventDefault();
-              setOpeningRegister(true);
-            }}
-          >
-            <Icon name="grid" /> POS
-          </Link>
-          <Link
-            href="/notifications"
-            className="hbtn blue"
-            title={t.notifications}
-            aria-label={t.notifications}
-          >
-            <Icon name="list" />
-          </Link>
+          {canOpen("reports/quantity-alerts") && (
+            <Link
+              href="/reports/quantity-alerts"
+              className="hbtn yellow badge-host"
+              title={t.quantityAlerts}
+              aria-label={`${t.quantityAlerts}: ${alerts}`}
+            >
+              <Icon name="alert" />
+              {alerts > 0 && <i className="badge">{alerts}</i>}
+            </Link>
+          )}
+          {can("sales.pos") && (
+            <Link
+              href="/pos"
+              className="hbtn green wide"
+              onClick={(event) => {
+                if (register || !session) return;
+                event.preventDefault();
+                setOpeningRegister(true);
+              }}
+            >
+              <Icon name="grid" /> POS
+            </Link>
+          )}
+          {canOpen("notifications") && (
+            <Link
+              href="/notifications"
+              className="hbtn blue"
+              title={t.notifications}
+              aria-label={t.notifications}
+            >
+              <Icon name="list" />
+            </Link>
+          )}
           <UserMenu />
         </div>
       </header>
@@ -223,10 +311,30 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
               `${t.signedIn} ${session.username} ( ${t.lastVisit}: ${formatDate(session.signedInAt, true)} )`}
           </span>
         </div>
-        <main className="page">{children}</main>
+
+        <main className="page">
+          {allowed ? (
+            children
+          ) : (
+            <section className="box no-access" role="alert">
+              <Icon name="lock" size={28} />
+              <h2>{l(["No permission", "គ្មានសិទ្ធិ"])}</h2>
+              <p>
+                {l([
+                  "Your user group cannot open this page. Ask the owner to allow it in Settings → Group Permissions.",
+                  "ក្រុមអ្នកប្រើរបស់អ្នក មិនអាចបើកទំព័រនេះទេ។ សូមស្នើម្ចាស់ឱ្យអនុញ្ញាតក្នុង Settings → Group Permissions។",
+                ])}
+              </p>
+              <Link href="/" className="btn btn-primary">
+                {l(DASHBOARD.label)}
+              </Link>
+            </section>
+          )}
+        </main>
       </div>
       <div className="mobile-scrim" onClick={() => setMobileOpen(false)} />
       <ProductDialogs />
+      <PaymentDialogs />
       <Calculator open={calculator} onClose={() => setCalculator(false)} />
       {openingRegister && session && (
         <OpenRegisterModal
