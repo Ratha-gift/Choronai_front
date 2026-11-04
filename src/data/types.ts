@@ -16,6 +16,22 @@ export type LineItem = {
   expiry?: string;
   /** Quantity adjustments only. */
   type?: "addition" | "subtraction";
+  /** Stock adjustments: why this line changed. */
+  description?: string;
+  /** Sale returns: false when the goods do not go back into stock (spoiled). */
+  returnStock?: boolean;
+};
+
+/** One payment towards a sale (a sale can be paid in several parts). */
+export type Payment = {
+  id: string;
+  date: string;
+  reference: string;
+  method: string;
+  /** Riel. */
+  amount: number;
+  note?: string;
+  createdBy: string;
 };
 
 export type Transaction = Row & {
@@ -23,6 +39,8 @@ export type Transaction = Row & {
   reference: string;
   referenceTo?: string;
   branch?: string;
+  /** Stock issue: the branch the goods go to. */
+  toBranch?: string;
   warehouse?: string;
   customer?: string;
   supplier?: string;
@@ -32,6 +50,8 @@ export type Transaction = Row & {
   discount: number;
   generalDiscountPercent?: number;
   shipping: number;
+  /** Sale returns: fee kept from the refund. */
+  surcharge?: number;
   grandTotal: number;
   paid: number;
   returned: number;
@@ -43,4 +63,6 @@ export type Transaction = Row & {
   /** POS sales: how it was paid and the cashier register it belongs to. */
   paymentMethod?: string;
   registerId?: string;
+  /** Sales: every payment; older sales only have `paid` + `paymentMethod`. */
+  payments?: Payment[];
 };

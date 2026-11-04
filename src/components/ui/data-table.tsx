@@ -38,6 +38,12 @@ export type Column<T> = {
   width?: number;
   /** Filter panel section; chosen from `type` and the data when omitted. */
   filter?: FilterSection["kind"] | false;
+  /** Drawer label when it differs from the table heading. */
+  filterLabel?: Label;
+  /** Choices offered by a "select" / "chips" filter besides the values in the rows. */
+  filterOptions?: string[];
+  /** Optional combined value for matching a drawer filter. */
+  filterValue?: (row: T) => unknown;
 };
 
 export type HeaderGroup = { label?: Label; span: number };
@@ -169,7 +175,18 @@ export function DataTable<T extends { id: string }>({
       return active.every(([key, value]) => {
         const column = columns.find((item) => item.key === key);
         if (!column) return true;
-        const raw = cellValue(column, row);
+        const raw = column.filterValue
+          ? column.filterValue(row)
+          : cellValue(column, row);
+        if (value.text?.trim()) {
+          const normalize = (input: unknown) => {
+            const text = searchable(input).trim();
+            return column.filter === "phone"
+              ? text.replace(/[\s().-]/g, "")
+              : text;
+          };
+          if (!normalize(raw).includes(normalize(value.text))) return false;
+        }
         if (value.values?.length && !value.values.includes(String(raw ?? "")))
           return false;
         if (value.min && toNumber(raw) < Number(value.min)) return false;
@@ -220,7 +237,10 @@ export function DataTable<T extends { id: string }>({
     if (!canFilter) return [];
     return columns.flatMap((column): FilterSection[] => {
       if (column.filter === false || column.type === "image") return [];
-      const base = { key: column.key, label: column.label };
+      const base = {
+        key: column.key,
+        label: column.filterLabel ?? column.label,
+      };
       const kind =
         column.filter ??
         (column.type === "date" || column.type === "datetime"
@@ -230,21 +250,25 @@ export function DataTable<T extends { id: string }>({
               column.type === "qty"
             ? "range"
             : "chips");
-      if (kind !== "chips") return [{ ...base, kind }];
+      if (kind !== "chips" && kind !== "select") return [{ ...base, kind }];
       const options = [
         ...new Set(
-          rows
-            .map((row) => String(cellValue(column, row) ?? "").trim())
+          [
+            ...(column.filterOptions ?? []),
+            ...rows.map((row) => String(cellValue(column, row) ?? "")),
+          ]
+            .map((option) => option.trim())
             .filter(Boolean),
         ),
       ].sort((x, y) => x.localeCompare(y, undefined, { numeric: true }));
+      if (kind === "select") return [{ ...base, kind, options }];
       // Chips only help for short lists (status, category, warehouse …);
       // free text like names is covered by the search box.
       const useful =
-        options.length >= 2 &&
-        (column.filter === "chips" ||
-          column.type === "status" ||
-          options.length <= Math.min(12, rows.length / 1.5));
+        column.filter === "chips" ||
+        (options.length >= 2 &&
+          (column.type === "status" ||
+            options.length <= Math.min(12, rows.length / 1.5)));
       return useful ? [{ ...base, kind: "chips", options }] : [];
     });
   }, [canFilter, columns, rows]);

@@ -1,13 +1,14 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   DASHBOARD,
   SHOP_SETTINGS,
   folderOf,
   groupOf,
-  groups,
+  groups as allGroups,
   hrefOf,
   findModule,
   isFolder,
@@ -16,6 +17,7 @@ import {
   type NavGroup,
 } from "@/config/modules";
 import { Icon } from "@/components/icons";
+import { usePermissions } from "@/features/settings/permissions";
 import { useLanguage } from "@/i18n";
 
 type Flyout = { id: string; top: number } | null;
@@ -33,6 +35,26 @@ export function Navigation({
   onNavigate: () => void;
 }) {
   const { l, language } = useLanguage();
+  const pathname = usePathname();
+  // Only the pages the user's group may open (Settings → Group Permissions).
+  const { canOpen } = usePermissions();
+  const groups: NavGroup[] = allGroups
+    .map((group) => ({
+      ...group,
+      items: group.items
+        .map((entry) =>
+          isFolder(entry)
+            ? {
+                ...entry,
+                items: entry.items.filter((page) => canOpen(page.id)),
+              }
+            : entry,
+        )
+        .filter((entry) =>
+          isFolder(entry) ? entry.items.length > 0 : canOpen(entry.id),
+        ),
+    }))
+    .filter((group) => group.items.length > 0);
   const activeGroup = groupOf(current)?.id;
   const activeFolder = folderOf(current)?.id;
   const activeItem = findModule(current)?.parent ?? current;
@@ -247,7 +269,27 @@ export function Navigation({
             </div>
           );
         })}
-        {single(SHOP_SETTINGS)}
+        {canOpen(SHOP_SETTINGS.id) && single(SHOP_SETTINGS)}
+
+        {!collapsed && canOpen("server-status") && (
+          <div className="nav-system-label">
+            {language === "en" ? "System" : "ប្រព័ន្ធ"}
+          </div>
+        )}
+        {canOpen("server-status") && (
+          <Link
+            href="/server-status"
+            className={`nav-item nav-server ${pathname === "/server-status" ? "active" : ""}`}
+            aria-label={collapsed ? "Server Status" : undefined}
+            title="Server Status"
+            onClick={navigate}
+          >
+            <Icon name="list" />
+            <span>
+              {language === "en" ? "Server Status" : "ស្ថានភាព Server"}
+            </span>
+          </Link>
+        )}
       </nav>
 
       {collapsed &&

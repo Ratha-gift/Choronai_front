@@ -10,11 +10,12 @@ import type { LineItem, Transaction } from "@/data/types";
 import {
   adjustStock,
   productCost,
+  productStock,
   productUnit,
   useProducts,
 } from "@/features/products/store";
 import { useSettings } from "@/features/settings/store";
-import { useLanguage } from "@/i18n";
+import { useLanguage, type Label } from "@/i18n";
 import {
   formatMoney,
   formatNumber,
@@ -23,9 +24,17 @@ import {
   toNumber,
 } from "@/lib/format";
 import { notify } from "@/lib/toast";
+import { warehouseOfBranch } from "@/features/settings/branches";
+import { usePermissions } from "@/features/settings/permissions";
 import { KINDS, lineDelta, type TransactionKind } from "./kinds";
 
 const round = (value: number) => Math.round(value * 1000) / 1000;
+
+/** Order tax option that keeps the saved amount when editing. */
+const KEEP_TAX = "__saved";
+
+const currentStockLabel: Label = ["Current Stock", "ស្តុកបច្ចុប្បន្ន"];
+const stockAfterLabel: Label = ["Stock After", "ស្តុកក្រោយកែ"];
 
 export function TransactionForm({
   kind: kindId,
@@ -53,6 +62,9 @@ export function TransactionForm({
         Transaction | undefined)
     : undefined;
 
+  // Users without "See all branches" work inside their own branch.
+  const { branch: ownBranch, warehouse: ownWarehouse } = usePermissions();
+  const startBranch = ownBranch ?? String(settings.defaultBranch ?? "");
   const fresh = () => ({
     date: localDateTime(),
     reference: nextReference(
@@ -60,8 +72,10 @@ export function TransactionForm({
       records.rows.length,
     ),
     referenceTo: "",
-    branch: String(settings.defaultBranch ?? ""),
-    warehouse: String(settings.defaultWarehouse ?? ""),
+    branch: startBranch,
+    toBranch: "",
+    warehouse:
+      warehouseOfBranch(startBranch) || String(settings.defaultWarehouse ?? ""),
     party: "",
     status: kind.statuses[0],
     taxRate: "",
@@ -77,7 +91,11 @@ export function TransactionForm({
     reference: record.reference,
     referenceTo: record.referenceTo ?? "",
     branch: record.branch ?? "",
+    toBranch: record.toBranch ?? "",
     warehouse: record.warehouse ?? "",
+    party: String(record.customer ?? record.supplier ?? ""),
+    // Saved records keep the tax amount, not the rate: keep it unless changed.
+    taxRate: toNumber(record.orderTax) > 0 ? KEEP_TAX : "",
     status: record.status,
     discount: record.discount,
     shipping: record.shipping,
@@ -155,28 +173,36 @@ export function TransactionForm({
   const discount = charges ? toNumber(form.discount) : 0;
   const orderTax = !charges
     ? 0
-    : rateType === "Percentage"
-      ? ((total - discount) * rate) / 100
-      : rate;
+    : form.taxRate === KEEP_TAX
+      ? toNumber(existing?.orderTax)
+      : rateType === "Percentage"
+        ? ((total - discount) * rate) / 100
+        : rate;
   const shipping = charges ? toNumber(form.shipping) : 0;
   const grandTotal = Math.max(0, total - discount + orderTax + shipping);
   const totalQty = items.reduce((sum, line) => sum + line.quantity, 0);
 
   function save() {
     if (!items.length) {
-      notify(t.addItemsFirst);
+      notify(t.addItemsFirst, "error");
       return;
     }
     if (kind.party && !form.party) {
-      notify(t.selectPartyFirst);
+      notify(t.selectPartyFirst, "error");
       return;
     }
-    const paid = kind.payment ? Math.min(toNumber(form.paid), grandTotal) : 0;
+    const paid =
+      kind.payment === "keep"
+        ? Math.min(toNumber(existing?.paid), grandTotal)
+        : kind.payment
+          ? Math.min(toNumber(form.paid), grandTotal)
+          : 0;
     const record: Omit<Transaction, "id"> = {
       date: new Date(form.date).toISOString(),
       reference: form.reference,
       referenceTo: form.referenceTo || undefined,
       branch: form.branch,
+      ...(kind.toBranch ? { toBranch: form.toBranch || undefined } : {}),
       warehouse: form.warehouse,
       ...(kind.party === "customer" ? { customer: form.party } : {}),
       ...(kind.party === "supplier" ? { supplier: form.party } : {}),
@@ -187,7 +213,8 @@ export function TransactionForm({
       shipping,
       grandTotal,
       paid,
-      returned: 0,
+      // Editing keeps what was already returned.
+      returned: toNumber(existing?.returned),
       balance: grandTotal - paid,
       paymentStatus: paid >= grandTotal ? "paid" : paid > 0 ? "partial" : "due",
       status: form.status,
@@ -244,6 +271,22 @@ export function TransactionForm({
   }
 
   const priceLabel = kind.price === "cost" ? t.netUnitCost : t.netUnitPrice;
+  // Stock adjustments show the stock now and the stock after saving.
+  const isAdjust = kind.price === "none";
+  const qoh = (productId: string) => {
+    const product = products.find((item) => item.id === productId);
+    const now = product ? productStock(product) : 0;
+    // When editing, this record's own change is already in the stock.
+    const own = (existing?.items ?? [])
+      .filter((line) => line.productId === productId)
+      .reduce((sum, line) => sum + lineDelta(kind, line), 0);
+    return round(now - own);
+  };
+  const newQoh = (line: LineItem) =>
+    round(
+      qoh(line.productId) +
+        (line.type === "subtraction" ? -line.quantity : line.quantity),
+    );
 
   if (recordId && !existing)
     return (
@@ -303,18 +346,50 @@ export function TransactionForm({
               onChange={(event) => set({ reference: event.target.value })}
             />
           </Field>
-          <Field label={t.branch} required>
+          <Field
+            label={kind.toBranch ? l(["From Branch", "ពីសាខា"]) : t.branch}
+            required
+          >
             <select
               className="form-control"
               required
               value={form.branch}
-              onChange={(event) => set({ branch: event.target.value })}
+              onChange={(event) =>
+                set({
+                  branch: event.target.value,
+                  // The branch's own warehouse comes with it.
+                  warehouse:
+                    warehouseOfBranch(event.target.value) || form.warehouse,
+                  // A branch cannot send to itself.
+                  ...(event.target.value === form.toBranch
+                    ? { toBranch: "" }
+                    : {}),
+                })
+              }
             >
-              {branches.rows.map((row) => (
-                <option key={row.id}>{String(row.name)}</option>
-              ))}
+              {branches.rows
+                .filter((row) => !ownBranch || String(row.name) === ownBranch)
+                .map((row) => (
+                  <option key={row.id}>{String(row.name)}</option>
+                ))}
             </select>
           </Field>
+          {kind.toBranch && (
+            <Field label={l(["To Branch", "ទៅសាខា"])}>
+              <select
+                className="form-control"
+                value={form.toBranch}
+                onChange={(event) => set({ toBranch: event.target.value })}
+              >
+                <option value="">{t.select}</option>
+                {branches.rows
+                  .filter((row) => String(row.name) !== form.branch)
+                  .map((row) => (
+                    <option key={row.id}>{String(row.name)}</option>
+                  ))}
+              </select>
+            </Field>
+          )}
           <Field label={t.warehouse} required>
             <select
               className="form-control"
@@ -322,9 +397,13 @@ export function TransactionForm({
               value={form.warehouse}
               onChange={(event) => set({ warehouse: event.target.value })}
             >
-              {warehouses.rows.map((row) => (
-                <option key={row.id}>{String(row.name)}</option>
-              ))}
+              {warehouses.rows
+                .filter(
+                  (row) => !ownWarehouse || String(row.name) === ownWarehouse,
+                )
+                .map((row) => (
+                  <option key={row.id}>{String(row.name)}</option>
+                ))}
             </select>
           </Field>
           {kind.statuses.length > 1 && (
@@ -434,11 +513,15 @@ export function TransactionForm({
             <thead>
               <tr>
                 <th>{t.productCodeName}</th>
-                {kind.expiry && <th>{t.expiryDate}</th>}
-                {kind.price !== "none" && <th>{priceLabel}</th>}
-                {kind.price === "none" && <th>{t.type}</th>}
+                {isAdjust && <th>{l(["Description", "ពិពណ៌នា"])}</th>}
+                {isAdjust && <th>{l(currentStockLabel)}</th>}
+                {kind.expiry && !isAdjust && <th>{t.expiryDate}</th>}
+                {!isAdjust && <th>{priceLabel}</th>}
+                {isAdjust && <th>{t.type}</th>}
                 <th>{t.quantity}</th>
-                {kind.price !== "none" && <th>{t.subtotal}</th>}
+                {!isAdjust && <th>{t.subtotal}</th>}
+                {isAdjust && <th>{l(stockAfterLabel)}</th>}
+                {kind.expiry && isAdjust && <th>{t.expiryDate}</th>}
                 <th className="icon-col">
                   <button
                     type="button"
@@ -460,23 +543,41 @@ export function TransactionForm({
                       i === index ? { ...item, ...patch } : item,
                     ),
                   );
+                const expiryCell = (
+                  <td className="cell-input">
+                    <input
+                      type="date"
+                      aria-label={t.expiryDate}
+                      value={line.expiry ?? ""}
+                      onChange={(event) =>
+                        change({ expiry: event.target.value })
+                      }
+                    />
+                  </td>
+                );
                 return (
                   <tr key={line.productId}>
                     <td>
                       {line.code} - {line.name}
                     </td>
-                    {kind.expiry && (
+                    {isAdjust && (
                       <td className="cell-input">
                         <input
-                          type="date"
-                          aria-label={t.expiryDate}
-                          value={line.expiry ?? ""}
+                          aria-label={l(["Description", "ពិពណ៌នា"])}
+                          value={line.description ?? ""}
                           onChange={(event) =>
-                            change({ expiry: event.target.value })
+                            change({ description: event.target.value })
                           }
                         />
                       </td>
                     )}
+                    {isAdjust && (
+                      <td className="align-right qoh-cell">
+                        {formatNumber(qoh(line.productId), 3)}{" "}
+                        <span className="unit">{line.unit}</span>
+                      </td>
+                    )}
+                    {kind.expiry && !isAdjust && expiryCell}
                     {kind.price !== "none" && (
                       <td className="cell-input">
                         <NumberInput
@@ -512,11 +613,29 @@ export function TransactionForm({
                         onChange={(next) => change({ quantity: next })}
                       />
                     </td>
-                    {kind.price !== "none" && (
+                    {!isAdjust && (
                       <td className="align-right">
                         {formatMoney(line.price * line.quantity)}
                       </td>
                     )}
+                    {isAdjust && (
+                      <td className="cell-input qty-col">
+                        <NumberInput
+                          step="any"
+                          aria-label={l(stockAfterLabel)}
+                          value={newQoh(line)}
+                          onChange={(next) => {
+                            // Typing the counted stock works out the change.
+                            const diff = round(next - qoh(line.productId));
+                            change({
+                              type: diff < 0 ? "subtraction" : "addition",
+                              quantity: Math.abs(diff),
+                            });
+                          }}
+                        />
+                      </td>
+                    )}
+                    {kind.expiry && isAdjust && expiryCell}
                     <td className="icon-col">
                       <button
                         type="button"
@@ -534,7 +653,7 @@ export function TransactionForm({
               })}
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="no-data">
+                  <td colSpan={9} className="no-data">
                     {t.noItemsYet}
                   </td>
                 </tr>
@@ -594,6 +713,12 @@ export function TransactionForm({
                     onChange={(event) => set({ taxRate: event.target.value })}
                   >
                     <option value="">{t.noTax}</option>
+                    {toNumber(existing?.orderTax) > 0 && (
+                      <option value={KEEP_TAX}>
+                        {l(["As saved", "ដូចដែលបានរក្សាទុក"])} (
+                        {formatMoney(existing?.orderTax)})
+                      </option>
+                    )}
                     {taxRates.rows.map((row) => (
                       <option key={row.id}>{String(row.name)}</option>
                     ))}
@@ -617,7 +742,7 @@ export function TransactionForm({
                 </Field>
               </>
             )}
-            {kind.payment && (
+            {kind.payment === true && (
               <Field label={t.amountPaid} hint={formatMoney(grandTotal)}>
                 <NumberInput
                   className="form-control"

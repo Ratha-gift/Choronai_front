@@ -926,6 +926,16 @@
 .pay-input:focus {
   outline: 2px solid #66afe9;
 }
+/* Payment method column: room for "ABA / KHQR" and the remove button. */
+.pay-method {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 180px;
+}
+.pay-method .select {
+  flex: 1;
+}
 .quick-cash {
   display: grid;
   align-content: start;

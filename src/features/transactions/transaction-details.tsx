@@ -6,7 +6,7 @@ import { StatusLabel } from "@/components/ui/status-label";
 
 /** Printable summary of a sale, return or stock movement. */
 export function TransactionDetails({ row }: { row: Row }) {
-  const { t } = useLanguage();
+  const { l, t } = useLanguage();
   const record = row as Transaction;
   const priced =
     record.items.some((line) => line.price > 0) &&
@@ -33,6 +33,14 @@ export function TransactionDetails({ row }: { row: Row }) {
           <div>
             <span>{record.customer ? t.customer : t.supplier}</span>
             <b>{party}</b>
+          </div>
+        )}
+        {record.toBranch && (
+          <div>
+            <span>{l(["From → To Branch", "ពីសាខា → ទៅសាខា"])}</span>
+            <b>
+              {record.branch} → {record.toBranch}
+            </b>
           </div>
         )}
         <div>
@@ -64,6 +72,14 @@ export function TransactionDetails({ row }: { row: Row }) {
               <td className="align-center">{i + 1}</td>
               <td>
                 {line.code} - {line.name}
+                {line.description && (
+                  <small className="line-note">{line.description}</small>
+                )}
+                {line.returnStock === false && (
+                  <small className="line-note">
+                    {l(["Not put back into stock", "មិនដាក់ចូលស្តុកវិញ"])}
+                  </small>
+                )}
               </td>
               {line.type && (
                 <td className="align-center">
@@ -93,6 +109,7 @@ export function TransactionDetails({ row }: { row: Row }) {
                 [t.orderTax, record.orderTax],
                 [t.discount, record.discount],
                 [t.shipping, record.shipping],
+                [l(["Surcharges", "ថ្លៃសេវា"]), -(record.surcharge ?? 0)],
                 [t.grandTotal, record.grandTotal],
                 [t.paid, record.paid],
                 [t.returned, record.returned],
@@ -102,7 +119,11 @@ export function TransactionDetails({ row }: { row: Row }) {
                 ],
               ] as [string, number][]
             )
-              .filter(([, value], i) => i === 0 || i === 4 || value)
+              // Total and grand total always; the others only when used.
+              .filter(
+                ([label, value]) =>
+                  label === t.total || label === t.grandTotal || value,
+              )
               .map(([label, value]) => (
                 <tr key={label}>
                   <td colSpan={4} className="align-right">

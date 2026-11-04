@@ -4,7 +4,7 @@ import type { IconName } from "@/components/icons";
 import type { Label } from "@/i18n";
 
 export type TransactionKind =
-  "sale-return" | "stock-receive" | "stock-issue" | "adjustment";
+  "sale" | "sale-return" | "stock-receive" | "stock-issue" | "adjustment";
 
 export type KindDef = {
   collection: CollectionName;
@@ -23,12 +23,29 @@ export type KindDef = {
   price: "cost" | "price" | "none";
   expiry?: boolean;
   statuses: string[];
-  payment?: boolean;
+  /** true: the form has an Amount Paid box; "keep": payments are added separately and kept on edit. */
+  payment?: boolean | "keep";
   /** Show order tax, discount and shipping (off for stock movements). */
   charges?: boolean;
+  /** Goods leave for another branch: "From Branch" → "To Branch". */
+  toBranch?: boolean;
 };
 
 export const KINDS: Record<TransactionKind, KindDef> = {
+  // Only used to edit a POS sale; new sales are made in the POS.
+  sale: {
+    collection: "sales",
+    listHref: "/sales/pos-sales",
+    title: ["Edit Sale", "កែការលក់"],
+    editTitle: ["Edit Sale", "កែការលក់"],
+    icon: "heart",
+    prefixSetting: "salePrefix",
+    party: "customer",
+    stock: -1,
+    price: "price",
+    statuses: ["completed"],
+    payment: "keep",
+  },
   "sale-return": {
     collection: "saleReturns",
     listHref: "/sales/returns",
@@ -62,6 +79,7 @@ export const KINDS: Record<TransactionKind, KindDef> = {
     editTitle: ["Edit Stock Issue", "កែការបញ្ចេញស្តុក"],
     icon: "upload",
     prefixSetting: "stockIssuePrefix",
+    toBranch: true,
     stock: -1,
     price: "cost",
     statuses: ["completed"],
@@ -76,14 +94,17 @@ export const KINDS: Record<TransactionKind, KindDef> = {
     prefixSetting: "adjustmentPrefix",
     stock: 1,
     price: "none",
+    expiry: true,
     statuses: ["approved", "pending"],
   },
 };
 
 /** Signed stock change of one line for a kind (adjustments use the line type). */
 export const lineDelta = (kind: KindDef, line: LineItem) =>
-  kind.price === "none"
-    ? line.type === "subtraction"
-      ? -line.quantity
-      : line.quantity
-    : kind.stock * line.quantity;
+  line.returnStock === false
+    ? 0
+    : kind.price === "none"
+      ? line.type === "subtraction"
+        ? -line.quantity
+        : line.quantity
+      : kind.stock * line.quantity;

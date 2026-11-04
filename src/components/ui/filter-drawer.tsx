@@ -3,8 +3,10 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/icons";
 import { useLanguage, type Label } from "@/i18n";
+import { Select } from "./select";
 
 export type FilterValue = {
+  text?: string;
   from?: string;
   to?: string;
   min?: string;
@@ -14,13 +16,17 @@ export type FilterValue = {
 export type Filters = Record<string, FilterValue>;
 
 export type FilterSection =
+  | { key: string; label: Label; kind: "text" | "phone" }
   | { key: string; label: Label; kind: "date" }
   | { key: string; label: Label; kind: "range" }
-  | { key: string; label: Label; kind: "chips"; options: string[] };
+  | { key: string; label: Label; kind: "chips"; options: string[] }
+  /** One value from a long list (branch, warehouse, user), with search. */
+  | { key: string; label: Label; kind: "select"; options: string[] };
 
 export const isActive = (value?: FilterValue) =>
   !!value &&
   !!(
+    value.text?.trim() ||
     value.from ||
     value.to ||
     value.min ||
@@ -96,6 +102,18 @@ export function FilterDrawer({
             return (
               <section key={section.key} className="drawer-section">
                 <h3>{l(section.label)}</h3>
+                {(section.kind === "text" || section.kind === "phone") && (
+                  <input
+                    className="form-control"
+                    type={section.kind === "phone" ? "tel" : "search"}
+                    aria-label={l(section.label)}
+                    placeholder={`${t.searchLabel}…`}
+                    value={current.text ?? ""}
+                    onChange={(event) =>
+                      change(section.key, { text: event.target.value })
+                    }
+                  />
+                )}
                 {section.kind === "date" && (
                   <div className="date-range">
                     <input
@@ -144,6 +162,24 @@ export function FilterDrawer({
                       </label>
                     ))}
                   </div>
+                )}
+                {section.kind === "select" && (
+                  <Select
+                    ariaLabel={l(section.label)}
+                    forceSearch
+                    searchPlaceholder={`${t.searchLabel}…`}
+                    value={current.values?.[0] ?? ""}
+                    options={[
+                      { value: "", label: l(["All", "ទាំងអស់"]) },
+                      ...section.options.map((option) => ({
+                        value: option,
+                        label: option,
+                      })),
+                    ]}
+                    onChange={(option) =>
+                      change(section.key, { values: option ? [option] : [] })
+                    }
+                  />
                 )}
                 {section.kind === "chips" && (
                   <div className="chips">

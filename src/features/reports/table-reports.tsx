@@ -18,6 +18,7 @@ import {
 import { useLanguage, type Label } from "@/i18n";
 import { downloadText, toCsv } from "@/lib/csv";
 import { formatDate } from "@/lib/format";
+import { useBranchTitle } from "@/features/settings/permissions";
 import { useReportData } from "./use-report-data";
 
 const DAY = 86_400_000;
@@ -52,10 +53,11 @@ function ReportTable({
   file: string;
 }) {
   const { l, t } = useLanguage();
+  const branchTitle = useBranchTitle();
   return (
     <Box
       icon={icon}
-      title={l(title)}
+      title={branchTitle(l(title))}
       intro={intro ? l(intro) : t.reportIntro}
       actions={[
         {

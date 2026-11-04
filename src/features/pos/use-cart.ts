@@ -1,9 +1,10 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { LineItem } from "@/data/types";
 import { productUnit } from "@/features/products/store";
 import type { Product } from "@/features/products/types";
 import { toNumber } from "@/lib/format";
+import { useStored } from "@/lib/store";
 
 const round = (value: number) => Math.round(value * 1000) / 1000;
 
@@ -32,11 +33,26 @@ export const NO_ADJUSTMENTS: CartAdjustments = {
   shipping: 0,
 };
 
-export function useCart() {
-  const [items, setItems] = useState<LineItem[]>([]);
-  const [adjustments, setAdjustments] = useState(NO_ADJUSTMENTS);
-  const [productDiscounts, setProductDiscounts] = useState<ProductDiscounts>(
-    {},
+const NO_ITEMS: LineItem[] = [];
+const NO_DISCOUNTS: ProductDiscounts = {};
+
+/**
+ * The order being rung up. It is saved in the browser for each cashier, so a
+ * refresh or a closed tab does not lose it; finishing or clearing empties it.
+ */
+export function useCart(cashier: string) {
+  const [items, setItems] = useStored(
+    `choronai-pos-cart-v1:${cashier}`,
+    NO_ITEMS,
+  );
+  const [adjustments, setAdjustments] = useStored(
+    `choronai-pos-cart-adjustments-v1:${cashier}`,
+    NO_ADJUSTMENTS,
+  );
+  // Discount per product line (team feature), saved with the cart.
+  const [productDiscounts, setProductDiscounts] = useStored(
+    `choronai-pos-cart-discounts-v1:${cashier}`,
+    NO_DISCOUNTS,
   );
 
   const add = (product: Product, quantity = 1) =>

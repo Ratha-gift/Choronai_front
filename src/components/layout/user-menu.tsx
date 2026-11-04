@@ -72,7 +72,9 @@ export function UserMenu({ className = "" }: { className?: string }) {
             type="button"
             role="menuitem"
             className="danger"
-            onClick={logout}
+            onClick={() => {
+              logout();
+            }}
           >
             <Icon name="logout" size={14} /> {l(["Log out", "ចាកចេញ"])}
           </button>

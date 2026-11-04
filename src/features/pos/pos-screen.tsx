@@ -9,7 +9,8 @@ import { UserMenu } from "@/components/layout/user-menu";
 import { confirmAction } from "@/components/ui/confirm";
 import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
-import { addRow, setRows, useCollection } from "@/data/collections";
+import { addRow, getRows, setRows, useCollection } from "@/data/collections";
+import { warehouseOfBranch } from "@/features/settings/branches";
 import type { LineItem, Row, Transaction } from "@/data/types";
 import {
   adjustStock,
@@ -38,6 +39,7 @@ import {
 } from "@/lib/format";
 import { useHydrated, useStored } from "@/lib/store";
 import { notify } from "@/lib/toast";
+import { usePermissions } from "@/features/settings/permissions";
 import { PaymentModal, type Payment } from "./payment-modal";
 import { PinModal } from "./pin-modal";
 import { useOpenRegister } from "./register";
@@ -73,6 +75,24 @@ type Panel =
 /** Remounts once stored data is available so defaults come from settings. */
 export function PosPage() {
   const hydrated = useHydrated();
+  const { can } = usePermissions();
+  const { l } = useLanguage();
+  if (hydrated && !can("sales.pos"))
+    return (
+      <section className="box no-access" role="alert">
+        <Icon name="lock" size={28} />
+        <h2>{l(["No permission", "គ្មានសិទ្ធិ"])}</h2>
+        <p>
+          {l([
+            "Your user group cannot use the POS.",
+            "ក្រុមអ្នកប្រើរបស់អ្នក មិនអាចប្រើ POS បានទេ។",
+          ])}
+        </p>
+        <Link href="/" className="btn btn-primary">
+          {l(["Back to dashboard", "ត្រឡប់ទៅផ្ទាំងគ្រប់គ្រង"])}
+        </Link>
+      </section>
+    );
   return <PosScreen key={hydrated ? "stored" : "seed"} />;
 }
 
@@ -108,12 +128,17 @@ function PosScreen() {
   const register = useOpenRegister(username).open;
   // Set after closing so the "open register" prompt doesn't flash on the way out.
   const [leaving, setLeaving] = useState(false);
-  const cart = useCart();
+  const cart = useCart(username);
   const [customer, setCustomer] = useState(String(pos.defaultCustomer));
   // Scanned membership card; its owner becomes the customer.
   const [memberCode, setMemberCode] = useState("");
   const [member, setMember] = useState<Row | null>(null);
-  const [warehouse, setWarehouse] = useState(String(system.defaultWarehouse));
+  // Sell from the warehouse of the cashier's branch (Settings → Branches).
+  const [warehouse, setWarehouse] = useState(() => {
+    const me = getRows("users").find((row) => row.username === username);
+    const branch = String(me?.branch || pos.defaultBranch || "");
+    return warehouseOfBranch(branch) || String(system.defaultWarehouse);
+  });
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [search, setSearch] = useState("");
   const [panel, setPanel] = useState<Panel>(null);
@@ -127,9 +152,15 @@ function PosScreen() {
   const rate =
     toNumber(currencies.rows.find((row) => row.code === "USD")?.rate) || 4100;
   const allowOversell = system.overSelling !== "no";
+  // The cashier's own branch (People → Users), else the POS default branch.
+  const users = useCollection("users");
+  const userBranch = String(
+    users.rows.find((row) => row.username === username)?.branch ?? "",
+  );
+  const shopBranch = userBranch || String(pos.defaultBranch);
   // Shop details for the receipt come from the selected branch record.
   const branchRow = branches.rows.find(
-    (row) => String(row.name) === String(pos.defaultBranch),
+    (row) => String(row.name) === shopBranch,
   );
   const branchPhone = String(branchRow?.phone ?? "").trim();
   const branchAddress = [branchRow?.city, branchRow?.country]
@@ -163,7 +194,10 @@ function PosScreen() {
       tracksStock(product) &&
       inCart + quantity > productStock(product)
     ) {
-      notify(l(["Not enough stock for this product", "ស្តុកមិនគ្រប់គ្រាន់"]));
+      notify(
+        l(["Not enough stock for this product", "ស្តុកមិនគ្រប់គ្រាន់"]),
+        "error",
+      );
       return false;
     }
     cart.add(product, quantity);
@@ -189,7 +223,7 @@ function PosScreen() {
           .toLowerCase() === wanted,
     );
     if (!card) {
-      notify(l(["Membership card not found", "រកមិនឃើញកាតសមាជិក"]));
+      notify(l(["Membership card not found", "រកមិនឃើញកាតសមាជិក"]), "error");
       return;
     }
     const expiry = String(card.expiry ?? "");
@@ -199,6 +233,7 @@ function PosScreen() {
           `Card ${String(card.cardNo)} expired on ${formatDate(expiry)}`,
           `កាត ${String(card.cardNo)} ផុតកំណត់នៅ ${formatDate(expiry)}`,
         ]),
+        "error",
       );
       return;
     }
@@ -289,12 +324,14 @@ function PosScreen() {
 
   function finalize(payment: Payment) {
     const { totals } = cart;
+    const date = new Date(payment.date).toISOString();
+    const reference = nextReference(
+      String(getSetting("system", "salePrefix") ?? "SALE"),
+      sales.rows.length,
+    );
     const sale: Omit<Transaction, "id"> = {
-      date: new Date(payment.date).toISOString(),
-      reference: nextReference(
-        String(getSetting("system", "salePrefix") ?? "SALE"),
-        sales.rows.length,
-      ),
+      date,
+      reference,
       branch: payment.branch,
       warehouse,
       customer,
@@ -323,6 +360,15 @@ function PosScreen() {
       note: [payment.saleNote, payment.staffNote].filter(Boolean).join(" / "),
       createdBy: currentUsername(),
       paymentMethod: payment.method,
+      // One entry per method, so View Payments and the register see each part.
+      payments: payment.parts.map((part, index) => ({
+        id: `${reference}-${index + 1}`,
+        date,
+        reference,
+        method: part.method,
+        amount: part.amount,
+        createdBy: currentUsername(),
+      })),
       ...(member ? { memberCard: String(member.cardNo) } : {}),
       registerId: register?.id,
     };
@@ -978,7 +1024,7 @@ function PosScreen() {
           payable={cart.totals.payable}
           itemCount={cart.totals.count}
           rate={rate}
-          defaultBranch={String(pos.defaultBranch)}
+          defaultBranch={shopBranch}
           onSubmit={finalize}
         />
       )}
@@ -1092,6 +1138,7 @@ function PosScreen() {
             ) {
               notify(
                 l([`Card ${cardNo} already exists`, `កាត ${cardNo} មានរួចហើយ`]),
+                "error",
               );
               return;
             }

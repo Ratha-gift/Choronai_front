@@ -270,6 +270,10 @@ export const hiddenModules: ModuleDef[] = [
     "បន្ថែមការកែតម្រូវស្តុក",
   ),
   {
+    ...sub("sales/pos-sales", "sales/pos-sales/edit", "Edit Sale", "កែការលក់"),
+    takesParams: true,
+  },
+  {
     ...sub(
       "inventory/stock-receive",
       "inventory/stock-receive/edit",
