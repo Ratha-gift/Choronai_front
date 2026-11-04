@@ -186,6 +186,37 @@ function PosScreen() {
       .slice(0, 8);
   }, [products, search]);
 
+  const memberMatches = useMemo(() => {
+    const term = memberCode.trim().toLowerCase();
+    if (!term) return { cards: [], vipCustomers: [] };
+    const customerByPhone = new Map(
+      customers.rows.map((row) => [
+        String(row.phone ?? "").replace(/\s/g, "").toLowerCase(),
+        row,
+      ]),
+    );
+    const cards = memberCards.rows
+      .filter((row) => {
+        const owner = customerByPhone.get(
+          String(row.customer ?? "").replace(/\s/g, "").toLowerCase(),
+        );
+        return `${row.cardNo ?? ""} ${row.customer ?? ""} ${owner?.name ?? ""} ${owner?.code ?? ""}`
+          .toLowerCase()
+          .includes(term);
+      })
+      .slice(0, 5);
+    const vipCustomers = customers.rows
+      .filter(
+        (row) =>
+          String(row.customerGroup ?? "").trim().toLowerCase() === "vip" &&
+          `${row.name ?? ""} ${row.code ?? ""} ${row.phone ?? ""}`
+            .toLowerCase()
+            .includes(term),
+      )
+      .slice(0, 5);
+    return { cards, vipCustomers };
+  }, [memberCards.rows, customers.rows, memberCode]);
+
   function addLine(product: Product, quantity: number) {
     const inCart =
       cart.items.find((line) => line.productId === product.id)?.quantity ?? 0;
@@ -222,10 +253,25 @@ function PosScreen() {
           .trim()
           .toLowerCase() === wanted,
     );
-    if (!card) {
-      notify(l(["Membership card not found", "រកមិនឃើញកាតសមាជិក"]), "error");
+    if (card) {
+      selectMemberCard(card);
       return;
     }
+    const vip = customers.rows.find(
+      (row) =>
+        String(row.customerGroup ?? "").trim().toLowerCase() === "vip" &&
+        [row.code, row.phone, row.name].some(
+          (value) => String(value ?? "").trim().toLowerCase() === wanted,
+        ),
+    );
+    if (vip) {
+      selectVipCustomer(vip);
+      return;
+    }
+    notify(l(["Member card or VIP customer not found", "រកមិនឃើញកាតសមាជិក ឬអតិថិជន VIP"]), "error");
+  }
+
+  function selectMemberCard(card: Row) {
     const expiry = String(card.expiry ?? "");
     if (expiry && expiry < localDateTime().slice(0, 10)) {
       notify(
@@ -238,6 +284,24 @@ function PosScreen() {
       return;
     }
     applyCard(card);
+  }
+
+  function selectVipCustomer(vip: Row) {
+    setCustomer(String(vip.name));
+    setMemberCode("");
+    const phone = String(vip.phone ?? "").replace(/\s/g, "").toLowerCase();
+    const linkedCard = memberCards.rows.find(
+      (card) =>
+        String(card.customer ?? "").replace(/\s/g, "").toLowerCase() === phone &&
+        (!card.expiry ||
+          String(card.expiry) >= localDateTime().slice(0, 10)),
+    );
+    if (linkedCard) {
+      applyCard(linkedCard);
+      return;
+    }
+    setMember(null);
+    searchRef.current?.focus();
   }
 
   /** Uses a card for this sale; its owner (matched by phone) becomes the customer. */
@@ -490,42 +554,101 @@ function PosScreen() {
       <div className="pos-layout">
         {/* Cart panel (visually right; position set in CSS with `order`) */}
         <section className="pos-panel pos-order">
-          <form
-            className="input-group pos-member"
-            onSubmit={(event) => {
-              event.preventDefault();
-              scanMember(memberCode);
-            }}
-          >
-            <span className="pos-field-icon" aria-hidden="true">
-              <Icon name="card" size={15} />
-            </span>
-            <input
-              className="form-control"
-              placeholder={l(["Scan membership code", "ស្កេនលេខកាតសមាជិក"])}
-              aria-label={l(["Scan membership code", "ស្កេនលេខកាតសមាជិក"])}
-              autoComplete="off"
-              value={memberCode}
-              onChange={(event) => setMemberCode(event.target.value)}
-            />
-            <button
-              type="submit"
-              className="addon"
-              title={l(["Apply card", "ប្រើកាត"])}
-              aria-label={l(["Apply card", "ប្រើកាត"])}
+          <div className="pos-member-wrap">
+            <form
+              className="input-group pos-member"
+              onSubmit={(event) => {
+                event.preventDefault();
+                scanMember(memberCode);
+              }}
             >
-              <Icon name="check" size={15} />
-            </button>
-            <button
-              type="button"
-              className="addon"
-              title={l(["Add Member Card", "បន្ថែមកាតសមាជិក"])}
-              aria-label={l(["Add Member Card", "បន្ថែមកាតសមាជិក"])}
-              onClick={() => setPanel("member")}
-            >
-              <Icon name="plus" size={16} />
-            </button>
-          </form>
+              <span className="pos-field-icon" aria-hidden="true">
+                <Icon name="card" size={15} />
+              </span>
+              <input
+                className="form-control"
+                placeholder={l([
+                  "Scan member card or search VIP customer",
+                  "ស្កេនកាតសមាជិក ឬស្វែងរកអតិថិជន VIP",
+                ])}
+                aria-label={l([
+                  "Scan member card or search VIP customer",
+                  "ស្កេនកាតសមាជិក ឬស្វែងរកអតិថិជន VIP",
+                ])}
+                autoComplete="off"
+                value={memberCode}
+                onChange={(event) => setMemberCode(event.target.value)}
+              />
+              <button
+                type="submit"
+                className="addon"
+                title={l(["Apply selection", "ប្រើជម្រើស"])}
+                aria-label={l(["Apply selection", "ប្រើជម្រើស"])}
+              >
+                <Icon name="check" size={15} />
+              </button>
+              <button
+                type="button"
+                className="addon"
+                title={l(["Add Member Card", "បន្ថែមកាតសមាជិក"])}
+                aria-label={l(["Add Member Card", "បន្ថែមកាតសមាជិក"])}
+                onClick={() => setPanel("member")}
+              >
+                <Icon name="plus" size={16} />
+              </button>
+            </form>
+            {memberCode.trim() && (
+              <div className="pos-member-results" role="listbox">
+                {memberMatches.cards.map((card) => {
+                  const owner = customers.rows.find(
+                    (row) =>
+                      String(row.phone ?? "").replace(/\s/g, "").toLowerCase() ===
+                      String(card.customer ?? "").replace(/\s/g, "").toLowerCase(),
+                  );
+                  return (
+                    <button
+                      key={`card-${card.id}`}
+                      type="button"
+                      role="option"
+                      aria-selected={false}
+                      onClick={() => selectMemberCard(card)}
+                    >
+                      <Icon name="card" size={15} />
+                      <span>
+                        <b>{String(card.cardNo ?? "")}</b>
+                        <small>
+                          {String(owner?.name ?? card.customer ?? "")}
+                        </small>
+                      </span>
+                      <i>{l(["Member Card", "កាតសមាជិក"])}</i>
+                    </button>
+                  );
+                })}
+                {memberMatches.vipCustomers.map((vip) => (
+                  <button
+                    key={`vip-${vip.id}`}
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    onClick={() => selectVipCustomer(vip)}
+                  >
+                    <Icon name="users" size={15} />
+                    <span>
+                      <b>{String(vip.name ?? "")}</b>
+                      <small>
+                        {String(vip.code ?? "")} · {String(vip.phone ?? "")}
+                      </small>
+                    </span>
+                    <i>VIP</i>
+                  </button>
+                ))}
+                {!memberMatches.cards.length &&
+                  !memberMatches.vipCustomers.length && (
+                    <p>{l(["No member cards or VIP customers found", "រកមិនឃើញកាតសមាជិក ឬអតិថិជន VIP"])}</p>
+                  )}
+              </div>
+            )}
+          </div>
           {member && (
             <div className="pos-member-chip">
               <Icon name="card" size={14} />
