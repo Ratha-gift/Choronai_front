@@ -31,6 +31,20 @@ function seededStock(productId: string) {
   );
 }
 
+/** Products referenced by the sample records take stock from them. */
+function inSeedTransactions(productId: string) {
+  return [
+    SEED_STOCK_RECEIVES,
+    SEED_SALE_RETURNS,
+    SEED_ADJUSTMENTS,
+    SEED_SALES,
+  ].some((records) =>
+    records.some((record) =>
+      record.items.some((line) => line.productId === productId),
+    ),
+  );
+}
+
 const sample = (
   id: string,
   sku: string,
@@ -46,7 +60,9 @@ const sample = (
   category,
   price,
   cost,
-  quantity: Math.round(seededStock(id) * 1000) / 1000,
+  quantity: inSeedTransactions(id)
+    ? Math.round(seededStock(id) * 1000) / 1000
+    : 50,
   alertQuantity: 10,
   unit: "kg",
   image,
@@ -98,5 +114,59 @@ export const SAMPLE_PRODUCTS: Product[] = [
     18000,
     14000,
     "/products/chicken.svg",
+  ),
+  sample(
+    "sample-6",
+    "MEAT-004",
+    "Chicken wings",
+    "Meat",
+    22000,
+    17000,
+    "/products/wings.svg",
+  ),
+  sample(
+    "sample-7",
+    "MEAT-005",
+    "Minced pork",
+    "Meat",
+    24000,
+    18000,
+    "/products/minced-pork.svg",
+  ),
+  sample(
+    "sample-8",
+    "MEAT-006",
+    "Duck",
+    "Meat",
+    30000,
+    23000,
+    "/products/duck.svg",
+  ),
+  sample(
+    "sample-9",
+    "FISH-003",
+    "Tilapia",
+    "Fish",
+    16000,
+    12000,
+    "/products/tilapia.svg",
+  ),
+  sample(
+    "sample-10",
+    "FISH-004",
+    "Shrimp",
+    "Fish",
+    45000,
+    36000,
+    "/products/shrimp.svg",
+  ),
+  sample(
+    "sample-11",
+    "FISH-005",
+    "Fresh salmon",
+    "Fish",
+    65000,
+    52000,
+    "/products/salmon.jpg",
   ),
 ];

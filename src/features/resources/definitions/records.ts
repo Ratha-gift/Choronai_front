@@ -23,6 +23,47 @@ const YES: [string, Label][] = [
   ["inactive", ["Inactive", "អសកម្ម"]],
 ];
 
+const customerColumns = [
+  col("code", "Code", "កូដ"),
+  col("company", "Company", "ក្រុមហ៊ុន"),
+  col("name", "Name", "ឈ្មោះ"),
+  col("phone", "Phone", "ទូរស័ព្ទ"),
+  col("email", "Email Address", "អ៊ីមែល"),
+  col("customerGroup", "Customer Group", "ក្រុមអតិថិជន"),
+  col("priceGroup", "Price Group", "ក្រុមតម្លៃ"),
+  col("awardPoints", "Award Points", "ពិន្ទុរង្វាន់", "number"),
+];
+
+const customerFields = [
+  required("customerGroup", "Customer Group", "ក្រុមអតិថិជន", {
+    type: "select",
+    options: [["VIP", ["VIP", "VIP"]]],
+    collection: { name: "customerGroups", field: "name" },
+  }),
+  field("priceGroup", "Price Group", "ក្រុមតម្លៃ", {
+    type: "select",
+    collection: { name: "priceGroups", field: "name" },
+  }),
+  required("code", "Code", "កូដ", {
+    default: nextCode("customerPrefix", "CUS"),
+  }),
+  required("name", "Name", "ឈ្មោះ"),
+  required("phone", "Phone", "ទូរស័ព្ទ", { type: "tel" }),
+  field("email", "Email Address", "អ៊ីមែល", { type: "email" }),
+  field("company", "Company", "ក្រុមហ៊ុន"),
+  field("address", "Address", "អាសយដ្ឋាន"),
+];
+
+const customerResource: ResourceDef = {
+  id: "people/customers",
+  collection: "customers",
+  title: ["Customers", "អតិថិជន"],
+  noun: ["Customer", "អតិថិជន"],
+  icon: "users",
+  columns: customerColumns,
+  fields: customerFields,
+};
+
 export const recordResources: ResourceDef[] = [
   // Inventory
   {
@@ -97,40 +138,22 @@ export const recordResources: ResourceDef[] = [
     ],
   },
   // People
+  customerResource,
   {
-    id: "people/customers",
-    collection: "customers",
-    title: ["Customers", "អតិថិជន"],
-    noun: ["Customer", "អតិថិជន"],
-    icon: "users",
-    columns: [
-      col("code", "Code", "កូដ"),
-      col("company", "Company", "ក្រុមហ៊ុន"),
-      col("name", "Name", "ឈ្មោះ"),
-      col("phone", "Phone", "ទូរស័ព្ទ"),
-      col("email", "Email Address", "អ៊ីមែល"),
-      col("customerGroup", "Customer Group", "ក្រុមអតិថិជន"),
-      col("priceGroup", "Price Group", "ក្រុមតម្លៃ"),
-      col("awardPoints", "Award Points", "ពិន្ទុរង្វាន់", "number"),
-    ],
-    fields: [
-      required("customerGroup", "Customer Group", "ក្រុមអតិថិជន", {
-        type: "select",
-        collection: { name: "customerGroups", field: "name" },
-      }),
-      field("priceGroup", "Price Group", "ក្រុមតម្លៃ", {
-        type: "select",
-        collection: { name: "priceGroups", field: "name" },
-      }),
-      required("code", "Code", "កូដ", {
-        default: nextCode("customerPrefix", "CUS"),
-      }),
-      required("name", "Name", "ឈ្មោះ"),
-      required("phone", "Phone", "ទូរស័ព្ទ", { type: "tel" }),
-      field("email", "Email Address", "អ៊ីមែល", { type: "email" }),
-      field("company", "Company", "ក្រុមហ៊ុន"),
-      field("address", "Address", "អាសយដ្ឋាន"),
-    ],
+    ...customerResource,
+    id: "people/customer-vip",
+    title: ["Customer VIP", "អតិថិជន VIP"],
+    noun: ["VIP Customer", "អតិថិជន VIP"],
+    filterRows: (row) =>
+      String(row.customerGroup ?? "").trim().toLowerCase() === "vip",
+    fields: customerFields.map((field) =>
+      field.key === "customerGroup"
+        ? { ...field, default: "VIP" }
+        : field,
+    ),
+    prepare: (values) => ({
+      values: { ...values, customerGroup: "VIP" },
+    }),
   },
   {
     id: "people/suppliers",

@@ -14,13 +14,11 @@ import { warehouseOfBranch } from "@/features/settings/branches";
 import type { LineItem, Row, Transaction } from "@/data/types";
 import {
   adjustStock,
-  isLowStock,
   productStock,
   productUnit,
   tracksStock,
   useProducts,
 } from "@/features/products/store";
-import { categoriesOf, categoryLabel } from "@/features/products/labels";
 import type { Category, Product } from "@/features/products/types";
 import { resources } from "@/features/resources";
 import {
@@ -29,10 +27,10 @@ import {
 } from "@/features/resources/resource-form";
 import { getSetting, useSettings } from "@/features/settings/store";
 import { LOGO_KEY, NO_LOGO } from "@/features/settings/change-logo";
+import { categoryLabel, categoriesOf } from "@/features/products/labels";
 import { useLanguage } from "@/i18n";
 import {
   formatDate,
-  formatMoney,
   formatNumber,
   formatUsd,
   localDateTime,
@@ -46,13 +44,17 @@ import { PaymentModal, type Payment } from "./payment-modal";
 import { PinModal } from "./pin-modal";
 import { useOpenRegister } from "./register";
 import { CloseRegisterModal, OpenRegisterModal } from "./register-modals";
-import { useCart, type CartAdjustments } from "./use-cart";
+import {
+  useCart,
+  type CartAdjustments,
+  type ProductDiscounts,
+} from "./use-cart";
 
 /** Store logo shipped with the app; Settings → Change Logo overrides it. */
 const DEFAULT_LOGO = "/brand/choronai-mark.png";
 
 const WEIGHT_UNITS = ["kg", "g"];
-/** Sold by weight: the POS opens the keypad instead of adding 1. */
+/** Units sold by weight require fractional quantities. */
 const isWeighted = (product: Product) =>
   WEIGHT_UNITS.includes(productUnit(product));
 /** Weight lines keep three decimals (2.500 kg); pieces stay whole. */
@@ -63,7 +65,6 @@ type Panel =
   | "payment"
   | "bill"
   | "suspended"
-  | "discount"
   | "tax"
   | "shipping"
   | "customer"
@@ -96,7 +97,7 @@ export function PosPage() {
 }
 
 function PosScreen() {
-  const { l, t, language } = useLanguage();
+  const { language, l, t } = useLanguage();
   const [pos] = useSettings("pos");
   // Removing items needs the POS PIN when one is set in POS Settings.
   const pin = String(pos.pinCode ?? "").trim();
@@ -117,6 +118,9 @@ function PosScreen() {
   const suspended = useCollection("suspendedSales");
   const sales = useCollection("sales");
   const session = useSession();
+  const isCashier = ["sale", "cashier"].includes(
+    session?.group.trim().toLowerCase() ?? "",
+  );
   const router = useRouter();
   const hydrated = useHydrated();
   const username = session?.username ?? "";
@@ -135,21 +139,18 @@ function PosScreen() {
     const branch = String(me?.branch || pos.defaultBranch || "");
     return warehouseOfBranch(branch) || String(system.defaultWarehouse);
   });
-  const [weighing, setWeighing] = useState<Product | null>(null);
-  const [category, setCategory] = useState<"all" | Category>(
-    (pos.defaultCategory as "all" | Category) || "all",
-  );
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [search, setSearch] = useState("");
-  const [gridSearch, setGridSearch] = useState("");
-  const [page, setPage] = useState(0);
   const [panel, setPanel] = useState<Panel>(null);
   const [receipt, setReceipt] = useState<Transaction | null>(null);
+  // Product grid filters: text search + category chips above the grid.
+  const [gridFilter, setGridFilter] = useState("");
+  const [category, setCategory] = useState<"all" | Category>("all");
   const [clock, setClock] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
 
   const rate =
     toNumber(currencies.rows.find((row) => row.code === "USD")?.rate) || 4100;
-  const perPage = Math.max(6, toNumber(pos.displayProducts) || 30);
   const allowOversell = system.overSelling !== "no";
   // The cashier's own branch (People → Users), else the POS default branch.
   const users = useCollection("users");
@@ -174,18 +175,6 @@ function PosScreen() {
     const timer = setInterval(tick, 30_000);
     return () => clearInterval(timer);
   }, []);
-
-  const grid = useMemo(() => {
-    const term = gridSearch.toLowerCase().trim();
-    return products.filter(
-      (product) =>
-        (category === "all" || product.category === category) &&
-        `${product.sku} ${product.name}`.toLowerCase().includes(term),
-    );
-  }, [products, category, gridSearch]);
-  const pages = Math.max(1, Math.ceil(grid.length / perPage));
-  const visible = grid.slice(page * perPage, page * perPage + perPage);
-  useEffect(() => setPage(0), [category, gridSearch]);
 
   const matches = useMemo(() => {
     const term = search.toLowerCase().trim();
@@ -217,16 +206,10 @@ function PosScreen() {
 
   function addToCart(product: Product) {
     if (isWeighted(product)) {
-      setWeighing(product);
+      setSelectedProduct(product);
       return;
     }
     addLine(product, 1);
-    setSearch("");
-  }
-
-  function confirmWeight(product: Product, quantity: number) {
-    if (!(quantity > 0) || !addLine(product, quantity)) return;
-    setWeighing(null);
     setSearch("");
   }
 
@@ -299,7 +282,7 @@ function PosScreen() {
   }
 
   async function cancelSale() {
-    if (!cart.items.length) return;
+    if (isCashier || !cart.items.length) return;
     const question = l([
       "Cancel this sale and clear the cart?",
       "បោះបង់ការលក់នេះ ហើយសម្អាតកន្ត្រក?",
@@ -315,8 +298,12 @@ function PosScreen() {
       date: new Date().toISOString(),
       customer,
       warehouse,
-      items: cart.items,
+      items: cart.items.map((line) => ({
+        ...line,
+        productDiscount: cart.discountFor(line.productId),
+      })),
       adjustments: cart.adjustments,
+      productDiscounts: cart.productDiscounts,
       total: cart.totals.payable,
     });
     cart.clear();
@@ -326,6 +313,9 @@ function PosScreen() {
   function resume(row: Row) {
     cart.setItems(row.items as LineItem[]);
     cart.setAdjustments(row.adjustments as CartAdjustments);
+    cart.setProductDiscounts(
+      (row.productDiscounts as ProductDiscounts | undefined) ?? {},
+    );
     setCustomer(String(row.customer));
     setWarehouse(String(row.warehouse));
     suspended.remove([row.id]);
@@ -345,10 +335,16 @@ function PosScreen() {
       branch: payment.branch,
       warehouse,
       customer,
-      items: cart.items,
+      items: cart.items.map((line) => ({
+        ...line,
+        productDiscount: cart.discountFor(line.productId),
+      })),
       total: totals.total,
       orderTax: totals.orderTax,
       discount: totals.discount,
+      generalDiscountPercent: cart.adjustments.discountPercent
+        ? cart.adjustments.discount
+        : undefined,
       shipping: totals.shipping,
       grandTotal: totals.payable,
       paid: payment.paidRiel,
@@ -420,14 +416,24 @@ function PosScreen() {
 
   const customerDef = resources["people/customers"];
   const memberDef = resources["sales/member-cards"];
-  const adjust = (key: "discount" | "tax" | "shipping") => setPanel(key);
+  const adjust = (key: "tax" | "shipping") => setPanel(key);
 
   const siteName = String(system.siteName || "CHORONAI");
   const brandLogo = logo || DEFAULT_LOGO;
   const inCart = (id: string) =>
     cart.items.find((line) => line.productId === id)?.quantity ?? 0;
-  const from = grid.length ? page * perPage + 1 : 0;
-  const to = Math.min(grid.length, (page + 1) * perPage);
+  const gridCategories = useMemo(() => categoriesOf(products), [products]);
+  const visibleProducts = useMemo(() => {
+    const term = gridFilter.toLowerCase().trim();
+    return products.filter(
+      (product) =>
+        (category === "all" || product.category === category) &&
+        (!term ||
+          `${product.sku} ${product.name}`
+            .toLowerCase()
+            .includes(term)),
+    );
+  }, [products, category, gridFilter]);
 
   return (
     <div className="pos">
@@ -480,8 +486,9 @@ function PosScreen() {
         </nav>
       </header>
 
-      <div className="pos-body">
-        {/* Left: the current order */}
+      {/* 50/50 split: products + weight keypad left, order & checkout right */}
+      <div className="pos-layout">
+        {/* Cart panel (visually right; position set in CSS with `order`) */}
         <section className="pos-panel pos-order">
           <form
             className="input-group pos-member"
@@ -629,7 +636,7 @@ function PosScreen() {
                     <li key={product.id}>
                       <button onClick={() => addToCart(product)}>
                         {product.sku} - {product.name}{" "}
-                        <b>{formatMoney(product.price)}</b>
+                        <b>{formatUsd(product.price, rate)}</b>
                       </button>
                     </li>
                   ))
@@ -648,78 +655,106 @@ function PosScreen() {
                 type="button"
                 className="pos-link danger"
                 onClick={cancelSale}
+                disabled={isCashier}
+                aria-disabled={isCashier}
               >
                 <Icon name="trash" size={13} /> {l(["Clear", "សម្អាត"])}
               </button>
             )}
           </div>
           <div className="pos-cart">
-            {cart.items.map((line) => (
-              <div key={line.productId} className="cart-line">
-                <div className="cart-info">
-                  <b>{line.name}</b>
-                  <small>
-                    {line.code} ·{" "}
-                    {formatNumber(
-                      line.quantity,
-                      qtyDecimals(line.quantity, line.unit),
-                    )}{" "}
-                    {line.unit} × {formatNumber(line.price)} ៛
-                  </small>
-                </div>
-                <div className="qty-stepper">
+            {cart.items.map((line) => {
+              const product = products.find(
+                (item) => item.id === line.productId,
+              );
+              const productDiscount = cart.discountFor(line.productId);
+              const productDiscountAmount = cart.productDiscountAmount(
+                line.productId,
+              );
+              return (
+                <div key={line.productId} className="cart-line">
+                  <span className="cart-thumb" aria-hidden="true">
+                    {product?.image ? (
+                      <img src={product.image} alt="" />
+                    ) : (
+                      line.name.trim().charAt(0).toUpperCase()
+                    )}
+                  </span>
+                  <div className="cart-info">
+                    <b>{line.name}</b>
+                    <small>
+                      {formatNumber(
+                        line.quantity,
+                        qtyDecimals(line.quantity, line.unit),
+                      )}{" "}
+                      {line.unit} × {formatUsd(line.price, rate)}
+                    </small>
+                    {productDiscountAmount > 0 && (
+                      <small className="cart-discount">
+                        {l(["Product discount", "បញ្ចុះតម្លៃទំនិញ"])}{" "}
+                        {productDiscount.percent
+                          ? `(${formatNumber(productDiscount.value, 2)}%)`
+                          : ""}
+                        : -{formatUsd(productDiscountAmount, rate)}
+                      </small>
+                    )}
+                  </div>
                   <button
                     type="button"
-                    aria-label={l(["Decrease", "បន្ថយ"])}
+                    className="cart-remove"
+                    aria-label={`${t.remove} ${line.name}`}
                     onClick={() =>
-                      cart.setQuantity(line.productId, line.quantity - 1)
-                    }
-                    disabled={line.quantity <= 1}
-                  >
-                    <Icon name="minus" size={12} />
-                  </button>
-                  <NumberInput
-                    min="0.001"
-                    step="any"
-                    aria-label={l(["Quantity", "បរិមាណ"])}
-                    value={line.quantity}
-                    onChange={(next) => cart.setQuantity(line.productId, next)}
-                  />
-                  <button
-                    type="button"
-                    aria-label={l(["Increase", "បង្កើន"])}
-                    onClick={() =>
-                      cart.setQuantity(line.productId, line.quantity + 1)
+                      withPin(`${t.remove}: ${line.name}`, () =>
+                        cart.remove(line.productId),
+                      )
                     }
                   >
-                    <Icon name="plusSmall" size={12} />
+                    <Icon name="x" size={14} />
                   </button>
+                  <div className="qty-stepper">
+                    <button
+                      type="button"
+                      aria-label={l(["Decrease", "បន្ថយ"])}
+                      onClick={() =>
+                        cart.setQuantity(line.productId, line.quantity - 1)
+                      }
+                      disabled={isCashier || line.quantity <= 1}
+                    >
+                      <Icon name="minus" size={12} />
+                    </button>
+                    <NumberInput
+                      min="0.001"
+                      step="any"
+                      aria-label={l(["Quantity", "បរិមាណ"])}
+                      value={line.quantity}
+                      readOnly={isCashier}
+                      onChange={(next) => cart.setQuantity(line.productId, next)}
+                    />
+                    <button
+                      type="button"
+                      aria-label={l(["Increase", "បង្កើន"])}
+                      onClick={() =>
+                        cart.setQuantity(line.productId, line.quantity + 1)
+                      }
+                      disabled={isCashier}
+                    >
+                      <Icon name="plusSmall" size={12} />
+                    </button>
+                  </div>
+                  <b className="cart-subtotal">
+                    {formatUsd(cart.lineTotal(line.productId), rate)}
+                  </b>
                 </div>
-                <b className="cart-subtotal">
-                  {formatNumber(line.price * line.quantity)}
-                </b>
-                <button
-                  type="button"
-                  className="cart-remove"
-                  aria-label={`${t.remove} ${line.name}`}
-                  onClick={() =>
-                    withPin(`${t.remove}: ${line.name}`, () =>
-                      cart.remove(line.productId),
-                    )
-                  }
-                >
-                  <Icon name="x" size={14} />
-                </button>
-              </div>
-            ))}
+              );
+            })}
             {cart.items.length === 0 && (
               <div className="cart-empty">
                 <Icon name="cart" size={40} />
                 <b>{l(["No items yet", "មិនទាន់មានទំនិញ"])}</b>
                 <span>
                   {l([
-                    "Scan a barcode or tap a product to start a sale.",
-                    "ស្កេនបារកូដ ឬចុចលើទំនិញដើម្បីចាប់ផ្ដើមលក់។",
+                    "Scan a barcode or search a product to start a sale.",
+                    "ស្កេនបារកូដ ឬស្វែងរកទំនិញដើម្បីចាប់ផ្ដើមលក់។",
                   ])}
                 </span>
               </div>
@@ -727,78 +762,68 @@ function PosScreen() {
           </div>
 
           <div className="pos-summary">
-            <div>
-              <span>{t.totalItems}</span>
-              <b>
-                {cart.totals.count} ({formatNumber(cart.totals.quantity, 3)})
-              </b>
-            </div>
-            <div>
-              <span>{t.subtotal}</span>
-              <b>{formatMoney(cart.totals.total)}</b>
-            </div>
-            <div>
-              <button
-                type="button"
-                className="pos-link"
-                onClick={() => adjust("tax")}
-              >
-                {t.orderTax} <Icon name="edit" size={12} />
-              </button>
-              <b>{formatMoney(cart.totals.orderTax)}</b>
-            </div>
-            <div>
-              <span>{t.discount}</span>
-              <b className="pos-summary-edit">
-                <NumberInput
-                  min="0"
-                  aria-label={t.discount}
-                  value={cart.adjustments.discount}
-                  onChange={(next) =>
-                    cart.setAdjustments({
-                      ...cart.adjustments,
-                      discount: next,
-                    })
-                  }
-                />
-                <select
-                  aria-label={l(["Discount type", "ប្រភេទបញ្ចុះតម្លៃ"])}
-                  value={cart.adjustments.discountPercent ? "%" : "៛"}
-                  onChange={(event) =>
-                    cart.setAdjustments({
-                      ...cart.adjustments,
-                      discountPercent: event.target.value === "%",
-                    })
-                  }
+            <div className="pos-summary-column">
+              <div>
+                <span>{t.totalItems}</span>
+                <b>
+                  {cart.totals.count} ({formatNumber(cart.totals.quantity, 3)})
+                </b>
+              </div>
+              <div>
+                <button
+                  type="button"
+                  className="pos-link"
+                  onClick={() => adjust("tax")}
                 >
-                  <option>៛</option>
-                  <option>%</option>
-                </select>
-                {cart.adjustments.discountPercent &&
-                  cart.adjustments.discount > 0 && (
-                    <small>{formatMoney(cart.totals.discount)}</small>
-                  )}
-              </b>
+                  {t.orderTax} <Icon name="edit" size={12} />
+                </button>
+                <b>{formatUsd(cart.totals.orderTax, rate)}</b>
+              </div>
+              <div>
+                <button
+                  type="button"
+                  className="pos-link"
+                  onClick={() => adjust("shipping")}
+                >
+                  {t.shipping} <Icon name="edit" size={12} />
+                </button>
+                <b>{formatUsd(cart.totals.shipping, rate)}</b>
+              </div>
             </div>
-            <div>
-              <button
-                type="button"
-                className="pos-link"
-                onClick={() => adjust("shipping")}
-              >
-                {t.shipping} <Icon name="edit" size={12} />
-              </button>
-              <b>{formatMoney(cart.totals.shipping)}</b>
+            <div className="pos-summary-column">
+              <div>
+                <span>{t.subtotal}</span>
+                <b>{formatUsd(cart.totals.total, rate)}</b>
+              </div>
+              <div>
+                <span>
+                  {l(["Product Discount", "បញ្ចុះតម្លៃទំនិញ"])}
+                  {cart.totals.productDiscount > 0 &&
+                    cart.totals.total > 0 &&
+                    ` (${formatNumber(
+                      (cart.totals.productDiscount / cart.totals.total) * 100,
+                      2,
+                    )}%)`}
+                </span>
+                <b>{formatUsd(cart.totals.productDiscount, rate)}</b>
+              </div>
+              <div>
+                <span>
+                  {l(["General Discount", "បញ្ចុះតម្លៃទូទៅ"])}
+                  {cart.adjustments.discountPercent &&
+                    cart.adjustments.discount > 0 &&
+                    ` (${formatNumber(cart.adjustments.discount, 2)}%)`}
+                </span>
+                <b>{formatUsd(cart.totals.orderDiscount, rate)}</b>
+              </div>
             </div>
           </div>
           <div className="pos-payable">
             <span>{t.totalPayable}</span>
             <div>
               <strong>
-                {formatNumber(cart.totals.payable)}
-                <span className="riel">៛</span>
+                {formatUsd(cart.totals.payable, rate)}
               </strong>
-              <small>{formatUsd(cart.totals.payable, rate)}</small>
             </div>
           </div>
           <div className="pos-actions">
@@ -815,8 +840,8 @@ function PosScreen() {
               type="button"
               className="pos-btn danger"
               onClick={cancelSale}
-              disabled={!cart.items.length}
-              aria-disabled={!cart.items.length}
+              disabled={isCashier || !cart.items.length}
+              aria-disabled={isCashier || !cart.items.length}
             >
               <Icon name="x" size={15} /> {t.cancel}
             </button>
@@ -841,128 +866,123 @@ function PosScreen() {
           </div>
         </section>
 
-        {/* Right: product catalog */}
-        <section className="pos-panel pos-catalog">
-          <div className="pos-catalog-head">
-            <div
-              className="pos-chips"
-              role="group"
-              aria-label={l(["Categories", "ប្រភេទ"])}
-            >
-              {(
-                [
-                  ["all", t.all],
-                  ...categoriesOf(products).map(
-                    (id) => [id, categoryLabel(id, language)] as const,
-                  ),
-                ] as (readonly ["all" | Category, string])[]
-              ).map(([id, label]) => (
+        {/* Product browser and weight keypad share the wider left panel. */}
+        <div className="pos-left">
+          <section
+            className="pos-panel pos-browser"
+            aria-label={l(["Products", "ទំនិញ"])}
+          >
+            <div className="pos-filter">
+              <div className="pos-filter-search">
+                <Icon name="search" size={15} />
+                <input
+                  type="search"
+                  placeholder={l([
+                    "Search products by name/code",
+                    "ស្វែងរកទំនិញតាមឈ្មោះ/កូដ",
+                  ])}
+                  aria-label={l(["Search products", "ស្វែងរកទំនិញ"])}
+                  value={gridFilter}
+                  onChange={(event) => setGridFilter(event.target.value)}
+                />
+              </div>
+              <div className="pos-filter-cats">
                 <button
-                  key={id}
                   type="button"
-                  className={category === id ? "active" : ""}
-                  aria-pressed={category === id}
-                  onClick={() => setCategory(id)}
+                  className={category === "all" ? "active" : ""}
+                  onClick={() => setCategory("all")}
                 >
-                  {label}
-                  <span>
-                    {id === "all"
-                      ? products.length
-                      : products.filter((product) => product.category === id)
-                          .length}
-                  </span>
+                  {l(["All", "ទាំងអស់"])}
                 </button>
-              ))}
+                {gridCategories.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    className={category === item ? "active" : ""}
+                    onClick={() => setCategory(item)}
+                  >
+                    {categoryLabel(item, language)}
+                  </button>
+                ))}
+              </div>
             </div>
-            <label className="pos-search">
-              <Icon name="search" size={16} />
-              <input
-                placeholder={l([
-                  "Search by code or name",
-                  "ស្វែងរកតាមកូដ ឬឈ្មោះ",
-                ])}
-                aria-label={l(["Search products", "ស្វែងរកទំនិញ"])}
-                value={gridSearch}
-                onChange={(event) => setGridSearch(event.target.value)}
-              />
-            </label>
-          </div>
-
-          <div className={`pos-grid accent-${pos.productButtonColor}`}>
-            {visible.map((product) => {
-              const stock = productStock(product);
-              const count = inCart(product.id);
-              return (
-                <button
-                  key={product.id}
-                  type="button"
-                  className={`pos-card${count ? " in-cart" : ""}`}
-                  onClick={() => addToCart(product)}
-                  title={
-                    pos.tooltips !== "no"
-                      ? `${product.name} — ${formatMoney(product.price)}`
-                      : undefined
-                  }
-                >
-                  <span className="pos-card-image">
-                    {product.image ? (
-                      <img src={product.image} alt="" />
-                    ) : (
-                      <span className="pos-initial">
-                        {product.name.trim().charAt(0).toUpperCase()}
+            <div className="pos-products">
+              {visibleProducts.map((product) => {
+                const stock = productStock(product);
+                const count = inCart(product.id);
+                const selected = selectedProduct?.id === product.id;
+                const stockInfo = tracksStock(product)
+                  ? ` — ${formatNumber(stock, stock % 1 ? 1 : 0)} ${product.unit ?? "kg"}`
+                  : "";
+                return (
+                  <button
+                    key={product.id}
+                    type="button"
+                    className={`pos-card${count ? " in-cart" : ""}${selected ? " selected" : ""}`}
+                    aria-pressed={selected}
+                    onClick={() => setSelectedProduct(product)}
+                    title={
+                      pos.tooltips !== "no"
+                        ? `${product.name} — ${formatUsd(product.price, rate)}${stockInfo}`
+                        : undefined
+                    }
+                  >
+                    <span className="pos-card-image">
+                      {product.image ? (
+                        <img src={product.image} alt="" />
+                      ) : (
+                        <span className="pos-initial">
+                          {product.name.trim().charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                      {count > 0 && (
+                        <span className="pos-card-count">
+                          {formatNumber(count, count % 1 ? 3 : 0)}
+                        </span>
+                      )}
+                    </span>
+                    <span className="pos-card-info">
+                      <span className="pos-card-name">{product.name}</span>
+                      <span className="pos-card-price">
+                        {formatUsd(product.price, rate)}
+                        {WEIGHT_UNITS.includes(productUnit(product))
+                          ? `/${productUnit(product)}`
+                          : ""}
                       </span>
-                    )}
-                    {count > 0 && (
-                      <span className="pos-card-count">
-                        {formatNumber(count, count % 1 ? 3 : 0)}
-                      </span>
-                    )}
-                  </span>
-                  <span className="pos-card-name">{product.name}</span>
-                  <span className="pos-card-foot">
-                    <b>{formatNumber(product.price)} ៛</b>
-                    {tracksStock(product) ? (
-                      <small className={isLowStock(product) ? "low" : ""}>
-                        {formatNumber(stock, stock % 1 ? 1 : 0)}{" "}
-                        {product.unit ?? "kg"}
-                      </small>
-                    ) : (
-                      <small>{product.type}</small>
-                    )}
-                  </span>
-                </button>
-              );
-            })}
-            {visible.length === 0 && <p className="cart-empty">{t.noMatch}</p>}
-          </div>
-
-          <div className="pos-pager">
-            <span>
-              {from}–{to} / {grid.length}
-            </span>
-            <div>
-              <button
-                type="button"
-                disabled={page === 0}
-                onClick={() => setPage(page - 1)}
-                aria-label={t.previous}
-              >
-                <Icon name="chevronsLeft" size={14} />
-              </button>
-              <span>
-                {page + 1} / {pages}
-              </span>
-              <button
-                type="button"
-                disabled={page >= pages - 1}
-                onClick={() => setPage(page + 1)}
-                aria-label={t.next}
-              >
-                <Icon name="chevronsRight" size={14} />
-              </button>
+                    </span>
+                  </button>
+                );
+              })}
+              {visibleProducts.length === 0 && (
+                <div className="pos-products-empty">
+                  <Icon name="search" size={36} />
+                  <b>{l(["No products found", "រកមិនឃើញទំនិញ"])}</b>
+                </div>
+              )}
             </div>
-          </div>
-        </section>
+          </section>
+          <ProductSalePanel
+            key={selectedProduct?.id ?? "no-product"}
+            product={selectedProduct}
+            cart={cart}
+            rate={rate}
+            onAdd={(quantity, productDiscount, generalDiscount) => {
+              if (!selectedProduct || !addLine(selectedProduct, quantity))
+                return false;
+              cart.setProductDiscount(selectedProduct.id, {
+                percent: true,
+                value: Math.min(100, Math.max(0, productDiscount)),
+              });
+              cart.setAdjustments({
+                ...cart.adjustments,
+                discount: Math.min(100, Math.max(0, generalDiscount)),
+                discountPercent: true,
+              });
+              setSearch("");
+              return true;
+            }}
+          />
+        </div>
       </div>
 
       {hydrated && session && !register && !leaving && (
@@ -1009,20 +1029,13 @@ function PosScreen() {
         />
       )}
 
-      {weighing && (
-        <WeightModal
-          product={weighing}
-          onClose={() => setWeighing(null)}
-          onAdd={(quantity) => confirmWeight(weighing, quantity)}
-        />
-      )}
-
-      {(["discount", "tax", "shipping"] as const).map((key) =>
+      {(["tax", "shipping"] as const).map((key) =>
         panel === key ? (
           <AdjustModal
             key={key}
             kind={key}
             value={cart.adjustments}
+            rate={rate}
             onClose={() => setPanel(null)}
             onSave={(value) => {
               cart.setAdjustments(value);
@@ -1058,7 +1071,7 @@ function PosScreen() {
                     <td className="align-center">
                       {(row.items as LineItem[]).length}
                     </td>
-                    <td className="align-right">{formatMoney(row.total)}</td>
+                    <td className="align-right">{formatUsd(row.total, rate)}</td>
                     <td className="align-center">
                       <div className="button-row center">
                         <button
@@ -1150,10 +1163,16 @@ function PosScreen() {
             date: new Date().toISOString(),
             reference: l(["Pay complete", "ការទូទាត់បានបញ្ចប់"]),
             customer,
-            items: cart.items,
+            items: cart.items.map((line) => ({
+              ...line,
+              productDiscount: cart.discountFor(line.productId),
+            })),
             ...cart.totals,
             grandTotal: cart.totals.payable,
             paid: 0,
+            generalDiscountPercent: cart.adjustments.discountPercent
+              ? cart.adjustments.discount
+              : undefined,
           }}
           rate={rate}
         />
@@ -1178,19 +1197,20 @@ function PosScreen() {
 function AdjustModal({
   kind,
   value,
+  rate,
   onClose,
   onSave,
 }: {
-  kind: "discount" | "tax" | "shipping";
+  kind: "tax" | "shipping";
   value: CartAdjustments;
+  rate: number;
   onClose: () => void;
   onSave: (value: CartAdjustments) => void;
 }) {
-  const { l, t } = useLanguage();
+  const { t } = useLanguage();
   const taxRates = useCollection("taxRates");
   const [draft, setDraft] = useState(value);
-  const title =
-    kind === "discount" ? t.discount : kind === "tax" ? t.orderTax : t.shipping;
+  const title = kind === "tax" ? t.orderTax : t.shipping;
   return (
     <Modal
       open
@@ -1239,108 +1259,245 @@ function AdjustModal({
             min="0"
             autoFocus
             aria-label={title}
-            value={kind === "discount" ? draft.discount : draft.shipping}
-            onChange={(next) => setDraft({ ...draft, [kind]: next })}
+            value={draft.shipping / rate}
+            onChange={(next) =>
+              setDraft({
+                ...draft,
+                shipping: next * rate,
+              })
+            }
           />
-          {kind === "discount" && (
-            <select
-              className="addon-select"
-              aria-label={l(["Discount type", "ប្រភេទបញ្ចុះតម្លៃ"])}
-              value={draft.discountPercent ? "%" : "៛"}
-              onChange={(event) =>
-                setDraft({
-                  ...draft,
-                  discountPercent: event.target.value === "%",
-                })
-              }
-            >
-              <option>៛</option>
-              <option>%</option>
-            </select>
-          )}
         </div>
       )}
     </Modal>
   );
 }
 
-function WeightModal({
+/** Quantity and discount inputs for the product selected from the grid. */
+function ProductSalePanel({
   product,
-  onClose,
+  cart,
+  rate,
   onAdd,
 }: {
-  product: Product;
-  onClose: () => void;
-  onAdd: (quantity: number) => void;
+  product: Product | null;
+  cart: ReturnType<typeof useCart>;
+  rate: number;
+  onAdd: (
+    quantity: number,
+    productDiscount: number,
+    generalDiscount: number,
+  ) => boolean;
 }) {
-  const { l, t } = useLanguage();
-  const [entry, setEntry] = useState("");
-  const quantity = toNumber(entry);
-  const unit = productUnit(product);
-  const press = (key: string) =>
-    setEntry((old) =>
-      key === "back"
-        ? old.slice(0, -1)
-        : key === "." && old.includes(".")
-          ? old
-          : old + key,
+  const { l } = useLanguage();
+  const [quantity, setQuantity] = useState("1");
+  const existingLine = cart.items.find(
+    (line) => line.productId === product?.id,
+  );
+  const existingProductDiscount = product
+    ? cart.discountFor(product.id)
+    : { percent: true, value: 0 };
+  const existingProductSubtotal = existingLine
+    ? existingLine.price * existingLine.quantity
+    : 0;
+  const [productDiscount, setProductDiscount] = useState(() => {
+    const value = existingProductDiscount.percent
+      ? existingProductDiscount.value
+      : existingLine && existingProductSubtotal > 0
+        ? (cart.productDiscountAmount(existingLine.productId) /
+            existingProductSubtotal) *
+          100
+        : 0;
+    return value ? String(value) : "";
+  });
+  const [generalDiscount, setGeneralDiscount] = useState(() => {
+    const subtotal = Math.max(
+      0,
+      cart.totals.total - cart.totals.productDiscount,
     );
-  const keys = ["7", "8", "9", "4", "5", "6", "1", "2", "3", ".", "0", "back"];
-  return (
-    <Modal
-      open
-      size="sm"
-      title={product.name}
-      onClose={onClose}
-      footer={
-        <>
-          <button className="btn btn-default" onClick={onClose}>
-            {t.cancel}
-          </button>
-          <button
-            className="btn btn-primary"
-            disabled={!(quantity > 0)}
-            aria-disabled={!(quantity > 0)}
-            onClick={() => onAdd(quantity)}
-          >
-            {t.addVerb}
-          </button>
-        </>
-      }
-    >
-      <p className="weigh-unit">
-        {l(["Enter weight", "បញ្ចូលទម្ងន់"])} · {formatMoney(product.price)} /{" "}
-        {unit}
-      </p>
-      <div className="weigh-display" aria-live="polite">
-        <div className="weigh-qty">
-          {entry || "0"}
-          <span>{unit}</span>
-        </div>
-        <div className="weigh-price">
-          {formatMoney(quantity * product.price)}
-        </div>
+    const value = cart.adjustments.discountPercent
+      ? cart.adjustments.discount
+      : subtotal > 0
+        ? (cart.totals.orderDiscount / subtotal) * 100
+        : 0;
+    return value ? String(value) : "";
+  });
+  const [activeField, setActiveField] = useState<
+    "quantity" | "productDiscount" | "generalDiscount"
+  >("quantity");
+  const [replaceOnNextKey, setReplaceOnNextKey] = useState(true);
+  const unit = product ? productUnit(product) : "";
+  const quantityValue = toNumber(quantity);
+  const productDiscountValue = Math.min(
+    100,
+    Math.max(0, toNumber(productDiscount)),
+  );
+  const generalDiscountValue = Math.min(
+    100,
+    Math.max(0, toNumber(generalDiscount)),
+  );
+  const setActiveValue = (value: string) => {
+    if (activeField === "quantity") setQuantity(value);
+    else if (activeField === "productDiscount") setProductDiscount(value);
+    else setGeneralDiscount(value);
+  };
+  const selectField = (
+    field: "quantity" | "productDiscount" | "generalDiscount",
+  ) => {
+    setActiveField(field);
+    setReplaceOnNextKey(true);
+  };
+  const pressKey = (key: string) => {
+    const stored =
+      activeField === "quantity"
+        ? quantity
+        : activeField === "productDiscount"
+          ? productDiscount
+          : generalDiscount;
+    const current = replaceOnNextKey ? "" : stored;
+    setReplaceOnNextKey(false);
+    if (key === "clear") {
+      setActiveValue("");
+    } else if (key === "backspace") {
+      setActiveValue(replaceOnNextKey ? "" : stored.slice(0, -1));
+    } else if (key === ".") {
+      if (!current.includes(".")) setActiveValue(current ? `${current}.` : "0.");
+    } else {
+      setActiveValue(current === "0" ? key : current + key);
+    }
+  };
+
+  if (!product)
+    return (
+      <div className="pos-discount-empty">
+        {l([
+          "Select a product from the grid to enter its quantity and discounts.",
+          "សូមជ្រើសរើសទំនិញពីបញ្ជី ដើម្បីបញ្ចូលបរិមាណ និងការបញ្ចុះតម្លៃ។",
+        ])}
       </div>
-      <div className="weigh-pad">
-        {keys.map((key) => (
+    );
+
+  return (
+    <div className="pos-discount-editor">
+      <div className="pos-discount-product">{product.name}</div>
+      <label className="field">
+        <span className="field-label">
+          {l(["Quantity", "បរិមាណ"])} ({unit})
+        </span>
+        <input
+          type="number"
+          inputMode="decimal"
+          className={`form-control pos-sale-input${activeField === "quantity" ? " active" : ""}`}
+          min="0.001"
+          step={isWeighted(product) ? "0.001" : "1"}
+          value={quantity}
+          onFocus={() => selectField("quantity")}
+          onChange={(event) => {
+            setReplaceOnNextKey(false);
+            setQuantity(event.target.value);
+          }}
+        />
+      </label>
+      <label className="field">
+        <span className="field-label">
+          {l(["Product Discount (%)", "បញ្ចុះតម្លៃទំនិញ (%)"])}
+        </span>
+        <input
+          type="number"
+          inputMode="decimal"
+          className={`form-control pos-sale-input${activeField === "productDiscount" ? " active" : ""}`}
+          min="0"
+          max="100"
+          step="any"
+          value={productDiscount}
+          onFocus={() => selectField("productDiscount")}
+          onChange={(event) => {
+            setReplaceOnNextKey(false);
+            setProductDiscount(event.target.value);
+          }}
+        />
+      </label>
+      <label className="field">
+        <span className="field-label">
+          {l(["General Discount (%)", "បញ្ចុះតម្លៃទូទៅ (%)"])}
+        </span>
+        <input
+          type="number"
+          inputMode="decimal"
+          className={`form-control pos-sale-input${activeField === "generalDiscount" ? " active" : ""}`}
+          min="0"
+          max="100"
+          step="any"
+          value={generalDiscount}
+          onFocus={() => selectField("generalDiscount")}
+          onChange={(event) => {
+            setReplaceOnNextKey(false);
+            setGeneralDiscount(event.target.value);
+          }}
+        />
+      </label>
+      <div
+        className="pos-sale-keypad"
+        role="group"
+        aria-label={l(["Number keypad", "ក្ដារចុចលេខ"])}
+      >
+        {[
+          "7",
+          "8",
+          "9",
+          "4",
+          "5",
+          "6",
+          "1",
+          "2",
+          "3",
+          "backspace",
+          "clear",
+          ".",
+          "0",
+        ].map((key) => (
           <button
             key={key}
             type="button"
-            className={`weigh-key${key === "." || key === "back" ? " action" : ""}`}
-            aria-label={
-              key === "back"
-                ? l(["Backspace", "លុបកូដចុងក្រោយ"])
-                : key === "."
-                  ? l(["Decimal point", "ចំណុចទសភាគ"])
-                  : key
+            className={
+              key === "clear" || key === "backspace" || key === "."
+                ? "action"
+                : ""
             }
-            onClick={() => press(key)}
+            aria-label={
+              key === "clear"
+                ? l(["Clear input", "សម្អាតការបញ្ចូល"])
+                : key === "backspace"
+                  ? l(["Backspace", "លុបតួអក្សរមុន"])
+                  : key === "."
+                    ? l(["Decimal point", "ចំណុចទសភាគ"])
+                    : key
+            }
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => pressKey(key)}
           >
-            {key === "back" ? <Icon name="x" size={18} /> : key}
+            {key === "clear" ? "C" : key === "backspace" ? "⌫" : key}
           </button>
         ))}
       </div>
-    </Modal>
+      <div className="pos-discount-preview">
+        <span>{l(["Product price", "តម្លៃទំនិញ"])}</span>
+        <b>{formatUsd(product.price * Math.max(0, quantityValue), rate)}</b>
+      </div>
+      <button
+        type="button"
+        className="pos-btn primary"
+        disabled={quantityValue <= 0}
+        onClick={() => {
+          if (onAdd(quantityValue, productDiscountValue, generalDiscountValue)) {
+            setQuantity("1");
+          }
+        }}
+      >
+        <Icon name="plus" size={15} />{" "}
+        {l(["Add to order", "បន្ថែមទៅការបញ្ជាទិញ"])}
+      </button>
+    </div>
   );
 }
 
@@ -1363,7 +1520,12 @@ function Receipt({
     Partial<
       Pick<
         Transaction,
-        "customer" | "discount" | "orderTax" | "shipping" | "total"
+        | "customer"
+        | "discount"
+        | "generalDiscountPercent"
+        | "orderTax"
+        | "shipping"
+        | "total"
       >
     >;
   onClose: () => void;
@@ -1377,6 +1539,26 @@ function Receipt({
   const { l, t } = useLanguage();
   const change = record.paid - record.grandTotal;
   const paidInFull = record.paid >= record.grandTotal;
+  const productDiscountAmount = (line: LineItem) => {
+    const discount = line.productDiscount;
+    if (!discount) return 0;
+    const subtotal = line.quantity * line.price;
+    const amount = discount.percent
+      ? (subtotal * toNumber(discount.value)) / 100
+      : toNumber(discount.value);
+    return Math.min(subtotal, Math.max(0, amount));
+  };
+  const productDiscountTotal = record.items.reduce(
+    (sum, line) => sum + productDiscountAmount(line),
+    0,
+  );
+  const subtotal = toNumber(record.total);
+  const productDiscountPercent =
+    subtotal > 0 ? (productDiscountTotal / subtotal) * 100 : 0;
+  const generalDiscount = Math.max(
+    0,
+    toNumber(record.discount) - productDiscountTotal,
+  );
   return (
     <Modal
       open
@@ -1430,69 +1612,91 @@ function Receipt({
         )}
         <table>
           <tbody>
-            {record.items.map((line, i) => (
-              <tr key={i}>
-                <td>
-                  {line.name}
-                  <small>
-                    {formatNumber(line.quantity, 3)} {line.unit} ×{" "}
-                    {formatNumber(line.price)} ៛
-                  </small>
-                </td>
-                <td className="num">
-                  {formatNumber(line.quantity * line.price)} ៛
-                </td>
-              </tr>
-            ))}
+            {record.items.map((line, i) => {
+              const lineDiscount = productDiscountAmount(line);
+              return (
+                <tr key={i}>
+                  <td>
+                    {line.name}
+                    <small>
+                      {formatNumber(line.quantity, 3)} {line.unit} ×{" "}
+                      {formatUsd(line.price, rate)}
+                    </small>
+                  </td>
+                  <td className="num">
+                    {formatUsd(line.quantity * line.price, rate)}
+                    {lineDiscount > 0 && (
+                      <small className="receipt-discount">
+                        -{formatUsd(lineDiscount, rate)}
+                        {line.productDiscount?.percent
+                          ? ` (${formatNumber(line.productDiscount.value, 2)}%)`
+                          : ""}
+                      </small>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
           <tfoot>
             {record.total != null && (
               <tr>
                 <td>{t.subtotal}</td>
-                <td className="num">{formatNumber(record.total)} ៛</td>
+                <td className="num">{formatUsd(record.total, rate)}</td>
               </tr>
             )}
-            {!!record.discount && (
-              <tr>
-                <td>{t.discount}</td>
-                <td className="num">-{formatNumber(record.discount)} ៛</td>
-              </tr>
-            )}
+            <tr>
+              <td>
+                {l(["Product Discount", "បញ្ចុះតម្លៃទំនិញ"])}
+                {productDiscountTotal > 0 &&
+                  ` (${formatNumber(productDiscountPercent, 2)}%)`}
+              </td>
+              <td className="num">
+                {productDiscountTotal > 0 ? "-" : ""}
+                {formatUsd(productDiscountTotal, rate)}
+              </td>
+            </tr>
+            <tr>
+              <td>
+                {l(["General Discount", "បញ្ចុះតម្លៃទូទៅ"])}
+                {record.generalDiscountPercent != null &&
+                  ` (${formatNumber(record.generalDiscountPercent, 2)}%)`}
+              </td>
+              <td className="num">
+                {generalDiscount > 0 ? "-" : ""}
+                {formatUsd(generalDiscount, rate)}
+              </td>
+            </tr>
             {!!record.orderTax && (
               <tr>
                 <td>{t.orderTax}</td>
-                <td className="num">{formatNumber(record.orderTax)} ៛</td>
+                <td className="num">{formatUsd(record.orderTax, rate)}</td>
               </tr>
             )}
             {!!record.shipping && (
               <tr>
                 <td>{t.shipping}</td>
-                <td className="num">{formatNumber(record.shipping)} ៛</td>
+                <td className="num">{formatUsd(record.shipping, rate)}</td>
               </tr>
             )}
             <tr className="strong grand">
               <td>{t.grandTotal}</td>
               <td className="num">
                 <b className="receipt-grand">
-                  {formatNumber(record.grandTotal)}
-                  <span className="riel">៛</span>
+                  {formatUsd(record.grandTotal, rate)}
                 </b>
               </td>
-            </tr>
-            <tr>
-              <td>USD</td>
-              <td className="num">{formatUsd(record.grandTotal, rate)}</td>
             </tr>
             {record.paid > 0 && (
               <>
                 <tr>
                   <td>{t.paid}</td>
-                  <td className="num">{formatMoney(record.paid)}</td>
+                  <td className="num">{formatUsd(record.paid, rate)}</td>
                 </tr>
                 {change > 0 && (
                   <tr>
                     <td>{l(["Change", "ប្រាក់អាប់"])}</td>
-                    <td className="num">{formatMoney(change)}</td>
+                    <td className="num">{formatUsd(change, rate)}</td>
                   </tr>
                 )}
               </>

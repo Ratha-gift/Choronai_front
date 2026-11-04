@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Minced pork">
+  <rect width="400" height="300" fill="#fbeef1"/>
+  <ellipse cx="200" cy="158" rx="112" ry="58" fill="#e8a0ad"/>
+  <circle cx="150" cy="140" r="26" fill="#f3bcc5"/>
+  <circle cx="204" cy="128" r="30" fill="#f3bcc5"/>
+  <circle cx="252" cy="146" r="24" fill="#f3bcc5"/>
+  <circle cx="176" cy="176" r="22" fill="#f3bcc5"/>
+  <circle cx="228" cy="180" r="20" fill="#f3bcc5"/>
+  <path d="M120 168c30 24 130 26 162 2" fill="none" stroke="#d97f8e" stroke-width="7" stroke-linecap="round"/>
+  <text x="200" y="268" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="700" fill="#a84f61">MINCED PORK</text>
+</svg>
