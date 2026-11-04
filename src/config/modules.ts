@@ -18,6 +18,7 @@ export type NavFolder = {
   id: string;
   label: Label;
   icon: IconName;
+  page?: ModuleDef;
   items: ModuleDef[];
 };
 
@@ -35,7 +36,11 @@ export const isFolder = (entry: NavEntry): entry is NavFolder =>
 
 /** The pages of a group, with folders flattened. */
 export const pagesOf = (entries: NavEntry[]) =>
-  entries.flatMap((entry) => (isFolder(entry) ? entry.items : [entry]));
+  entries.flatMap((entry) =>
+    isFolder(entry)
+      ? [...(entry.page ? [entry.page] : []), ...entry.items]
+      : [entry],
+  );
 
 const m = (id: string, en: string, km: string, icon: IconName): ModuleDef => ({
   id,
@@ -88,7 +93,6 @@ export const groups: NavGroup[] = [
       m("sales/pos-sales", "POS Sales", "ការលក់ POS", "heart"),
       m("sales/returns", "Sale Returns", "ទំនិញលក់ត្រឡប់", "undo"),
       m("sales/registers", "Registers", "បញ្ជរគិតលុយ", "lock"),
-      m("sales/member-cards", "Member Cards", "កាតសមាជិក", "card"),
     ],
   },
   {
@@ -96,7 +100,16 @@ export const groups: NavGroup[] = [
     label: ["People", "ទំនាក់ទំនង"],
     icon: "users",
     items: [
-      m("people/customers", "Customers", "អតិថិជន", "users"),
+      {
+        id: "people/customers-menu",
+        label: ["Customers", "អតិថិជន"],
+        icon: "users",
+        page: m("people/customers", "Customers", "អតិថិជន", "users"),
+        items: [
+          m("sales/member-cards", "Member Cards", "កាតសមាជិក", "card"),
+          m("people/customer-vip", "Customer VIP", "អតិថិជន VIP", "users"),
+        ],
+      },
       m("people/suppliers", "Suppliers", "អ្នកផ្គត់ផ្គង់", "users"),
       m("people/users", "Users", "អ្នកប្រើប្រាស់", "user"),
     ],
@@ -327,6 +340,10 @@ export const folderOf = (id: string) =>
   groups
     .flatMap((group) => group.items)
     .filter(isFolder)
-    .find((folder) => folder.items.some((page) => isOrParentOf(page.id, id)));
+    .find(
+      (folder) =>
+        (folder.page && isOrParentOf(folder.page.id, id)) ||
+        folder.items.some((page) => isOrParentOf(page.id, id)),
+    );
 
 export const hrefOf = (id: string) => `/${id}`;

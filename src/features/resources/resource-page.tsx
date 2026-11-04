@@ -19,7 +19,13 @@ import type { ResourceDef } from "./types";
 export function ResourcePage({ def }: { def: ResourceDef }) {
   const { l, t } = useLanguage();
   const router = useRouter();
-  const { rows, add, update, remove } = useCollection(def.collection);
+  const {
+    rows: allRows,
+    add,
+    update,
+    remove,
+  } = useCollection(def.collection);
+  const rows = def.filterRows ? allRows.filter(def.filterRows) : allRows;
   const [selected, setSelected] = useState<string[]>([]);
   const [editing, setEditing] = useState<Row | "new" | null>(null);
   const [viewing, setViewing] = useState<Row | null>(null);
@@ -173,7 +179,7 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
           columns={def.formColumns}
           initial={initialValues(
             def.fields,
-            rows,
+            allRows,
             editing === "new" ? undefined : editing,
           )}
           submitLabel={`${editing === "new" ? t.addVerb : t.editVerb} ${noun}`}

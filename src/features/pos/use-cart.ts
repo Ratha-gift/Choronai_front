@@ -16,6 +16,14 @@ export type CartAdjustments = {
   shipping: number;
 };
 
+export type ProductDiscount = {
+  /** Percentage when true, riel when false. */
+  percent: boolean;
+  value: number;
+};
+
+export type ProductDiscounts = Record<string, ProductDiscount>;
+
 export const NO_ADJUSTMENTS: CartAdjustments = {
   discount: 0,
   discountPercent: false,
@@ -27,6 +35,9 @@ export const NO_ADJUSTMENTS: CartAdjustments = {
 export function useCart() {
   const [items, setItems] = useState<LineItem[]>([]);
   const [adjustments, setAdjustments] = useState(NO_ADJUSTMENTS);
+  const [productDiscounts, setProductDiscounts] = useState<ProductDiscounts>(
+    {},
+  );
 
   const add = (product: Product, quantity = 1) =>
     setItems((old) =>
@@ -58,12 +69,48 @@ export function useCart() {
       ),
     );
 
-  const remove = (productId: string) =>
+  const remove = (productId: string) => {
     setItems((old) => old.filter((line) => line.productId !== productId));
+    setProductDiscounts((old) => {
+      const { [productId]: removed, ...remaining } = old;
+      return remaining;
+    });
+  };
+
+  const setProductDiscount = (
+    productId: string,
+    discount: ProductDiscount,
+  ) =>
+    setProductDiscounts((old) => ({
+      ...old,
+      [productId]: discount,
+    }));
+
+  const discountFor = (productId: string) =>
+    productDiscounts[productId] ?? { percent: false, value: 0 };
+
+  const productDiscountAmount = (productId: string) => {
+    const line = items.find((item) => item.productId === productId);
+    if (!line) return 0;
+    const adjustment = discountFor(productId);
+    const subtotal = line.price * line.quantity;
+    const amount = adjustment.percent
+      ? (subtotal * toNumber(adjustment.value)) / 100
+      : toNumber(adjustment.value);
+    return Math.min(subtotal, Math.max(0, amount));
+  };
+
+  const lineTotal = (productId: string) => {
+    const line = items.find((item) => item.productId === productId);
+    return line
+      ? line.price * line.quantity - productDiscountAmount(productId)
+      : 0;
+  };
 
   const clear = () => {
     setItems([]);
     setAdjustments(NO_ADJUSTMENTS);
+    setProductDiscounts({});
   };
 
   const totals = useMemo(() => {
@@ -71,10 +118,27 @@ export function useCart() {
       (sum, line) => sum + line.price * line.quantity,
       0,
     );
-    const discount = adjustments.discountPercent
-      ? (total * toNumber(adjustments.discount)) / 100
-      : toNumber(adjustments.discount);
-    const taxable = Math.max(0, total - discount);
+    const productDiscount = items.reduce((sum, line) => {
+      const adjustment = productDiscounts[line.productId];
+      if (!adjustment) return sum;
+      const subtotal = line.price * line.quantity;
+      const amount = adjustment.percent
+        ? (subtotal * toNumber(adjustment.value)) / 100
+        : toNumber(adjustment.value);
+      return sum + Math.min(subtotal, Math.max(0, amount));
+    }, 0);
+    const orderSubtotal = Math.max(0, total - productDiscount);
+    const orderDiscount = Math.min(
+      orderSubtotal,
+      Math.max(
+        0,
+        adjustments.discountPercent
+          ? (orderSubtotal * toNumber(adjustments.discount)) / 100
+          : toNumber(adjustments.discount),
+      ),
+    );
+    const discount = productDiscount + orderDiscount;
+    const taxable = Math.max(0, orderSubtotal - orderDiscount);
     const orderTax = adjustments.taxPercent
       ? (taxable * toNumber(adjustments.taxRate)) / 100
       : toNumber(adjustments.taxRate);
@@ -85,12 +149,14 @@ export function useCart() {
       count: items.length,
       quantity: items.reduce((sum, line) => sum + line.quantity, 0),
       total,
+      productDiscount,
+      orderDiscount,
       discount,
       orderTax,
       shipping: toNumber(adjustments.shipping),
       payable,
     };
-  }, [items, adjustments]);
+  }, [items, adjustments, productDiscounts]);
 
   return {
     items,
@@ -101,6 +167,12 @@ export function useCart() {
     clear,
     adjustments,
     setAdjustments,
+    productDiscounts,
+    setProductDiscounts,
+    setProductDiscount,
+    discountFor,
+    productDiscountAmount,
+    lineTotal,
     totals,
   };
 }

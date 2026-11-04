@@ -134,13 +134,18 @@ export function Navigation({
       0,
     );
 
-  const childLink = (item: ModuleDef, size: number, menu = false) => (
+  const childLink = (
+    item: ModuleDef,
+    size: number,
+    menu = false,
+    className = "",
+  ) => (
     <Link
       key={item.id}
       href={hrefOf(item.id)}
       role={menu ? "menuitem" : undefined}
       aria-current={activeItem === item.id ? "page" : undefined}
-      className={activeItem === item.id ? "active" : ""}
+      className={`${activeItem === item.id ? "active" : ""} ${className}`.trim()}
       onClick={navigate}
     >
       <Icon name={item.icon} size={size} />
@@ -154,18 +159,35 @@ export function Navigation({
     const open = expanded.includes(entry.id);
     return (
       <div key={entry.id} className="nav-folder">
-        <button
-          type="button"
-          className={`nav-folder-button ${activeFolder === entry.id ? "active" : ""}`}
-          aria-expanded={open}
-          onClick={() => toggle(entry.id)}
-        >
-          <Icon name={entry.icon} size={14} />
-          <span>{l(entry.label)}</span>
-          <i className={open ? "nav-chevron open" : "nav-chevron"}>
-            <Icon name="chevronDown" size={13} />
-          </i>
-        </button>
+        {entry.page ? (
+          <div className="nav-folder-heading">
+            {childLink(entry.page, 14, false, "nav-folder-page")}
+            <button
+              type="button"
+              className={`nav-folder-toggle ${activeFolder === entry.id ? "active" : ""}`}
+              aria-label={l(["Toggle Customers submenu", "បើក/បិទម៉ឺនុយអតិថិជន"])}
+              aria-expanded={open}
+              onClick={() => toggle(entry.id)}
+            >
+              <i className={open ? "nav-chevron open" : "nav-chevron"}>
+                <Icon name="chevronDown" size={13} />
+              </i>
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className={`nav-folder-button ${activeFolder === entry.id ? "active" : ""}`}
+            aria-expanded={open}
+            onClick={() => toggle(entry.id)}
+          >
+            <Icon name={entry.icon} size={14} />
+            <span>{l(entry.label)}</span>
+            <i className={open ? "nav-chevron open" : "nav-chevron"}>
+              <Icon name="chevronDown" size={13} />
+            </i>
+          </button>
+        )}
         {open && (
           <div className="nav-children nested">
             {entry.items.map((item) => childLink(item, 13))}
@@ -252,10 +274,14 @@ export function Navigation({
                       className="nav-flyout-folder"
                       role="group"
                     >
-                      <div className="nav-flyout-subtitle">
-                        <Icon name={entry.icon} size={15} />
-                        <span>{l(entry.label)}</span>
-                      </div>
+                      {entry.page ? (
+                        childLink(entry.page, 14, true, "nav-flyout-parent")
+                      ) : (
+                        <div className="nav-flyout-subtitle">
+                          <Icon name={entry.icon} size={15} />
+                          <span>{l(entry.label)}</span>
+                        </div>
+                      )}
                       {entry.items.map((item) => childLink(item, 14, true))}
                     </div>
                   ) : (

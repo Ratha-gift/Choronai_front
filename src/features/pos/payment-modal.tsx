@@ -5,8 +5,7 @@ import { Modal } from "@/components/ui/modal";
 import { useCollection } from "@/data/collections";
 import { useLanguage } from "@/i18n";
 import {
-  formatMoney,
-  formatNumber,
+  formatUsd,
   localDateTime,
   toNumber,
 } from "@/lib/format";
@@ -17,13 +16,13 @@ export type Payment = {
   method: string;
   /** Amount applied to the sale (never more than payable). */
   paidRiel: number;
-  /** Everything the customer handed over, for the change on the receipt. */
+  /** Riel equivalent of everything handed over, for change on the receipt. */
   tendered: number;
   saleNote: string;
   staffNote: string;
 };
 
-const QUICK_CASH = [1000, 5000, 10000, 20000, 50000, 100000];
+const QUICK_CASH = [1, 5, 10, 20, 50, 100];
 export const METHODS = ["Cash", "ABA / KHQR", "Card", "Bank transfer"];
 
 export function PaymentModal({
@@ -49,13 +48,12 @@ export function PaymentModal({
   const [date, setDate] = useState(localDateTime);
   const [branch, setBranch] = useState(defaultBranch);
   const [method, setMethod] = useState(METHODS[0]);
-  const [riel, setRiel] = useState<number>(payable);
-  const [usd, setUsd] = useState<number>(0);
+  const [usd, setUsd] = useState<number>(payable / rate);
   const [saleNote, setSaleNote] = useState("");
   const [staffNote, setStaffNote] = useState("");
   const [taps, setTaps] = useState<Record<number, number>>({});
-  const paying = toNumber(riel) + toNumber(usd) * rate;
-  const balance = paying - payable;
+  const payingRiel = Math.round(toNumber(usd) * rate);
+  const balanceRiel = payingRiel - payable;
 
   return (
     <Modal
@@ -64,13 +62,13 @@ export function PaymentModal({
       size="xl"
       title={l(["Finalize Sale", "បញ្ចប់ការលក់"])}
       onSubmit={() => {
-        if (paying <= 0) return;
+        if (payingRiel <= 0) return;
         onSubmit({
           date,
           branch,
           method,
-          paidRiel: Math.min(paying, payable),
-          tendered: paying,
+          paidRiel: Math.min(payingRiel, payable),
+          tendered: payingRiel,
           saleNote,
           staffNote,
         });
@@ -126,21 +124,18 @@ export function PaymentModal({
           <table className="pay-table">
             <thead>
               <tr>
-                <th>{l(["Currency", "រូបិយប័ណ្ណ"])}</th>
-                <th>{l(["Riel", "រៀល"])}</th>
-                <th>{l(["US Dollar", "ដុល្លារ"])}</th>
+                <th>{l(["Payment detail", "ព័ត៌មានទូទាត់"])}</th>
+                <th>{l(["Amount (USD)", "ចំនួនទឹកប្រាក់ (ដុល្លារ)"])}</th>
               </tr>
             </thead>
             <tbody>
               <tr>
                 <th>{t.items}</th>
                 <td>{itemCount}</td>
-                <td>{itemCount}</td>
               </tr>
               <tr>
                 <th>{t.totalPayable}</th>
-                <td>{formatNumber(payable)}</td>
-                <td>{formatNumber(payable / rate, 2)}</td>
+                <td>{formatUsd(payable, rate)}</td>
               </tr>
               <tr>
                 <th>
@@ -159,32 +154,20 @@ export function PaymentModal({
                   <NumberInput
                     className="pay-input"
                     min="0"
-                    aria-label={l(["Paying in riel", "បង់ជារៀល"])}
-                    value={riel}
-                    onChange={(next) => {
-                      setRiel(next);
-                      setTaps({});
-                    }}
-                  />
-                </td>
-                <td>
-                  <NumberInput
-                    className="pay-input"
-                    min="0"
                     step="0.01"
                     aria-label={l(["Paying in dollars", "បង់ជាដុល្លារ"])}
                     value={usd}
-                    onChange={(next) => setUsd(next)}
+                    onChange={(next) => {
+                      setUsd(next);
+                      setTaps({});
+                    }}
                   />
                 </td>
               </tr>
               <tr>
                 <th>{t.balance}</th>
-                <td className={balance < 0 ? "text-danger" : ""}>
-                  {formatNumber(balance)}
-                </td>
-                <td className={balance < 0 ? "text-danger" : ""}>
-                  {formatNumber(balance / rate, 2)}
+                <td className={balanceRiel < 0 ? "text-danger" : ""}>
+                  {formatUsd(balanceRiel, rate)}
                 </td>
               </tr>
             </tbody>
@@ -195,31 +178,30 @@ export function PaymentModal({
                 <th>{t.totalItems}</th>
                 <td>{itemCount}</td>
                 <th>{t.totalPayable}</th>
-                <td>{formatMoney(payable)}</td>
+                <td>{formatUsd(payable, rate)}</td>
               </tr>
               <tr>
                 <th>{l(["Total Paying", "ទឹកប្រាក់បង់"])}</th>
-                <td>{formatMoney(paying)}</td>
+                <td>{formatUsd(payingRiel, rate)}</td>
                 <th>
-                  {balance >= 0 ? l(["Change", "ប្រាក់អាប់"]) : t.balance}
+                  {balanceRiel >= 0 ? l(["Change", "ប្រាក់អាប់"]) : t.balance}
                 </th>
-                <td>{formatMoney(Math.abs(balance))}</td>
+                <td>{formatUsd(Math.abs(balanceRiel), rate)}</td>
               </tr>
             </tbody>
           </table>
         </div>
         <div className="quick-cash">
-          <b>{l(["Quick Cash (៛)", "ប្រាក់រហ័ស (៛)"])}</b>
+          <b>{l(["Quick Cash ($)", "ប្រាក់រហ័ស ($)"])}</b>
           <button
             type="button"
             className="exact"
             onClick={() => {
-              setRiel(payable);
-              setUsd(0);
+              setUsd(payable / rate);
               setTaps({});
             }}
           >
-            {formatNumber(payable)}
+            {formatUsd(payable, rate)}
           </button>
           {QUICK_CASH.map((amount) => (
             <button
@@ -228,7 +210,7 @@ export function PaymentModal({
               onClick={() => {
                 const tapped = { ...taps, [amount]: (taps[amount] ?? 0) + 1 };
                 setTaps(tapped);
-                setRiel(
+                setUsd(
                   Object.entries(tapped).reduce(
                     (sum, [value, count]) => sum + Number(value) * count,
                     0,
@@ -236,7 +218,7 @@ export function PaymentModal({
                 );
               }}
             >
-              {formatNumber(amount)}
+              {formatUsd(amount * rate, rate)}
               {taps[amount] ? <sup>{taps[amount]}</sup> : null}
             </button>
           ))}
@@ -244,7 +226,6 @@ export function PaymentModal({
             type="button"
             className="clear"
             onClick={() => {
-              setRiel(0);
               setUsd(0);
               setTaps({});
             }}

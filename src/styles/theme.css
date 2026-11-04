@@ -1,13 +1,13 @@
 /* ---------- Choronai brand theme (logo blue + white) ---------- */
 :root {
-  --brand: #054290;
-  --brand-dark: #03316f;
-  --brand-deep: #022451;
-  --brand-soft: #e9f0fb;
-  --primary: #054290;
-  --primary-dark: #03316f;
-  --info: #2f7fd8;
-  --page: #eef2f8;
+  --brand: #0c64e6;
+  --brand-dark: #0a50bd;
+  --brand-deep: #06306e;
+  --brand-soft: #e8f0fe;
+  --primary: #0c64e6;
+  --primary-dark: #0a50bd;
+  --info: #3d8ef5;
+  --page: #eef3fb;
   /* Design tokens */
   --ink: #14233a;
   --muted: #4a5870;
@@ -24,7 +24,7 @@
 .header {
   height: 60px;
   background: linear-gradient(90deg, var(--brand-deep), var(--brand));
-  box-shadow: 0 2px 8px #02254f40;
+  box-shadow: 0 2px 8px #06306e40;
 }
 .brand {
   gap: 10px;
@@ -106,7 +106,7 @@
   top: 60px;
   height: calc(100dvh - 60px);
   background: var(--brand-deep);
-  scrollbar-color: #2b5a99 transparent;
+  scrollbar-color: #2a5fc0 transparent;
 }
 .erp-navigation {
   gap: 2px;
@@ -187,6 +187,63 @@
 .nav-folder-button .nav-chevron {
   color: inherit;
 }
+.nav-folder-heading {
+  display: flex;
+  align-items: stretch;
+  min-height: 37px;
+  border-radius: 5px;
+}
+.nav-folder-page {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 8px 8px 8px 15px;
+  color: #b3c8e8;
+  font-size: 12px;
+  text-decoration: none;
+}
+.nav-folder-page > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nav-folder-page:hover,
+.nav-folder-toggle:hover {
+  background: #ffffff12;
+  color: #fff;
+}
+.nav-folder-page.active {
+  color: #fff;
+  font-weight: 700;
+}
+.nav-folder-toggle {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  flex: 0 0 34px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #b3c8e8;
+}
+.nav-folder-toggle i {
+  display: flex;
+  font-style: normal;
+  transition: transform 0.15s ease;
+}
+.nav-folder-toggle .nav-chevron.open {
+  transform: rotate(180deg);
+}
+.nav-folder-toggle.active {
+  color: #fff;
+}
+.nav-flyout-folder .nav-flyout-parent {
+  margin-left: 0;
+  padding-left: 10px;
+  border-left: 0;
+}
 .nav-children.nested {
   margin: 2px 0 4px 12px;
 }
@@ -241,7 +298,7 @@
   border-bottom-color: #e2eaf5;
 }
 .data-table th {
-  border-color: #0a4590;
+  border-color: #0a50bd;
 }
 .mobile-open .mobile-scrim {
   inset: 60px 0 0;
@@ -321,7 +378,7 @@
   background: #fff;
   border: 1px solid #dbe5f2;
   border-radius: 10px;
-  box-shadow: 0 12px 30px #02254f33;
+  box-shadow: 0 12px 30px #06306e33;
   animation: flyout-in 0.12s ease-out;
 }
 .nav-flyout::before {
@@ -422,7 +479,7 @@
 }
 .table-search:focus-within {
   border-color: var(--brand);
-  box-shadow: 0 0 0 3px #054ba31f;
+  box-shadow: 0 0 0 3px #0c64e61f;
   color: var(--brand);
 }
 .table-search input {
@@ -524,7 +581,7 @@
   background: #f5f8fd;
 }
 .data-table tbody tr.selected {
-  background: #e9f0fb;
+  background: #e8f0fe;
 }
 .data-table tbody tr:last-child td {
   border-bottom: 0;
@@ -668,7 +725,7 @@
   position: fixed;
   z-index: 1000;
   border-radius: 8px;
-  box-shadow: 0 10px 24px #02254f2e;
+  box-shadow: 0 10px 24px #06306e2e;
 }
 
 /* ---------- Filter panel (slides in from the right) ---------- */
@@ -680,7 +737,7 @@
 .drawer-backdrop {
   position: absolute;
   inset: 0;
-  background: #0a1a3366;
+  background: #071b3d66;
   animation: drawer-fade 0.18s ease-out;
 }
 .drawer {
@@ -692,7 +749,7 @@
   flex-direction: column;
   width: min(520px, 100vw);
   background: #fff;
-  box-shadow: -10px 0 30px #02254f33;
+  box-shadow: -10px 0 30px #06306e33;
   outline: none;
   animation: drawer-in 0.22s ease-out;
 }
@@ -755,7 +812,7 @@
 }
 .date-range:focus-within {
   border-color: var(--brand);
-  box-shadow: 0 0 0 3px #054ba31f;
+  box-shadow: 0 0 0 3px #0c64e61f;
 }
 .date-range input {
   flex: 1;
@@ -787,7 +844,7 @@
 .min-max input:focus {
   border-color: var(--brand);
   outline: 0;
-  box-shadow: 0 0 0 3px #054ba31f;
+  box-shadow: 0 0 0 3px #0c64e61f;
 }
 .chips {
   display: flex;
@@ -903,7 +960,7 @@
 .select-button:focus-visible {
   border-color: var(--brand);
   outline: 0;
-  box-shadow: 0 0 0 3px #054ba31f;
+  box-shadow: 0 0 0 3px #0c64e61f;
 }
 .select-button:disabled {
   background: #f4f6f9;
@@ -955,7 +1012,7 @@
   background: #fff;
   border: 1px solid #d6e0ec;
   border-radius: 8px;
-  box-shadow: 0 12px 28px #02254f2b;
+  box-shadow: 0 12px 28px #06306e2b;
   transform-origin: top center;
   animation: select-open 0.16s ease-out;
 }

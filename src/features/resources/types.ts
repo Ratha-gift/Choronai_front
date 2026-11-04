@@ -30,6 +30,7 @@ export type FieldDef = {
 export type ResourceDef = {
   id: string;
   collection: CollectionName;
+  filterRows?: (row: Row) => boolean;
   title: Label;
   /** Singular noun for "Add …" / "Edit …" titles. */
   noun: Label;
