@@ -44,7 +44,6 @@ export function Select({
   className = "",
   searchPlaceholder = "Search…",
   forceSearch,
-  minListWidth = 0,
   footer,
 }: {
   value: string;
@@ -58,8 +57,6 @@ export function Select({
   searchPlaceholder?: string;
   /** Always show the search box, even for short lists. */
   forceSearch?: boolean;
-  /** The list can be wider than a narrow button (long option names). */
-  minListWidth?: number;
   /** Extra row pinned under the options; receives a function that closes the list. */
   footer?: (close: () => void) => ReactNode;
 }) {
@@ -90,11 +87,9 @@ export function Select({
     const above = rect.top - 12;
     const wanted = Math.min(300, options.length * 38 + (searchable ? 52 : 12));
     const upward = below < wanted && above > below;
-    const width = Math.max(rect.width, minListWidth);
     setPlace({
-      // Kept inside the window when the list is wider than its button.
-      left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
-      width,
+      left: rect.left,
+      width: rect.width,
       ...(upward
         ? { bottom: window.innerHeight - rect.top + 4 }
         : { top: rect.bottom + 4 }),

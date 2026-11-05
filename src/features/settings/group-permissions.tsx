@@ -5,7 +5,9 @@ import { useCollection } from "@/data/collections";
 import { useLanguage, type Label } from "@/i18n";
 import { useStored } from "@/lib/store";
 import { notify } from "@/lib/toast";
-import { DEFAULT_PERMISSIONS, PERMISSIONS_KEY } from "./permissions";
+
+type Permissions = Record<string, Record<string, boolean>>;
+const NONE: Permissions = {};
 
 const CRUD: [string, Label][] = [
   ["view", ["View", "មើល"]],
@@ -14,13 +16,7 @@ const CRUD: [string, Label][] = [
   ["delete", ["Delete", "លុប"]],
 ];
 
-const MODULES: {
-  id: string;
-  label: Label;
-  misc: [string, Label][];
-  /** false: no View/Add/Edit/Delete boxes, only the miscellaneous ones. */
-  crud?: false;
-}[] = [
+const MODULES: { id: string; label: Label; misc: [string, Label][] }[] = [
   {
     id: "products",
     label: ["Products", "មុខទំនិញ"],
@@ -86,17 +82,10 @@ const MODULES: {
       ["sales", ["Sales", "ការលក់"]],
     ],
   },
-  {
-    id: "branches",
-    label: ["Branch Access", "សិទ្ធិសាខា"],
-    crud: false,
-    // Without it, users only see the data of their own branch (People → Users).
-    misc: [["all", ["See all branches", "មើលគ្រប់សាខា"]]],
-  },
 ];
 
 const keysOf = (module: (typeof MODULES)[number]) => [
-  ...(module.crud === false ? [] : CRUD.map(([id]) => `${module.id}.${id}`)),
+  ...CRUD.map(([id]) => `${module.id}.${id}`),
   ...module.misc.map(([id]) => `${module.id}.${id}`),
 ];
 const ALL_KEYS = MODULES.flatMap(keysOf);
@@ -135,7 +124,7 @@ function CheckAll({
 export function GroupPermissions({ groupId }: { groupId?: string }) {
   const { l, t } = useLanguage();
   const { rows: groups } = useCollection("userGroups");
-  const [saved, setSaved] = useStored(PERMISSIONS_KEY, DEFAULT_PERMISSIONS);
+  const [saved, setSaved] = useStored("choronai-permissions-v1", NONE);
   const group = groups.find((row) => row.id === groupId) ?? groups[0];
   const [values, setValues] = useState<Record<string, boolean>>(
     (group && saved[group.id]) ?? {},
@@ -164,17 +153,10 @@ export function GroupPermissions({ groupId }: { groupId?: string }) {
     <Box
       icon="lock"
       title={`${String(group.description)} (${String(group.name)}) ${l(["Group Permissions", "សិទ្ធិក្រុម"])}`}
-      intro={
-        String(group.name).toLowerCase() === "owner"
-          ? l([
-              "The Owner group can always do everything; these ticks do not limit it.",
-              "ក្រុម Owner អាចធ្វើបានគ្រប់យ៉ាងជានិច្ច។ ការជ្រើសខាងក្រោមមិនកំណត់សិទ្ធិវាទេ។",
-            ])
-          : l([
-              "Tick what members of this group may do.",
-              "ជ្រើសរើសអ្វីដែលសមាជិកក្រុមនេះអាចធ្វើបាន។",
-            ])
-      }
+      intro={l([
+        "Tick what members of this group may do.",
+        "ជ្រើសរើសអ្វីដែលសមាជិកក្រុមនេះអាចធ្វើបាន។",
+      ])}
     >
       <div className="table-responsive">
         <table className="data-table permissions">
@@ -199,9 +181,7 @@ export function GroupPermissions({ groupId }: { groupId?: string }) {
                   <label className="check-all-label column">
                     {l(label)}
                     <CheckAll
-                      keys={MODULES.filter(
-                        (module) => module.crud !== false,
-                      ).map((module) => `${module.id}.${id}`)}
+                      keys={MODULES.map((module) => `${module.id}.${id}`)}
                       values={values}
                       onChange={setMany}
                       label={`${selectAll}: ${l(label)}`}
@@ -228,7 +208,7 @@ export function GroupPermissions({ groupId }: { groupId?: string }) {
                 </th>
                 {CRUD.map(([id]) => (
                   <td key={id} className="align-center">
-                    {module.crud !== false && box(`${module.id}.${id}`)}
+                    {box(`${module.id}.${id}`)}
                   </td>
                 ))}
                 <td>

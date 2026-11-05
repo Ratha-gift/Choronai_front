@@ -1,0 +1,751 @@
+"use client";
+import { currentUsername } from "@/lib/auth";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Icon } from "@/components/icons";
+import { Box } from "@/components/ui/box";
+import { Field, FormGrid, NumberInput } from "@/components/ui/fields";
+import { addRow, setRows, useCollection } from "@/data/collections";
+import type { LineItem, Transaction } from "@/data/types";
+import {
+  adjustStock,
+  productCost,
+  productStock,
+  productUnit,
+  useProducts,
+} from "@/features/products/store";
+import { useSettings } from "@/features/settings/store";
+import { useLanguage, type Label } from "@/i18n";
+import {
+  formatMoney,
+  formatNumber,
+  localDateTime,
+  nextReference,
+  toNumber,
+} from "@/lib/format";
+import { notify } from "@/lib/toast";
+import { KINDS, lineDelta, type TransactionKind } from "./kinds";
+
+const round = (value: number) => Math.round(value * 1000) / 1000;
+
+const currentStockLabel: Label = ["Current Stock", "ស្តុកបច្ចុប្បន្ន"];
+const stockAfterLabel: Label = ["Stock After", "ស្តុកក្រោយកែ"];
+
+export function TransactionForm({
+  kind: kindId,
+  recordId,
+}: {
+  kind: TransactionKind;
+  /** Edit this saved record instead of adding a new one. */
+  recordId?: string;
+}) {
+  const kind = KINDS[kindId];
+  const { l, t } = useLanguage();
+  const router = useRouter();
+  const [settings] = useSettings("system");
+  const { products } = useProducts();
+  const records = useCollection(kind.collection);
+  const sources = useCollection<Transaction>(kind.source ?? "sales");
+  const parties = useCollection(
+    kind.party === "customer" ? "customers" : "suppliers",
+  );
+  const branches = useCollection("branches");
+  const warehouses = useCollection("warehouses");
+  const taxRates = useCollection("taxRates");
+  const existing = recordId
+    ? (records.rows.find((row) => row.id === recordId) as
+        Transaction | undefined)
+    : undefined;
+
+  const fresh = () => ({
+    date: localDateTime(),
+    reference: nextReference(
+      String(settings[kind.prefixSetting] ?? ""),
+      records.rows.length,
+    ),
+    referenceTo: "",
+    branch: String(settings.defaultBranch ?? ""),
+    toBranch: "",
+    warehouse: String(settings.defaultWarehouse ?? ""),
+    party: "",
+    status: kind.statuses[0],
+    taxRate: "",
+    discount: 0,
+    shipping: 0,
+    paid: 0,
+    note: "",
+    document: "",
+  });
+  const fromExisting = (record: Transaction) => ({
+    ...fresh(),
+    date: localDateTime(new Date(record.date)),
+    reference: record.reference,
+    referenceTo: record.referenceTo ?? "",
+    branch: record.branch ?? "",
+    toBranch: record.toBranch ?? "",
+    warehouse: record.warehouse ?? "",
+    status: record.status,
+    discount: record.discount,
+    shipping: record.shipping,
+    paid: record.paid,
+    note: record.note ?? "",
+    document: String(record.document ?? ""),
+  });
+  const [form, setForm] = useState(() =>
+    existing ? fromExisting(existing) : fresh(),
+  );
+  const [items, setItems] = useState<LineItem[]>(() =>
+    existing ? existing.items.map((line) => ({ ...line })) : [],
+  );
+  const [search, setSearch] = useState("");
+  const [moreOptions, setMoreOptions] = useState(true);
+  const set = (patch: Partial<ReturnType<typeof fresh>>) =>
+    setForm((old) => ({ ...old, ...patch }));
+
+  const matches = useMemo(() => {
+    const term = search.toLowerCase().trim();
+    if (!term) return [];
+    return products
+      .filter((product) =>
+        `${product.sku} ${product.name}`.toLowerCase().includes(term),
+      )
+      .slice(0, 8);
+  }, [products, search]);
+
+  function addProduct(id: string) {
+    const product = products.find((item) => item.id === id);
+    if (!product) return;
+    setItems((old) =>
+      old.some((line) => line.productId === id)
+        ? old.map((line) =>
+            line.productId === id
+              ? { ...line, quantity: round(line.quantity + 1) }
+              : line,
+          )
+        : [
+            ...old,
+            {
+              productId: product.id,
+              code: product.sku,
+              name: product.name,
+              unit: productUnit(product),
+              quantity: 1,
+              price:
+                kind.price === "cost" ? productCost(product) : product.price,
+              ...(kind.expiry ? { expiry: "" } : {}),
+              ...(kind.price === "none" ? { type: "addition" as const } : {}),
+            },
+          ],
+    );
+    setSearch("");
+  }
+
+  function loadSource(reference: string) {
+    const source = sources.rows.find((row) => row.reference === reference);
+    set({
+      referenceTo: reference,
+      party: String(source?.customer ?? source?.supplier ?? ""),
+    });
+    setItems(source ? source.items.map((line) => ({ ...line })) : []);
+  }
+
+  const total = items.reduce(
+    (sum, line) => sum + line.price * line.quantity,
+    0,
+  );
+  const rate = toNumber(
+    taxRates.rows.find((row) => row.name === form.taxRate)?.rate,
+  );
+  const rateType = taxRates.rows.find((row) => row.name === form.taxRate)?.type;
+  const charges = kind.price !== "none" && kind.charges !== false;
+  const discount = charges ? toNumber(form.discount) : 0;
+  const orderTax = !charges
+    ? 0
+    : rateType === "Percentage"
+      ? ((total - discount) * rate) / 100
+      : rate;
+  const shipping = charges ? toNumber(form.shipping) : 0;
+  const grandTotal = Math.max(0, total - discount + orderTax + shipping);
+  const totalQty = items.reduce((sum, line) => sum + line.quantity, 0);
+
+  function save() {
+    if (!items.length) {
+      notify(t.addItemsFirst);
+      return;
+    }
+    if (kind.party && !form.party) {
+      notify(t.selectPartyFirst);
+      return;
+    }
+    const paid = kind.payment ? Math.min(toNumber(form.paid), grandTotal) : 0;
+    const record: Omit<Transaction, "id"> = {
+      date: new Date(form.date).toISOString(),
+      reference: form.reference,
+      referenceTo: form.referenceTo || undefined,
+      branch: form.branch,
+      ...(kind.toBranch ? { toBranch: form.toBranch || undefined } : {}),
+      warehouse: form.warehouse,
+      ...(kind.party === "customer" ? { customer: form.party } : {}),
+      ...(kind.party === "supplier" ? { supplier: form.party } : {}),
+      items,
+      total,
+      orderTax,
+      discount,
+      shipping,
+      grandTotal,
+      paid,
+      returned: 0,
+      balance: grandTotal - paid,
+      paymentStatus: paid >= grandTotal ? "paid" : paid > 0 ? "partial" : "due",
+      status: form.status,
+      note: form.note,
+      createdBy: currentUsername(),
+      ...(form.document ? { document: form.document } : {}),
+    };
+    const movesStock = kind.stock !== 0 || kind.price === "none";
+    if (existing) {
+      // Keep who created it; undo the old stock change, then apply the new one.
+      setRows(kind.collection, (rows) =>
+        rows.map((row) =>
+          row.id === existing.id
+            ? { ...row, ...record, createdBy: existing.createdBy }
+            : row,
+        ),
+      );
+      if (movesStock)
+        adjustStock([
+          ...existing.items.map((line) => ({
+            productId: line.productId,
+            delta: -lineDelta(kind, line),
+          })),
+          ...items.map((line) => ({
+            productId: line.productId,
+            delta: lineDelta(kind, line),
+          })),
+        ]);
+      notify(t.saved);
+      router.push(kind.listHref);
+      return;
+    }
+    addRow(kind.collection, record);
+    if (movesStock)
+      adjustStock(
+        items.map((line) => ({
+          productId: line.productId,
+          delta: lineDelta(kind, line),
+        })),
+      );
+    if (kind.source && form.referenceTo)
+      setRows(kind.source, (rows) =>
+        rows.map((row) =>
+          row.reference === form.referenceTo
+            ? {
+                ...row,
+                returned: toNumber(row.returned) + grandTotal,
+              }
+            : row,
+        ),
+      );
+    notify(t.added);
+    router.push(kind.listHref);
+  }
+
+  const priceLabel = kind.price === "cost" ? t.netUnitCost : t.netUnitPrice;
+  // Stock adjustments show the stock now and the stock after saving.
+  const isAdjust = kind.price === "none";
+  const qoh = (productId: string) => {
+    const product = products.find((item) => item.id === productId);
+    const now = product ? productStock(product) : 0;
+    // When editing, this record's own change is already in the stock.
+    const own = (existing?.items ?? [])
+      .filter((line) => line.productId === productId)
+      .reduce((sum, line) => sum + lineDelta(kind, line), 0);
+    return round(now - own);
+  };
+  const newQoh = (line: LineItem) =>
+    round(
+      qoh(line.productId) +
+        (line.type === "subtraction" ? -line.quantity : line.quantity),
+    );
+
+  if (recordId && !existing)
+    return (
+      <Box icon={kind.icon} title={l(kind.editTitle ?? kind.title)}>
+        <p>{t.noDataTable}</p>
+      </Box>
+    );
+
+  return (
+    <Box
+      icon={kind.icon}
+      title={
+        existing
+          ? `${l(kind.editTitle ?? kind.title)} (${existing.reference})`
+          : l(kind.title)
+      }
+      intro={t.formIntro}
+    >
+      <form
+        className="transaction-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          save();
+        }}
+      >
+        <FormGrid columns={3}>
+          <Field label={t.date} required>
+            <input
+              className="form-control"
+              type="datetime-local"
+              required
+              value={form.date}
+              onChange={(event) => set({ date: event.target.value })}
+            />
+          </Field>
+          {kind.source && (
+            <Field label={t.saleReference} required>
+              <select
+                className="form-control"
+                required
+                value={form.referenceTo}
+                onChange={(event) => loadSource(event.target.value)}
+              >
+                <option value="">{t.select}</option>
+                {sources.rows.map((row) => (
+                  <option key={row.id} value={row.reference}>
+                    {row.reference}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
+          <Field label={t.referenceNo}>
+            <input
+              className="form-control"
+              value={form.reference}
+              onChange={(event) => set({ reference: event.target.value })}
+            />
+          </Field>
+          <Field
+            label={kind.toBranch ? l(["From Branch", "ពីសាខា"]) : t.branch}
+            required
+          >
+            <select
+              className="form-control"
+              required
+              value={form.branch}
+              onChange={(event) =>
+                set({
+                  branch: event.target.value,
+                  // A branch cannot send to itself.
+                  ...(event.target.value === form.toBranch
+                    ? { toBranch: "" }
+                    : {}),
+                })
+              }
+            >
+              {branches.rows.map((row) => (
+                <option key={row.id}>{String(row.name)}</option>
+              ))}
+            </select>
+          </Field>
+          {kind.toBranch && (
+            <Field label={l(["To Branch", "ទៅសាខា"])}>
+              <select
+                className="form-control"
+                value={form.toBranch}
+                onChange={(event) => set({ toBranch: event.target.value })}
+              >
+                <option value="">{t.select}</option>
+                {branches.rows
+                  .filter((row) => String(row.name) !== form.branch)
+                  .map((row) => (
+                    <option key={row.id}>{String(row.name)}</option>
+                  ))}
+              </select>
+            </Field>
+          )}
+          <Field label={t.warehouse} required>
+            <select
+              className="form-control"
+              required
+              value={form.warehouse}
+              onChange={(event) => set({ warehouse: event.target.value })}
+            >
+              {warehouses.rows.map((row) => (
+                <option key={row.id}>{String(row.name)}</option>
+              ))}
+            </select>
+          </Field>
+          {kind.statuses.length > 1 && (
+            <Field label={t.status} required>
+              <select
+                className="form-control"
+                value={form.status}
+                onChange={(event) => set({ status: event.target.value })}
+              >
+                {kind.statuses.map((status) => (
+                  <option key={status} value={status}>
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
+          <Field label={t.attachDocument}>
+            <div className="file-input">
+              <input
+                className="form-control"
+                readOnly
+                value={form.document}
+                tabIndex={-1}
+              />
+              <label className="btn btn-primary">
+                <Icon name="folder" size={14} /> {t.browse}
+                <input
+                  type="file"
+                  hidden
+                  onChange={(event) =>
+                    set({ document: event.target.files?.[0]?.name ?? "" })
+                  }
+                />
+              </label>
+            </div>
+          </Field>
+        </FormGrid>
+
+        {kind.party && (
+          <div className="panel-warning">
+            <div className="panel-heading">{t.selectBeforeProducts}</div>
+            <div className="panel-body">
+              <Field
+                label={kind.party === "customer" ? t.customer : t.supplier}
+                required
+              >
+                <select
+                  className="form-control"
+                  required
+                  value={form.party}
+                  onChange={(event) => set({ party: event.target.value })}
+                >
+                  <option value="">
+                    {kind.party === "customer"
+                      ? t.selectCustomer
+                      : t.selectSupplier}
+                  </option>
+                  {parties.rows.map((row) => (
+                    <option key={row.id}>{String(row.name)}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          </div>
+        )}
+
+        <div className="add-item-bar">
+          <span className="add-item-icon">
+            <Icon name="barcode" />
+          </span>
+          <input
+            value={search}
+            placeholder={t.addProductsToList}
+            aria-label={t.addProductsToList}
+            onChange={(event) => setSearch(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                if (matches[0]) addProduct(matches[0].id);
+              }
+            }}
+          />
+          {search && (
+            <ul className="autocomplete-list">
+              {matches.length ? (
+                matches.map((product) => (
+                  <li key={product.id}>
+                    <button
+                      type="button"
+                      onClick={() => addProduct(product.id)}
+                    >
+                      {product.sku} - {product.name}
+                    </button>
+                  </li>
+                ))
+              ) : (
+                <li className="no-match">{t.noMatch}</li>
+              )}
+            </ul>
+          )}
+        </div>
+
+        <label className="form-label">{t.orderItems}</label>
+        <div className="table-responsive">
+          <table className="data-table compact">
+            <thead>
+              <tr>
+                <th>{t.productCodeName}</th>
+                {isAdjust && <th>{l(["Description", "ពិពណ៌នា"])}</th>}
+                {isAdjust && <th>{l(currentStockLabel)}</th>}
+                {kind.expiry && !isAdjust && <th>{t.expiryDate}</th>}
+                {!isAdjust && <th>{priceLabel}</th>}
+                {isAdjust && <th>{t.type}</th>}
+                <th>{t.quantity}</th>
+                {!isAdjust && <th>{t.subtotal}</th>}
+                {isAdjust && <th>{l(stockAfterLabel)}</th>}
+                {kind.expiry && isAdjust && <th>{t.expiryDate}</th>}
+                <th className="icon-col">
+                  <button
+                    type="button"
+                    className="th-button"
+                    title={t.removeAll}
+                    aria-label={t.removeAll}
+                    onClick={() => setItems([])}
+                  >
+                    <Icon name="trash" size={14} />
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((line, index) => {
+                const change = (patch: Partial<LineItem>) =>
+                  setItems((old) =>
+                    old.map((item, i) =>
+                      i === index ? { ...item, ...patch } : item,
+                    ),
+                  );
+                const expiryCell = (
+                  <td className="cell-input">
+                    <input
+                      type="date"
+                      aria-label={t.expiryDate}
+                      value={line.expiry ?? ""}
+                      onChange={(event) =>
+                        change({ expiry: event.target.value })
+                      }
+                    />
+                  </td>
+                );
+                return (
+                  <tr key={line.productId}>
+                    <td>
+                      {line.code} - {line.name}
+                    </td>
+                    {isAdjust && (
+                      <td className="cell-input">
+                        <input
+                          aria-label={l(["Description", "ពិពណ៌នា"])}
+                          value={line.description ?? ""}
+                          onChange={(event) =>
+                            change({ description: event.target.value })
+                          }
+                        />
+                      </td>
+                    )}
+                    {isAdjust && (
+                      <td className="align-right qoh-cell">
+                        {formatNumber(qoh(line.productId), 3)}{" "}
+                        <span className="unit">{line.unit}</span>
+                      </td>
+                    )}
+                    {kind.expiry && !isAdjust && expiryCell}
+                    {kind.price !== "none" && (
+                      <td className="cell-input">
+                        <NumberInput
+                          min="0"
+                          aria-label={priceLabel}
+                          value={line.price}
+                          onChange={(next) => change({ price: next })}
+                        />
+                      </td>
+                    )}
+                    {kind.price === "none" && (
+                      <td className="cell-input">
+                        <select
+                          aria-label={t.type}
+                          value={line.type}
+                          onChange={(event) =>
+                            change({
+                              type: event.target.value as LineItem["type"],
+                            })
+                          }
+                        >
+                          <option value="addition">{t.addition}</option>
+                          <option value="subtraction">{t.subtraction}</option>
+                        </select>
+                      </td>
+                    )}
+                    <td className="cell-input qty-col">
+                      <NumberInput
+                        min="0.001"
+                        step="any"
+                        aria-label={t.quantity}
+                        value={line.quantity}
+                        onChange={(next) => change({ quantity: next })}
+                      />
+                    </td>
+                    {!isAdjust && (
+                      <td className="align-right">
+                        {formatMoney(line.price * line.quantity)}
+                      </td>
+                    )}
+                    {isAdjust && (
+                      <td className="cell-input qty-col">
+                        <NumberInput
+                          step="any"
+                          aria-label={l(stockAfterLabel)}
+                          value={newQoh(line)}
+                          onChange={(next) => {
+                            // Typing the counted stock works out the change.
+                            const diff = round(next - qoh(line.productId));
+                            change({
+                              type: diff < 0 ? "subtraction" : "addition",
+                              quantity: Math.abs(diff),
+                            });
+                          }}
+                        />
+                      </td>
+                    )}
+                    {kind.expiry && isAdjust && expiryCell}
+                    <td className="icon-col">
+                      <button
+                        type="button"
+                        className="link-danger"
+                        aria-label={t.remove}
+                        onClick={() =>
+                          setItems((old) => old.filter((_, i) => i !== index))
+                        }
+                      >
+                        ×
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {items.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="no-data">
+                    {t.noItemsYet}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="totals-bar">
+          <span>
+            {t.items}{" "}
+            <b>
+              {items.length} ({formatNumber(totalQty, 3)})
+            </b>
+          </span>
+          {kind.price !== "none" && (
+            <>
+              <span>
+                {t.total} <b>{formatMoney(total)}</b>
+              </span>
+            </>
+          )}
+          {charges && (
+            <>
+              <span>
+                {t.orderTax} <b>{formatMoney(orderTax)}</b>
+              </span>
+              <span>
+                {t.discount} <b>{formatMoney(discount)}</b>
+              </span>
+              <span>
+                {t.shipping} <b>{formatMoney(form.shipping)}</b>
+              </span>
+              <span>
+                {t.grandTotal} <b>{formatMoney(grandTotal)}</b>
+              </span>
+            </>
+          )}
+        </div>
+
+        <label className="checkbox-inline">
+          <input
+            type="checkbox"
+            checked={moreOptions}
+            onChange={() => setMoreOptions((value) => !value)}
+          />
+          {t.moreOptions}
+        </label>
+        {moreOptions && (
+          <FormGrid columns={3}>
+            {charges && (
+              <>
+                <Field label={t.orderTax}>
+                  <select
+                    className="form-control"
+                    value={form.taxRate}
+                    onChange={(event) => set({ taxRate: event.target.value })}
+                  >
+                    <option value="">{t.noTax}</option>
+                    {taxRates.rows.map((row) => (
+                      <option key={row.id}>{String(row.name)}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label={t.discount}>
+                  <NumberInput
+                    className="form-control"
+                    min="0"
+                    value={form.discount}
+                    onChange={(next) => set({ discount: next })}
+                  />
+                </Field>
+                <Field label={t.shipping}>
+                  <NumberInput
+                    className="form-control"
+                    min="0"
+                    value={form.shipping}
+                    onChange={(next) => set({ shipping: next })}
+                  />
+                </Field>
+              </>
+            )}
+            {kind.payment && (
+              <Field label={t.amountPaid} hint={formatMoney(grandTotal)}>
+                <NumberInput
+                  className="form-control"
+                  min="0"
+                  value={form.paid}
+                  onChange={(next) => set({ paid: next })}
+                />
+              </Field>
+            )}
+            <Field label={t.note} full>
+              <textarea
+                className="form-control"
+                rows={4}
+                value={form.note}
+                onChange={(event) => set({ note: event.target.value })}
+              />
+            </Field>
+          </FormGrid>
+        )}
+        <div className="button-row form-actions">
+          <button className="btn btn-primary" type="submit">
+            {t.submit}
+          </button>
+          <button
+            className="btn btn-danger"
+            type="button"
+            onClick={() => {
+              // Editing: back to the saved values; adding: an empty form.
+              setForm(existing ? fromExisting(existing) : fresh());
+              setItems(
+                existing ? existing.items.map((line) => ({ ...line })) : [],
+              );
+            }}
+          >
+            {t.reset}
+          </button>
+        </div>
+      </form>
+    </Box>
+  );
+}

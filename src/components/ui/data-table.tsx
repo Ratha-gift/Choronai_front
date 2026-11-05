@@ -40,8 +40,6 @@ export type Column<T> = {
   filter?: FilterSection["kind"] | false;
   /** Drawer label when it differs from the table heading. */
   filterLabel?: Label;
-  /** Choices offered by a "select" / "chips" filter besides the values in the rows. */
-  filterOptions?: string[];
   /** Optional combined value for matching a drawer filter. */
   filterValue?: (row: T) => unknown;
 };
@@ -250,18 +248,14 @@ export function DataTable<T extends { id: string }>({
               column.type === "qty"
             ? "range"
             : "chips");
-      if (kind !== "chips" && kind !== "select") return [{ ...base, kind }];
+      if (kind !== "chips") return [{ ...base, kind }];
       const options = [
         ...new Set(
-          [
-            ...(column.filterOptions ?? []),
-            ...rows.map((row) => String(cellValue(column, row) ?? "")),
-          ]
-            .map((option) => option.trim())
+          rows
+            .map((row) => String(cellValue(column, row) ?? "").trim())
             .filter(Boolean),
         ),
       ].sort((x, y) => x.localeCompare(y, undefined, { numeric: true }));
-      if (kind === "select") return [{ ...base, kind, options }];
       // Chips only help for short lists (status, category, warehouse …);
       // free text like names is covered by the search box.
       const useful =

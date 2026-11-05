@@ -14,8 +14,6 @@ const METHOD_LABELS: Record<string, Label> = {
   "ABA / KHQR": ["ABA / KHQR", "ABA / KHQR"],
   Card: ["Card", "កាត"],
   "Bank transfer": ["Bank transfer", "ផ្ទេរតាមធនាគារ"],
-  Delivery: ["Delivery", "ដឹកជញ្ជូន"],
-  Other: ["Other", "ផ្សេងៗ"],
 };
 
 /** Asks for the cash in hand before the cashier starts selling. */

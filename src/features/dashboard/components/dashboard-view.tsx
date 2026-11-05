@@ -6,8 +6,6 @@ import { Box } from "@/components/ui/box";
 import { StatTile } from "@/components/ui/charts";
 import { StatusLabel } from "@/components/ui/status-label";
 import { Tabs } from "@/components/ui/tabs";
-import { usePermissions } from "@/features/settings/permissions";
-import { useSession } from "@/lib/auth";
 import { useCollection } from "@/data/collections";
 import type { Transaction } from "@/data/types";
 import { useLanguage, type Label } from "@/i18n";
@@ -78,87 +76,59 @@ const latest = <T extends { date: string }>(rows: T[]) =>
 export function DashboardView() {
   const { l, t } = useLanguage();
   const [tab, setTab] = useState<Tab>("sales");
-  // Users without "See all branches" see their own branch's figures.
-  const { branch } = usePermissions();
-  const mine = (rows: Transaction[]) =>
-    branch
-      ? rows.filter((row) => row.branch === branch || row.toBranch === branch)
-      : rows;
-  const sales = mine(useCollection<Transaction>("sales").rows);
-  const returns = mine(useCollection<Transaction>("saleReturns").rows);
-  const receives = mine(useCollection<Transaction>("stockReceives").rows);
-  const issues = mine(useCollection<Transaction>("stockIssues").rows);
+  const sales = useCollection<Transaction>("sales").rows;
+  const returns = useCollection<Transaction>("saleReturns").rows;
+  const receives = useCollection<Transaction>("stockReceives").rows;
+  const issues = useCollection<Transaction>("stockIssues").rows;
   const customers = useCollection("customers").rows;
   const suppliers = useCollection("suppliers").rows;
 
   const salesTotal = sum(sales, (row) => row.grandTotal);
   const paidTotal = sum(sales, (row) => row.paid);
   const returnedTotal = sum(returns, (row) => row.grandTotal);
-  // Each part shows only with its permission (Settings → Group Permissions).
-  const { can, canOpen } = usePermissions();
-  const session = useSession();
-  const allTiles: {
+  const tiles: {
     label: Label;
     value: number;
     icon: IconName;
     color: string;
-    need: string;
   }[] = [
     {
       label: ["Sales", "ការលក់"],
       value: salesTotal,
       icon: "cart",
       color: "blue",
-      need: "sales.view",
     },
     {
       label: ["Balance Sales", "សមតុល្យលក់"],
       value: salesTotal - paidTotal - returnedTotal,
       icon: "dollar",
       color: "red",
-      need: "sales.view",
     },
     {
       label: ["Payment Sales", "ការទូទាត់លក់"],
       value: paidTotal,
       icon: "money",
       color: "cyan",
-      need: "sales.view",
     },
     {
       label: ["Returned Sales", "ទំនិញលក់ត្រឡប់"],
       value: returnedTotal,
       icon: "undo",
       color: "yellow",
-      need: "sales.view",
     },
     {
       label: ["Stock Received (cost)", "ស្តុកបានទទួល (ថ្លៃដើម)"],
       value: sum(receives, (row) => row.grandTotal),
       icon: "download",
       color: "green",
-      need: "stock.view",
     },
     {
       label: ["Stock Issued (cost)", "ស្តុកបានបញ្ចេញ (ថ្លៃដើម)"],
       value: sum(issues, (row) => row.grandTotal),
       icon: "upload",
       color: "teal",
-      need: "stock.view",
     },
   ];
-
-  const tiles = allTiles.filter((tile) => can(tile.need));
-  const links = LINKS.filter((link) => canOpen(link.href.slice(1)));
-  const tabs = (
-    [
-      ["sales", l(["Sales", "ការលក់"]), "sales.view"],
-      ["receives", l(["Stock Receive", "ទទួលស្តុក"]), "stock.view"],
-      ["customers", l(["Customers", "អតិថិជន"]), "customers.view"],
-      ["suppliers", l(["Suppliers", "អ្នកផ្គត់ផ្គង់"]), "suppliers.view"],
-    ] as [Tab, string, string][]
-  ).filter(([, , need]) => can(need));
-  const shownTab = tabs.some(([id]) => id === tab) ? tab : tabs[0]?.[0];
 
   const table = (headers: Label[], rows: ReactNode[][]) => (
     <div className="table-responsive">
@@ -276,18 +246,6 @@ export function DashboardView() {
     ),
   };
 
-  if (!tiles.length && !links.length && !tabs.length)
-    return (
-      <Box icon="dashboard" title={l(["Welcome", "សូមស្វាគមន៍"])}>
-        <p>
-          {l([
-            `Hello ${session?.name || session?.username || ""}. Your user group has no permissions yet. Ask the owner to give it some in Settings → Group Permissions.`,
-            `សួស្តី ${session?.name || session?.username || ""}។ ក្រុមអ្នកប្រើរបស់អ្នក មិនទាន់មានសិទ្ធិណាមួយទេ។ សូមស្នើម្ចាស់ឱ្យផ្តល់សិទ្ធិក្នុង Settings → Group Permissions។`,
-          ])}
-        </p>
-      </Box>
-    );
-
   return (
     <>
       <div className="tiles">
@@ -301,33 +259,34 @@ export function DashboardView() {
           />
         ))}
       </div>
-      {links.length > 0 && (
-        <Box icon="grid" title={l(["Quick Links", "តំណរហ័ស"])}>
-          <div className="quick-links">
-            {links.map((link) => (
-              <Link
-                key={link.label[0]}
-                href={link.href}
-                className={`quick-link ${link.color}`}
-              >
-                <Icon name={link.icon} size={22} />
-                <span>{l(link.label)}</span>
-              </Link>
-            ))}
-          </div>
-        </Box>
-      )}
-      {shownTab && (
-        <Box icon="table" title={l(["Latest Five", "ប្រាំចុងក្រោយ"])}>
-          <Tabs<Tab>
-            value={shownTab}
-            onChange={setTab}
-            tabs={tabs.map(([id, label]) => [id, label])}
-          >
-            {panels[shownTab]}
-          </Tabs>
-        </Box>
-      )}
+      <Box icon="grid" title={l(["Quick Links", "តំណរហ័ស"])}>
+        <div className="quick-links">
+          {LINKS.map((link) => (
+            <Link
+              key={link.label[0]}
+              href={link.href}
+              className={`quick-link ${link.color}`}
+            >
+              <Icon name={link.icon} size={22} />
+              <span>{l(link.label)}</span>
+            </Link>
+          ))}
+        </div>
+      </Box>
+      <Box icon="table" title={l(["Latest Five", "ប្រាំចុងក្រោយ"])}>
+        <Tabs<Tab>
+          value={tab}
+          onChange={setTab}
+          tabs={[
+            ["sales", l(["Sales", "ការលក់"])],
+            ["receives", l(["Stock Receive", "ទទួលស្តុក"])],
+            ["customers", l(["Customers", "អតិថិជន"])],
+            ["suppliers", l(["Suppliers", "អ្នកផ្គត់ផ្គង់"])],
+          ]}
+        >
+          {panels[tab]}
+        </Tabs>
+      </Box>
     </>
   );
 }

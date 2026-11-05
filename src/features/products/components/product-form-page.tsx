@@ -258,13 +258,9 @@ export function ProductFormPage({ productId }: { productId?: string }) {
             `Up to ${MAX_GALLERY} gallery images`,
             `រូបភាពវិចិត្រសាលអតិបរមា ${MAX_GALLERY}`,
           ]),
-          "error",
         );
     } catch {
-      notify(
-        l(["That file is not an image", "ឯកសារនោះមិនមែនជារូបភាពទេ"]),
-        "error",
-      );
+      notify(l(["That file is not an image", "ឯកសារនោះមិនមែនជារូបភាពទេ"]));
     }
   }
 
@@ -280,7 +276,6 @@ export function ProductFormPage({ productId }: { productId?: string }) {
           "This product code is already used",
           "កូដមុខទំនិញនេះត្រូវបានប្រើរួចហើយ",
         ]),
-        "error",
       );
     if (isCombo && !form.comboItems.length)
       return notify(
@@ -288,13 +283,9 @@ export function ProductFormPage({ productId }: { productId?: string }) {
           "Add at least one product to the combo",
           "សូមបន្ថែមមុខទំនិញយ៉ាងហោចណាស់មួយទៅកញ្ចប់",
         ]),
-        "error",
       );
     if (price <= 0)
-      return notify(
-        l(["Enter a price above 0", "សូមបញ្ចូលតម្លៃធំជាង 0"]),
-        "error",
-      );
+      return notify(l(["Enter a price above 0", "សូមបញ្ចូលតម្លៃធំជាង 0"]));
     const unit = isCombo ? "set" : form.unit;
     const result = saveProduct(
       {

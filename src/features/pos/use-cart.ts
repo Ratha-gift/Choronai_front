@@ -1,10 +1,9 @@
 "use client";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { LineItem } from "@/data/types";
 import { productUnit } from "@/features/products/store";
 import type { Product } from "@/features/products/types";
 import { toNumber } from "@/lib/format";
-import { useStored } from "@/lib/store";
 
 const round = (value: number) => Math.round(value * 1000) / 1000;
 
@@ -25,21 +24,9 @@ export const NO_ADJUSTMENTS: CartAdjustments = {
   shipping: 0,
 };
 
-const NO_ITEMS: LineItem[] = [];
-
-/**
- * The order being rung up. It is saved in the browser for each cashier, so a
- * refresh or a closed tab does not lose it; finishing or clearing empties it.
- */
-export function useCart(cashier: string) {
-  const [items, setItems] = useStored(
-    `choronai-pos-cart-v1:${cashier}`,
-    NO_ITEMS,
-  );
-  const [adjustments, setAdjustments] = useStored(
-    `choronai-pos-cart-adjustments-v1:${cashier}`,
-    NO_ADJUSTMENTS,
-  );
+export function useCart() {
+  const [items, setItems] = useState<LineItem[]>([]);
+  const [adjustments, setAdjustments] = useState(NO_ADJUSTMENTS);
 
   const add = (product: Product, quantity = 1) =>
     setItems((old) =>

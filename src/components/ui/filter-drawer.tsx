@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/icons";
 import { useLanguage, type Label } from "@/i18n";
-import { Select } from "./select";
 
 export type FilterValue = {
   text?: string;
@@ -19,9 +18,7 @@ export type FilterSection =
   | { key: string; label: Label; kind: "text" | "phone" }
   | { key: string; label: Label; kind: "date" }
   | { key: string; label: Label; kind: "range" }
-  | { key: string; label: Label; kind: "chips"; options: string[] }
-  /** One value from a long list (branch, warehouse, user), with search. */
-  | { key: string; label: Label; kind: "select"; options: string[] };
+  | { key: string; label: Label; kind: "chips"; options: string[] };
 
 export const isActive = (value?: FilterValue) =>
   !!value &&
@@ -162,24 +159,6 @@ export function FilterDrawer({
                       </label>
                     ))}
                   </div>
-                )}
-                {section.kind === "select" && (
-                  <Select
-                    ariaLabel={l(section.label)}
-                    forceSearch
-                    searchPlaceholder={`${t.searchLabel}…`}
-                    value={current.values?.[0] ?? ""}
-                    options={[
-                      { value: "", label: l(["All", "ទាំងអស់"]) },
-                      ...section.options.map((option) => ({
-                        value: option,
-                        label: option,
-                      })),
-                    ]}
-                    onChange={(option) =>
-                      change(section.key, { values: option ? [option] : [] })
-                    }
-                  />
                 )}
                 {section.kind === "chips" && (
                   <div className="chips">

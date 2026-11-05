@@ -3,7 +3,6 @@ import { useCollection } from "@/data/collections";
 import type { Row, Transaction } from "@/data/types";
 import { useSession } from "@/lib/auth";
 import { toNumber } from "@/lib/format";
-import { salePayments } from "@/features/sales/payments";
 import { METHODS } from "./payment-modal";
 
 /** One cashier shift: opened with the cash in the drawer, closed after counting. */
@@ -59,14 +58,12 @@ export function summarize(
   const mine = sales.filter((sale) =>
     sale.registerId ? sale.registerId === register.id : inShift(register, sale),
   );
-  // Split payments count under each of their methods.
   const byMethod = Object.fromEntries(
     METHODS.map((method) => [
       method,
       mine
-        .flatMap(salePayments)
-        .filter((payment) => payment.method === method)
-        .reduce((sum, payment) => sum + toNumber(payment.amount), 0),
+        .filter((sale) => (sale.paymentMethod ?? "Cash") === method)
+        .reduce((sum, sale) => sum + toNumber(sale.paid), 0),
     ]),
   ) as Record<string, number>;
   const sum = (rows: Row[], key: string) =>

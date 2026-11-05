@@ -185,7 +185,6 @@ export const SEED = {
       username: "admin021",
       email: "admin@example.com",
       group: "Owner",
-      branch: "Central",
       status: "active",
       // Starting password "admin123" (see src/lib/auth.ts). Change it under
       // People → Users.
@@ -193,24 +192,11 @@ export const SEED = {
         "8924315e6e7817781fae6a97075fafdeeb16b96b53b4aacf38836d35855bdfc9",
     },
     {
-      firstName: "Manager",
-      lastName: "One",
-      username: "manager01",
-      email: "manager@example.com",
-      group: "Admin",
-      branch: "Central",
-      status: "active",
-      // Starting password "manager123".
-      passwordHash:
-        "982759dbb89bc9397301aaddde568caf12ee03a2f1b5fe15c49fe4f1cf361dd2",
-    },
-    {
       firstName: "Cashier",
       lastName: "One",
       username: "cashier01",
       email: "cashier@example.com",
       group: "Sale",
-      branch: "Central",
       status: "active",
       // Starting password "cashier123".
       passwordHash:
@@ -221,7 +207,6 @@ export const SEED = {
     {
       nameKm: "សាខាកណ្ដាល",
       name: "Central",
-      warehouse: "Main warehouse",
       vat: "",
       phone: "012 000 444",
       email: "central@example.com",
@@ -298,8 +283,8 @@ export const SEED = {
   ]),
   userGroups: rows("user-group", [
     { name: "owner", description: "Owner" },
-    { name: "admin", description: "Admin" },
     { name: "sale", description: "Sale" },
+    { name: "stock", description: "Stock" },
   ]),
   printers: rows("printer", [
     {

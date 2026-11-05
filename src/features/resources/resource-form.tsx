@@ -23,6 +23,15 @@ function FieldSelect({
   const { l, t } = useLanguage();
   // Always call the hook; the result is ignored for static-only fields.
   const { rows } = useCollection(field.collection?.name ?? "units");
+  // Values already taken by other records (see FieldDef.exclude).
+  const { rows: takenRows } = useCollection(field.exclude?.name ?? "units");
+  const taken = new Set(
+    field.exclude
+      ? takenRows
+          .map((row) => String(row[field.exclude!.field] ?? ""))
+          .filter(Boolean)
+      : [],
+  );
   const fromCollection = field.collection
     ? [
         ...new Set(
@@ -30,6 +39,7 @@ function FieldSelect({
         ),
       ]
         .filter(Boolean)
+        .filter((text) => !taken.has(text) || text === String(value ?? ""))
         .map((text) => ({ value: text, label: text }))
     : [];
   const options: SelectOption[] = [

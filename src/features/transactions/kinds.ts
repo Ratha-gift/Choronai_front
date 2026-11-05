@@ -4,7 +4,7 @@ import type { IconName } from "@/components/icons";
 import type { Label } from "@/i18n";
 
 export type TransactionKind =
-  "sale" | "sale-return" | "stock-receive" | "stock-issue" | "adjustment";
+  "sale-return" | "stock-receive" | "stock-issue" | "adjustment";
 
 export type KindDef = {
   collection: CollectionName;
@@ -23,8 +23,7 @@ export type KindDef = {
   price: "cost" | "price" | "none";
   expiry?: boolean;
   statuses: string[];
-  /** true: the form has an Amount Paid box; "keep": payments are added separately and kept on edit. */
-  payment?: boolean | "keep";
+  payment?: boolean;
   /** Show order tax, discount and shipping (off for stock movements). */
   charges?: boolean;
   /** Goods leave for another branch: "From Branch" → "To Branch". */
@@ -32,20 +31,6 @@ export type KindDef = {
 };
 
 export const KINDS: Record<TransactionKind, KindDef> = {
-  // Only used to edit a POS sale; new sales are made in the POS.
-  sale: {
-    collection: "sales",
-    listHref: "/sales/pos-sales",
-    title: ["Edit Sale", "កែការលក់"],
-    editTitle: ["Edit Sale", "កែការលក់"],
-    icon: "heart",
-    prefixSetting: "salePrefix",
-    party: "customer",
-    stock: -1,
-    price: "price",
-    statuses: ["completed"],
-    payment: "keep",
-  },
   "sale-return": {
     collection: "saleReturns",
     listHref: "/sales/returns",
@@ -101,10 +86,8 @@ export const KINDS: Record<TransactionKind, KindDef> = {
 
 /** Signed stock change of one line for a kind (adjustments use the line type). */
 export const lineDelta = (kind: KindDef, line: LineItem) =>
-  line.returnStock === false
-    ? 0
-    : kind.price === "none"
-      ? line.type === "subtraction"
-        ? -line.quantity
-        : line.quantity
-      : kind.stock * line.quantity;
+  kind.price === "none"
+    ? line.type === "subtraction"
+      ? -line.quantity
+      : line.quantity
+    : kind.stock * line.quantity;

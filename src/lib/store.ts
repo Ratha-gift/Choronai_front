@@ -66,7 +66,6 @@ export function writeStored<T>(
     // and say so, because it will be gone after a reload.
     notify(
       "Browser storage is full: this change will be lost on reload. Use smaller images. / ទំហំផ្ទុកពេញ សូមប្រើរូបភាពតូចជាង។",
-      "error",
     );
   }
   listeners.get(key)?.forEach((listener) => listener());
