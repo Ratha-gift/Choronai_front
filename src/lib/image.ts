@@ -26,3 +26,28 @@ export function readImage(file: File, max = 600, quality = 0.82) {
     reader.readAsDataURL(file);
   });
 }
+
+/** Resize and upload an image through the authenticated backend proxy. */
+export async function uploadImage(file: File, max = 800, quality = 0.82) {
+  const dataUrl = await readImage(file, max, quality);
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  const body = new FormData();
+  body.set("image", blob, "image.jpg");
+  const result = await fetch("/api/backend/images", { method: "POST", body });
+  const payload = await result.json();
+  if (!result.ok || typeof payload.url !== "string")
+    throw new Error(payload.message || "Image upload failed");
+  return payload.url as string;
+}
+
+/** Upload a logo without recompressing it, preserving PNG transparency. */
+export async function uploadImageFile(file: File) {
+  const body = new FormData();
+  body.set("image", file);
+  const result = await fetch("/api/backend/images", { method: "POST", body });
+  const payload = await result.json();
+  if (!result.ok || typeof payload.url !== "string")
+    throw new Error(payload.message || "Image upload failed");
+  return payload.url as string;
+}

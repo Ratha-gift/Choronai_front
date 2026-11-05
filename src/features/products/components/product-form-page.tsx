@@ -11,7 +11,7 @@ import {
 } from "@/features/resources/resource-form";
 import { useLanguage, type Label } from "@/i18n";
 import { formatMoney, formatNumber, toNumber } from "@/lib/format";
-import { readImage } from "@/lib/image";
+import { uploadImage } from "@/lib/image";
 import { notify } from "@/lib/toast";
 import { nextSku, saveProduct } from "../actions";
 import {
@@ -246,10 +246,10 @@ export function ProductFormPage({ productId }: { productId?: string }) {
   async function pickImage(files: FileList | null, gallery = false) {
     if (!files?.length) return;
     try {
-      if (!gallery) return set({ image: await readImage(files[0]) });
+      if (!gallery) return set({ image: await uploadImage(files[0]) });
       const room = MAX_GALLERY - form.gallery.length;
       const added = await Promise.all(
-        [...files].slice(0, room).map((file) => readImage(file, 800)),
+        [...files].slice(0, room).map((file) => uploadImage(file, 800)),
       );
       set({ gallery: [...form.gallery, ...added] });
       if (files.length > room)

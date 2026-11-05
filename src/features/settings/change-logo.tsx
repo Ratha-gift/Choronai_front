@@ -5,6 +5,7 @@ import { Field } from "@/components/ui/fields";
 import { useLanguage } from "@/i18n";
 import { useStored } from "@/lib/store";
 import { notify } from "@/lib/toast";
+import { uploadImageFile } from "@/lib/image";
 
 export const LOGO_KEY = "choronai-logo-v1";
 export const NO_LOGO = "";
@@ -13,6 +14,7 @@ export function ChangeLogo() {
   const { l, t } = useLanguage();
   const [logo, setLogo] = useStored(LOGO_KEY, NO_LOGO);
   const [preview, setPreview] = useState(logo);
+  const [selected, setSelected] = useState<File | null>(null);
   return (
     <Box
       icon="upload"
@@ -33,7 +35,7 @@ export function ChangeLogo() {
           <input
             className="form-control"
             type="file"
-            accept="image/png,image/svg+xml,image/jpeg"
+            accept="image/png,image/jpeg,image/webp"
             onChange={(event) => {
               const file = event.target.files?.[0];
               if (!file) return;
@@ -48,7 +50,10 @@ export function ChangeLogo() {
                 return;
               }
               const reader = new FileReader();
-              reader.onload = () => setPreview(String(reader.result ?? ""));
+              reader.onload = () => {
+                setSelected(file);
+                setPreview(String(reader.result ?? ""));
+              };
               reader.readAsDataURL(file);
             }}
           />
@@ -56,10 +61,19 @@ export function ChangeLogo() {
         <div className="button-row">
           <button
             className="btn btn-primary"
-            onClick={() => {
-              setLogo(preview);
-              notify(t.settingsSaved);
+            onClick={async () => {
+              if (!selected) return;
+              try {
+                const url = await uploadImageFile(selected);
+                setPreview(url);
+                setSelected(null);
+                setLogo(url);
+                notify(t.settingsSaved);
+              } catch {
+                notify(l(["Image upload failed. Check the server and Cloudflare R2 settings.", "ការបញ្ចូលរូបភាពបរាជ័យ។ សូមពិនិត្យម៉ាស៊ីនមេ និងការកំណត់ Cloudflare R2។"]), "error");
+              }
             }}
+            disabled={!selected}
           >
             {l(["Upload Logo", "បញ្ចូលឡូហ្គោ"])}
           </button>
@@ -67,6 +81,7 @@ export function ChangeLogo() {
             className="btn btn-default"
             onClick={() => {
               setPreview(NO_LOGO);
+              setSelected(null);
               setLogo(NO_LOGO);
             }}
           >
