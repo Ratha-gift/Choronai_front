@@ -1227,7 +1227,7 @@ export function ProductSalesReport() {
                         <td style={cell()}>{money(row.profit)}</td>
                       </tr>
                     ))),
-                <tr
+                <tr​
                   key={`${group.category}-total`}
                   style={{ background: "rgba(59,130,196,0.08)" }}
                 >

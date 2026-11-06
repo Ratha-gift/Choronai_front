@@ -27,7 +27,7 @@ export function formatDate(value: unknown, withTime = false) {
   const day = `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
   return withTime
     ? `${day} ${pad(date.getHours())}:${pad(date.getMinutes())}`
-    : day;
+    : day;​
 }
 
 /** Value for <input type="datetime-local">. */
