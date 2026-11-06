@@ -347,3 +347,36 @@
     animation-duration: 2.4s;
   }
 }
+
+/* Idle sign-out warning (IdleLogout) */
+.idle-warning {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.idle-count {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 4px solid #f0a020;
+  color: #b36b00;
+  font-size: 22px;
+  font-weight: 700;
+  animation: idle-pulse 1s ease-in-out infinite;
+}
+.idle-warning p {
+  margin: 0;
+}
+@keyframes idle-pulse {
+  50% {
+    transform: scale(1.06);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .idle-count {
+    animation: none;
+  }
+}

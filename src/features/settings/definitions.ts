@@ -136,6 +136,27 @@ export const SYSTEM_SECTIONS: SettingSection[] = [
         },
       ),
       toggle("singleLogin", "Single Login", "ចូលតែមួយកន្លែង", "disable"),
+      // How long a sign-in lasts (Laravel, AuthController). Managers = Owner
+      // and groups with Users › Edit; everyone else is staff.
+      f(
+        "staffSessionHours",
+        "Staff sign-in length (hours)",
+        "រយៈពេល login បុគ្គលិក (ម៉ោង)",
+        8,
+      ),
+      f(
+        "adminSessionHours",
+        "Manager sign-in length (hours)",
+        "រយៈពេល login អ្នកគ្រប់គ្រង (ម៉ោង)",
+        168,
+      ),
+      // Browser sign-out without mouse/keyboard (IdleLogout); 0 = never.
+      f(
+        "idleLogoutMinutes",
+        "Sign out after no activity (minutes, 0 = never)",
+        "ចេញដោយស្វ័យប្រវត្តិ ពេលមិនប្រើ (នាទី, 0 = មិនចេញ)",
+        30,
+      ),
       yesNo("dateWithTime", "Date With Time", "កាលបរិច្ឆេទជាមួយម៉ោង", "yes"),
       yesNo("dashboardSale", "Dashboard Sale", "បង្ហាញការលក់លើផ្ទាំង", "yes"),
     ],
@@ -407,6 +428,14 @@ export const POS_SECTIONS: SettingSection[] = [
         type: "password",
         required: false,
       }),
+      // The POS screen has its own idle sign-out (IdleLogout); 0 = never, so
+      // a quiet till is not signed out between customers.
+      f(
+        "posIdleLogoutMinutes",
+        "POS: sign out after no activity (minutes, 0 = never)",
+        "POS: ចេញដោយស្វ័យប្រវត្តិ ពេលមិនប្រើ (នាទី, 0 = មិនចេញ)",
+        0,
+      ),
       f("defaultCategory", "Default Category", "ប្រភេទលំនាំដើម", "all", {
         type: "select",
         options: [

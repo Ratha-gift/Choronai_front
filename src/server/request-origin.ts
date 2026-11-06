@@ -17,6 +17,21 @@ export function publicOrigin(request: Request) {
   return `${proto}://${host}`;
 }
 
+/**
+ * The visitor's IP address. Caddy puts it in X-Forwarded-For; without the
+ * web server (development) there is none, so "local" is returned.
+ */
+export function clientIp(request: Request) {
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "";
+  // This computer itself (::1 is IPv6 for 127.0.0.1): say so plainly.
+  if (!ip || ["::1", "127.0.0.1", "::ffff:127.0.0.1"].includes(ip))
+    return "localhost";
+  return ip.replace(/^::ffff:/, ""); // IPv4 written in IPv6 form
+}
+
 /** No Origin header (same-site GET, curl) or the same address as the page. */
 export const isSameOrigin = (request: Request) => {
   const origin = request.headers.get("origin");
