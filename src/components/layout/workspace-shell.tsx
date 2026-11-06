@@ -298,7 +298,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
           </ol>
           <span className="session-info">
             {session &&
-              `${t.signedIn} ${session.username} ( ${t.lastVisit}: ${formatDate(session.signedInAt, true)} )`}
+              `${t.signedIn} ${session.username} ( ${t.lastVisit}: ${session.signedInAt ? formatDate(session.signedInAt, true) : "—"}${session.ip ? ` · IP ${session.ip}` : ""} )`}
           </span>
         </div>
 

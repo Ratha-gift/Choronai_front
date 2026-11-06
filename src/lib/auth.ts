@@ -3,6 +3,7 @@ import { getRows } from "@/data/collections";
 import type { Row } from "@/data/types";
 import { readStored, useStored, writeStored } from "./store";
 import { sha256 } from "./sha256";
+import { markSignedIn } from "./activity";
 import {
   connectWorkspace,
   disconnectWorkspace,
@@ -19,6 +20,8 @@ export type Session = {
   name: string;
   group: string;
   signedInAt: string;
+  /** Address the user signed in from ("local" in development). */
+  ip?: string;
   expiresAt: number;
 };
 
@@ -73,6 +76,7 @@ export async function login(
       session.username,
       session.group.toLowerCase() === "owner",
     );
+    markSignedIn();
     writeStored(SESSION_KEY, NO_SESSION, session);
     return "ok";
   } catch {

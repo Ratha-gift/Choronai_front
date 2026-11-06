@@ -1,4 +1,4 @@
-import { isHttps, isSameOrigin } from "@/server/request-origin";
+import { clientIp, isHttps, isSameOrigin } from "@/server/request-origin";
 import { NextResponse } from "next/server";
 import { API_TOKEN_COOKIE, apiRequest } from "@/server/laravel";
 
@@ -7,8 +7,13 @@ export const dynamic = "force-dynamic";
 
 const sameOrigin = isSameOrigin;
 
-function sessionFromUser(user: Record<string, unknown>, expiresAt?: string) {
+function sessionFromUser(
+  user: Record<string, unknown>,
+  expiresAt?: string,
+  extra: { signedInAt?: string; ip?: string } = {},
+) {
   return {
+    ...extra,
     userId: String(user.id ?? ""),
     username: String(user.username ?? ""),
     name: String(
@@ -33,7 +38,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid login" }, { status: 400 });
     const upstream = await apiRequest("auth/login", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      // Laravel records the sign-in with the visitor's address (audit_logs).
+      headers: {
+        "Content-Type": "application/json",
+        "X-Client-IP": clientIp(request),
+      },
       body: JSON.stringify({
         username: body.username,
         password: body.password,
@@ -51,6 +60,7 @@ export async function POST(request: Request) {
         session: sessionFromUser(
           result.user ?? {},
           result.expiresAt ?? result.expires_at,
+          { signedInAt: new Date().toISOString(), ip: clientIp(request) },
         ),
       },
       { headers: { "Cache-Control": "no-store" } },

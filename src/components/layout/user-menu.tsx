@@ -56,7 +56,10 @@ export function UserMenu({ className = "" }: { className?: string }) {
               </small>
               <small>
                 {l(["Signed in", "ចូលនៅ"])}:{" "}
-                {formatDate(session.signedInAt, true)}
+                {session.signedInAt
+                  ? formatDate(session.signedInAt, true)
+                  : "—"}
+                {session.ip && ` · IP ${session.ip}`}
               </small>
             </div>
           </div>

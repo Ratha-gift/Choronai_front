@@ -7,6 +7,7 @@ import { markHydrated, readStored, writeStored } from "@/lib/store";
 import { connectWorkspace, refreshWorkspace } from "@/lib/sync";
 import type { Session } from "@/lib/auth";
 import { SyncStatus } from "./sync-status";
+import { IdleLogout } from "./idle-logout";
 import { useToast } from "@/lib/toast";
 let initialization: Promise<void> | undefined;
 
@@ -44,6 +45,7 @@ export function AppHosts() {
     <>
       <ConfirmHost />
       <SyncStatus />
+      <IdleLogout />
       <ToastHost />
     </>
   );

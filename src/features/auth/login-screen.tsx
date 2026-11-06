@@ -148,7 +148,7 @@ export function LoginScreen() {
             checked={remember}
             onChange={() => setRemember((value) => !value)}
           />
-          {l(["Keep me signed in for 30 days", "ចងចាំខ្ញុំ 30 ថ្ងៃ"])}
+          {l(["Keep me signed in", "ចងចាំខ្ញុំ"])}
         </label>
 
         <button className="login-submit" type="submit" disabled={busy}>
