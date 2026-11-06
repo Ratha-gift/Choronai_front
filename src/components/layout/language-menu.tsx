@@ -46,16 +46,26 @@ const LANGUAGES: { id: Language; name: string; code: string }[] = [
 export function LanguageMenu() {
   const { language, setLanguage, t } = useLanguage();
   const [open, setOpen] = useState(false);
+  // Kept mounted for the closing animation (see .language-dropdown.closing).
+  const [closing, setClosing] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const current = LANGUAGES.find((item) => item.id === language)!;
+
+  const hide = () => {
+    setClosing(true);
+    window.setTimeout(() => {
+      setOpen(false);
+      setClosing(false);
+    }, 140);
+  };
 
   useEffect(() => {
     if (!open) return;
     const close = (event: MouseEvent) => {
-      if (!ref.current?.contains(event.target as Node)) setOpen(false);
+      if (!ref.current?.contains(event.target as Node)) hide();
     };
     const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") hide();
     };
     document.addEventListener("mousedown", close);
     document.addEventListener("keydown", escape);
@@ -74,24 +84,39 @@ export function LanguageMenu() {
         aria-expanded={open}
         aria-label={`${t.changeLanguage}: ${current.name}`}
         title={t.changeLanguage}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => (open ? hide() : setOpen(true))}
       >
         <Flag language={language} />
         <span>{current.code}</span>
         <Icon name="chevronDown" size={11} />
       </button>
       {open && (
-        <div className="language-dropdown" role="menu">
-          {LANGUAGES.map((item) => (
+        <div
+          className={`language-dropdown ${closing ? "closing" : ""}`}
+          role="menu"
+        >
+          {LANGUAGES.map((item, index) => (
             <button
               key={item.id}
               type="button"
               role="menuitemradio"
               aria-checked={item.id === language}
               className={item.id === language ? "active" : ""}
+              style={{ animationDelay: `${40 + index * 45}ms` }}
               onClick={() => {
+                if (item.id !== language) {
+                  // The page text fades into the new language.
+                  const root = document.documentElement;
+                  root.classList.remove("language-switching");
+                  void root.offsetWidth; // restart the animation
+                  root.classList.add("language-switching");
+                  window.setTimeout(
+                    () => root.classList.remove("language-switching"),
+                    400,
+                  );
+                }
                 setLanguage(item.id);
-                setOpen(false);
+                hide();
               }}
             >
               <Flag language={item.id} />

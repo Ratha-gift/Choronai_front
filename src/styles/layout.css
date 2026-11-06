@@ -90,6 +90,8 @@
   box-shadow: 0 0 0 1px #0003;
 }
 .language-dropdown {
+  animation: language-open 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transform-origin: top right;
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
@@ -123,6 +125,66 @@
 }
 .language-dropdown button:hover {
   background: #f2f6fa;
+  padding-left: 17px;
+}
+.language-dropdown button {
+  transition:
+    background 0.15s,
+    padding-left 0.15s;
+  animation: language-item 0.22s ease-out both;
+}
+.language-dropdown.closing {
+  animation: language-close 0.14s ease-in both;
+}
+.language-dropdown button.active .icon {
+  animation: language-check 0.3s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+.hbtn.lang .icon {
+  transition: transform 0.2s ease;
+}
+.hbtn.lang[aria-expanded="true"] .icon {
+  transform: rotate(180deg);
+}
+@keyframes language-open {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+}
+@keyframes language-close {
+  to {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+}
+@keyframes language-item {
+  from {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+}
+@keyframes language-check {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+}
+/* After choosing a language, the page text fades into it. */
+.language-switching body {
+  animation: language-switch 0.35s ease-out;
+}
+@keyframes language-switch {
+  from {
+    opacity: 0.55;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .language-dropdown,
+  .language-dropdown button,
+  .language-dropdown button.active .icon,
+  .language-switching body {
+    animation: none;
+  }
 }
 .language-dropdown button.active {
   color: var(--primary);

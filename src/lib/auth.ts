@@ -3,7 +3,12 @@ import { getRows } from "@/data/collections";
 import type { Row } from "@/data/types";
 import { readStored, useStored, writeStored } from "./store";
 import { sha256 } from "./sha256";
-import { connectWorkspace, disconnectWorkspace, flush } from "./sync";
+import {
+  connectWorkspace,
+  disconnectWorkspace,
+  flush,
+  usesLaravel,
+} from "./sync";
 
 // UI session metadata is cached locally. The API independently authenticates
 // every request using an opaque HttpOnly cookie backed by SQLite sessions.
@@ -44,14 +49,14 @@ export async function login(
   remember: boolean,
 ): Promise<LoginResult> {
   try {
-    // Keep the local workspace session for its existing sync endpoint, and
-    // also establish the Laravel token used by PostgreSQL-backed APIs.
-    const localResponse = await fetch("/api/session", {
+    // The Laravel token is the real sign-in. The local SQLite session is only
+    // needed by the offline demo mode (CHORONAI_WORKSPACE=local), so its
+    // failure does not block signing in.
+    await fetch("/api/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password, remember }),
-    });
-    if (!localResponse.ok) return "invalid";
+    }).catch(() => undefined);
 
     const apiResponse = await fetch("/api/backend/session", {
       method: "POST",
@@ -112,7 +117,13 @@ export function prepareUser(
     values: {
       ...rest,
       username,
-      ...(text ? { passwordHash: hashPassword(username, text) } : {}),
+      // Laravel stores its own bcrypt hash, so it gets the password once
+      // (the next sync replaces this row with one without it).
+      ...(text
+        ? usesLaravel()
+          ? { password: text }
+          : { passwordHash: hashPassword(username, text) }
+        : {}),
     },
   };
 }

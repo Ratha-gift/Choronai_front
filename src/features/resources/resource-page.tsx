@@ -24,7 +24,10 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
   const { add, update, remove } = collection;
   // Users without "See all branches" only get their own branch's records,
   // and a definition can hide rows of its own (filterRows).
-  const { branch, warehouse } = usePermissions();
+  const { branch, warehouse, may } = usePermissions();
+  // Buttons follow Settings → Group Permissions (the same rules as the API).
+  const mayAdd = may(def.id, "add");
+  const mayDelete = may(def.id, "delete");
   const inBranch =
     branch && def.branchOf
       ? collection.rows.filter((row) =>
@@ -37,7 +40,8 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [editing, setEditing] = useState<Row | "new" | null>(null);
   const [viewing, setViewing] = useState<Row | null>(null);
-  const canEdit = def.canEdit ?? (!!def.fields || !!def.editHref);
+  const canEdit =
+    (def.canEdit ?? (!!def.fields || !!def.editHref)) && may(def.id, "edit");
   const edit = (row: Row) =>
     def.editHref ? router.push(def.editHref(row)) : setEditing(row);
   const noun = l(def.noun);
@@ -84,7 +88,9 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
   const actions: BoxAction[] = [
     { icon: "fileExcel", label: t.exportCsv, onClick: exportCsv },
   ];
-  if (def.addHref)
+  if (!mayAdd) {
+    // No "Add" button without the permission.
+  } else if (def.addHref)
     actions.push({
       icon: "plus",
       label: `${t.addVerb} ${noun}`,
@@ -96,12 +102,14 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
       label: `${t.addVerb} ${noun}`,
       onClick: () => setEditing("new"),
     });
-  actions.push({
-    icon: "trash",
-    label: t.deleteSelected,
-    onClick: () => deleteRows(rows.filter((row) => selected.includes(row.id))),
-    disabled: selected.length === 0,
-  });
+  if (mayDelete)
+    actions.push({
+      icon: "trash",
+      label: t.deleteSelected,
+      onClick: () =>
+        deleteRows(rows.filter((row) => selected.includes(row.id))),
+      disabled: selected.length === 0,
+    });
 
   const rowActions = (row: Row) =>
     def.rowActions === "icons" ? (
@@ -127,12 +135,16 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
                 },
               ]
             : []),
-          {
-            icon: "trash",
-            label: `${t.delete} ${noun}`,
-            color: "danger",
-            onClick: () => deleteRows([row]),
-          },
+          ...(mayDelete
+            ? [
+                {
+                  icon: "trash" as const,
+                  label: `${t.delete} ${noun}`,
+                  color: "danger" as const,
+                  onClick: () => deleteRows([row]),
+                },
+              ]
+            : []),
         ]}
       />
     ) : (
@@ -160,12 +172,16 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
                 },
               ]
             : []),
-          {
-            icon: "trash",
-            label: `${t.delete} ${noun}`,
-            onClick: () => deleteRows([row]),
-            danger: true,
-          },
+          ...(mayDelete
+            ? [
+                {
+                  icon: "trash" as const,
+                  label: `${t.delete} ${noun}`,
+                  onClick: () => deleteRows([row]),
+                  danger: true,
+                },
+              ]
+            : []),
         ]}
       />
     );
@@ -250,6 +266,7 @@ function useFilterColumns(def: ResourceDef) {
   const warehouses = useCollection("warehouses").rows;
   const users = useCollection("users").rows;
   const customers = useCollection("customers").rows;
+  const suppliers = useCollection("suppliers").rows;
   return useMemo(() => {
     if (!def.filterFrom) return def.columns;
     const names = (rows: Row[], field: string) =>
@@ -259,6 +276,7 @@ function useFilterColumns(def: ResourceDef) {
       warehouses: names(warehouses, "name"),
       users: names(users, "username"),
       customers: names(customers, "name"),
+      suppliers: names(suppliers, "name"),
     };
     return def.columns.map((column) => {
       const source = def.filterFrom?.[column.key];
@@ -270,5 +288,5 @@ function useFilterColumns(def: ResourceDef) {
           }
         : column;
     });
-  }, [def, branches, warehouses, users, customers]);
+  }, [def, branches, warehouses, users, customers, suppliers]);
 }

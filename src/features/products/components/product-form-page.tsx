@@ -12,6 +12,8 @@ import {
 import { useLanguage, type Label } from "@/i18n";
 import { formatMoney, formatNumber, toNumber } from "@/lib/format";
 import { readImage } from "@/lib/image";
+import { uploadOrKeep } from "@/lib/upload";
+import { usePermissions } from "@/features/settings/permissions";
 import { notify } from "@/lib/toast";
 import { nextSku, saveProduct } from "../actions";
 import {
@@ -168,6 +170,10 @@ export function ProductFormPage({ productId }: { productId?: string }) {
   const { l, t } = useLanguage();
   const router = useRouter();
   const { products } = useProducts();
+  // Group Permissions: "Product Cost" shows the cost; "Product Price" lets
+  // the user change the price of an existing product.
+  const { can } = usePermissions();
+  const showCost = can("products.cost");
   const existing = productId
     ? products.find((product) => product.id === productId)
     : undefined;
@@ -246,12 +252,35 @@ export function ProductFormPage({ productId }: { productId?: string }) {
   async function pickImage(files: FileList | null, gallery = false) {
     if (!files?.length) return;
     try {
-      if (!gallery) return set({ image: await readImage(files[0]) });
+      // Photos go to the image bucket (R2); offline they stay in the browser.
+      const warnOffline = (uploaded: boolean[]) => {
+        if (uploaded.includes(false))
+          notify(
+            l([
+              "Could not upload to the server; the photo is kept on this computer for now.",
+              "មិនអាចផ្ទុករូបភាពទៅម៉ាស៊ីនមេបានទេ រូបភាពរក្សាទុកក្នុងកុំព្យូទ័រនេះសិន។",
+            ]),
+            "error",
+          );
+      };
+      if (!gallery) {
+        const { url, uploaded } = await uploadOrKeep(
+          await readImage(files[0]),
+          "products",
+        );
+        warnOffline([uploaded]);
+        return set({ image: url });
+      }
       const room = MAX_GALLERY - form.gallery.length;
       const added = await Promise.all(
-        [...files].slice(0, room).map((file) => readImage(file, 800)),
+        [...files]
+          .slice(0, room)
+          .map(async (file) =>
+            uploadOrKeep(await readImage(file, 800), "products"),
+          ),
       );
-      set({ gallery: [...form.gallery, ...added] });
+      warnOffline(added.map((item) => item.uploaded));
+      set({ gallery: [...form.gallery, ...added.map((item) => item.url)] });
       if (files.length > room)
         notify(
           l([
@@ -643,20 +672,34 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                   <div className="readonly-value">{formatMoney(comboCost)}</div>
                 </Field>
               ) : (
-                <Field label={l(["Product Cost", "ថ្លៃដើម"])}>
-                  <MoneyInput
-                    value={form.cost}
-                    onChange={(value) => set({ cost: value })}
-                  />
-                </Field>
+                showCost && (
+                  <Field label={l(["Product Cost", "ថ្លៃដើម"])}>
+                    <MoneyInput
+                      value={form.cost}
+                      onChange={(value) => set({ cost: value })}
+                    />
+                  </Field>
+                )
               )}
               <Field label={l(["Product Price", "តម្លៃលក់"])} required>
-                <MoneyInput
-                  value={form.price}
-                  min={1}
-                  required
-                  onChange={(value) => set({ price: value })}
-                />
+                {existing && !can("products.price") ? (
+                  <div
+                    className="readonly-value"
+                    title={l([
+                      "Your group cannot change prices (Group Permissions → Product Price).",
+                      "ក្រុមរបស់អ្នកមិនអាចប្តូរតម្លៃបានទេ។",
+                    ])}
+                  >
+                    {formatMoney(price)}
+                  </div>
+                ) : (
+                  <MoneyInput
+                    value={form.price}
+                    min={1}
+                    required
+                    onChange={(value) => set({ price: value })}
+                  />
+                )}
               </Field>
               {!isCombo && (
                 <Field label={l(["Product Additional", "ថ្លៃបន្ថែម"])}>
@@ -1137,26 +1180,30 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                 <dt>{l(["Selling price", "តម្លៃលក់"])}</dt>
                 <dd>{formatMoney(price)}</dd>
               </div>
-              <div>
-                <dt>{l(["Cost", "ថ្លៃដើម"])}</dt>
-                <dd>{formatMoney(cost)}</dd>
-              </div>
-              <div>
-                <dt>{l(["Profit per unit", "ចំណេញក្នុងមួយឯកតា"])}</dt>
-                <dd className={price - cost < 0 ? "text-danger" : ""}>
-                  {formatMoney(price - cost)}
-                </dd>
-              </div>
-              <div>
-                <dt>{l(["Margin", "អត្រាចំណេញ"])}</dt>
-                <dd>
-                  <span
-                    className={`label ${margin < 0 ? "label-danger" : margin < 10 ? "label-warning" : "label-success"}`}
-                  >
-                    {price > 0 ? `${formatNumber(margin, 1)}%` : "—"}
-                  </span>
-                </dd>
-              </div>
+              {showCost && (
+                <>
+                  <div>
+                    <dt>{l(["Cost", "ថ្លៃដើម"])}</dt>
+                    <dd>{formatMoney(cost)}</dd>
+                  </div>
+                  <div>
+                    <dt>{l(["Profit per unit", "ចំណេញក្នុងមួយឯកតា"])}</dt>
+                    <dd className={price - cost < 0 ? "text-danger" : ""}>
+                      {formatMoney(price - cost)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{l(["Margin", "អត្រាចំណេញ"])}</dt>
+                    <dd>
+                      <span
+                        className={`label ${margin < 0 ? "label-danger" : margin < 10 ? "label-warning" : "label-success"}`}
+                      >
+                        {price > 0 ? `${formatNumber(margin, 1)}%` : "—"}
+                      </span>
+                    </dd>
+                  </div>
+                </>
+              )}
             </dl>
             <button className="btn btn-primary btn-block" type="submit">
               <Icon name="check" size={14} /> {title}

@@ -29,7 +29,12 @@ async function forward(request: Request, context: Context) {
       headers,
       body,
     });
-    const responseHeaders = new Headers({ "Cache-Control": "no-store" });
+    // Images (GET images/...) may be cached; everything else is live data.
+    const cache =
+      path[0] === "images" && response.ok
+        ? response.headers.get("cache-control") || "public, max-age=86400"
+        : "no-store";
+    const responseHeaders = new Headers({ "Cache-Control": cache });
     const responseType = response.headers.get("content-type");
     if (responseType) responseHeaders.set("Content-Type", responseType);
     return new Response(response.status === 204 ? null : await response.arrayBuffer(), {

@@ -61,7 +61,9 @@ export function useReportData() {
   const adjustments = mine(useCollection<Transaction>("adjustments").rows);
   const stockReceives = mine(useCollection<Transaction>("stockReceives").rows);
   // Goods sent out from this branch.
-  const stockIssues = mine(useCollection<Transaction>("stockIssues").rows);
+  const stockIssues = mine(
+    useCollection<Transaction>("stockIssues").rows,
+  ).filter((row) => appliedStock("stock-issue", row));
 
   const movements = useMemo(() => {
     const map = new Map(

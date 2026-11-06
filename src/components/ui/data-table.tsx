@@ -130,6 +130,7 @@ export function DataTable<T extends { id: string }>({
   toolbar,
   emptyText,
   rowClassName,
+  onRowClick,
 }: {
   columns: Column<T>[];
   rows: T[];
@@ -144,6 +145,8 @@ export function DataTable<T extends { id: string }>({
   toolbar?: ReactNode;
   emptyText?: string;
   rowClassName?: (row: T) => string;
+  /** Clicking a row (not its checkbox, buttons or links) opens it. */
+  onRowClick?: (row: T) => void;
 }) {
   const { l, t } = useLanguage();
   const [pageSize, setPageSize] = useState(25);
@@ -430,7 +433,18 @@ export function DataTable<T extends { id: string }>({
                 className={[
                   selection.includes(row.id) ? "selected" : "",
                   rowClassName?.(row) ?? "",
+                  onRowClick ? "clickable" : "",
                 ].join(" ")}
+                onClick={
+                  onRowClick &&
+                  ((event) => {
+                    // Checkboxes, buttons, links and inputs keep their own job.
+                    const target = event.target as HTMLElement;
+                    if (target.closest("button, a, input, select, label"))
+                      return;
+                    onRowClick(row);
+                  })
+                }
               >
                 {selectable && (
                   <td className="check-col">

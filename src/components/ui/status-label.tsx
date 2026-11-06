@@ -6,6 +6,8 @@ const COLORS: Record<string, string> = {
   open: "success",
   closed: "default",
   approved: "info",
+  accepted: "success",
+  dispatched: "primary",
   partial: "primary",
   pending: "warning",
   ordered: "warning",

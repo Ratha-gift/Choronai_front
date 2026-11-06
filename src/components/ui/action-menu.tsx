@@ -19,7 +19,12 @@ const MENU_ROW = 34;
  * <body> so the table's scroll area cannot clip it, and opens upwards when
  * there is no room below.
  */
+/** Row "Actions" button; hidden when the user may do nothing on the row. */
 export function ActionMenu({ items }: { items: MenuItem[] }) {
+  return items.length ? <Menu items={items} /> : null;
+}
+
+function Menu({ items }: { items: MenuItem[] }) {
   const { t } = useLanguage();
   const [place, setPlace] = useState<Place | null>(null);
   const button = useRef<HTMLButtonElement>(null);

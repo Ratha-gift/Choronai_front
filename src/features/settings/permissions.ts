@@ -88,7 +88,7 @@ const PAGE_PERMISSIONS: [RegExp, string][] = [
   [/^sales\/returns/, "sales.returns"],
   [/^sales\/registers/, "sales.registers"],
   [/^sales\/member-cards/, "memberCards.view"],
-  [/^people\/customers/, "customers.view"],
+  [/^people\/(customers|customer-vip)/, "customers.view"],
   [/^people\/suppliers/, "suppliers.view"],
   [/^people\/users/, "users.view"],
   [/^settings\/group-permissions/, "users.edit"],
@@ -100,7 +100,8 @@ const PAGE_PERMISSIONS: [RegExp, string][] = [
   [/^(settings|shop-settings)/, "settings.view"],
   [/^reports\/best-sellers/, "reports.bestSellers"],
   [/^reports\/(quantity-alerts|expiry-alerts)/, "reports.alerts"],
-  [/^reports\/(products|product-sales)/, "reports.products"],
+  [/^reports\/product-sales/, "reports.sales"],
+  [/^reports\/products/, "reports.products"],
   [/^reports\/warehouse-stock/, "reports.stockChart"],
   [/^reports/, "reports.view"],
   [/^pos$/, "sales.pos"],
@@ -108,6 +109,67 @@ const PAGE_PERMISSIONS: [RegExp, string][] = [
   [/^notifications/, "reports.alerts"],
   [/^server-status/, "settings.system"],
 ];
+
+type Action = "add" | "edit" | "delete";
+/** Any of these permissions allows the action; [] = nobody (not done on this page). */
+type Access = Record<Action, string[]>;
+
+/** A simple list: Laravel accepts the list's permission or `module.action`. */
+const list = (permission: string, module: string): Access => ({
+  add: [permission, `${module}.add`],
+  edit: [permission, `${module}.edit`],
+  delete: [permission, `${module}.delete`],
+});
+const actions = (module: string): Access => ({
+  add: [`${module}.add`],
+  edit: [`${module}.edit`],
+  delete: [`${module}.delete`],
+});
+
+/**
+ * Who may add / edit / delete on each list page. The same rules as the
+ * Laravel API (routes/api.php, Resources.php), so the buttons a user sees
+ * are the ones the server accepts.
+ */
+const RESOURCE_ACCESS: [RegExp, Access][] = [
+  [/^settings\/categories/, list("settings.categories", "settings")],
+  [/^settings\/currencies/, list("settings.currencies", "settings")],
+  [/^settings\/tax-rates/, list("settings.taxRates", "settings")],
+  [/^settings\/group-permissions/, actions("users")],
+  [/^settings\//, list("settings.edit", "settings")],
+  [/^inventory\/products/, actions("products")],
+  [/^inventory\/product-rewards/, list("products.edit", "products")],
+  [
+    /^inventory\/stock-receive/,
+    { ...actions("stock"), add: ["stock.receive"] },
+  ],
+  [/^inventory\/stock-issue/, { ...actions("stock"), add: ["stock.issue"] }],
+  [/^inventory\/stock-adjustment/, { ...actions("stock"), add: ["stock.add"] }],
+  // Sales are made in the POS; cancelling one needs Delete or Cancel Sales.
+  [
+    /^sales\/pos-sales/,
+    { add: [], edit: ["sales.edit"], delete: ["sales.delete", "sales.cancel"] },
+  ],
+  [
+    /^sales\/returns/,
+    { add: ["sales.returns"], edit: [], delete: ["sales.delete"] },
+  ],
+  [/^sales\/registers/, { add: [], edit: [], delete: [] }],
+  [/^sales\/member-cards/, list("memberCards.edit", "memberCards")],
+  [/^people\/(customers|customer-vip)/, list("customers.edit", "customers")],
+  [/^people\/suppliers/, list("suppliers.edit", "suppliers")],
+  [/^people\/users/, actions("users")],
+];
+
+/** Whether `can` allows `action` on the list page `pageId`. */
+export function allows(
+  can: (key: string) => boolean,
+  pageId: string,
+  action: Action,
+) {
+  const access = RESOURCE_ACCESS.find(([pattern]) => pattern.test(pageId))?.[1];
+  return access ? access[action].some(can) : true;
+}
 
 export const pagePermission = (id: string) =>
   PAGE_PERMISSIONS.find(([pattern]) => pattern.test(id))?.[1];
@@ -142,7 +204,8 @@ export function usePermissions() {
         branches.find((row) => String(row.name) === branch)?.warehouse ?? "",
       ) || null
     : null;
-  return { can, canOpen, isOwner, branch, warehouse };
+  const may = (pageId: string, action: Action) => allows(can, pageId, action);
+  return { can, canOpen, may, isOwner, branch, warehouse };
 }
 
 const ALL_SCOPES =

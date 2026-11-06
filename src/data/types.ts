@@ -18,6 +18,8 @@ export type LineItem = {
   type?: "addition" | "subtraction";
   /** Stock adjustments: why this line changed. */
   description?: string;
+  /** Stock adjustments: reason code (see transactions/reasons.ts). */
+  reason?: string;
   /** Sale returns: false when the goods do not go back into stock (spoiled). */
   returnStock?: boolean;
 };
