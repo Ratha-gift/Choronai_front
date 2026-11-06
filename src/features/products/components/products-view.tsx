@@ -7,7 +7,7 @@ import { confirmAction } from "@/components/ui/confirm";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { Select } from "@/components/ui/select";
 import { useCollection } from "@/data/collections";
-import { useLanguage } from "@/i18n";
+import { useLanguage, type Label } from "@/i18n";
 import { downloadText, toCsv } from "@/lib/csv";
 import { notify } from "@/lib/toast";
 import { CSV_COLUMNS, deleteProduct, openProductDialog } from "../actions";
@@ -31,7 +31,7 @@ export function ProductsView() {
   // "" = All Warehouses; otherwise the quantity column shows that warehouse.
   const [picked, setWarehouse] = useState("");
   // Users without "See all branches" only see their branch's warehouse.
-  const own = usePermissions().warehouse;
+  const { warehouse: own, can } = usePermissions();
   const warehouse = own ?? picked;
   const warehouses = useCollection("warehouses").rows;
   const inWarehouse = useWarehouseStock(warehouse);
@@ -58,12 +58,17 @@ export function ProductsView() {
       value: (product) => categoryLabel(product.category, language),
     },
     { key: "unit", label: ["Unit", "ឯកតា"], value: unit },
-    {
-      key: "cost",
-      label: ["Cost", "ថ្លៃដើម"],
-      type: "money",
-      value: productCost,
-    },
+    // Only for groups with "Product Cost".
+    ...(can("products.cost")
+      ? [
+          {
+            key: "cost",
+            label: ["Cost", "ថ្លៃដើម"] as Label,
+            type: "money" as const,
+            value: productCost,
+          },
+        ]
+      : []),
     { key: "price", label: ["Price", "តម្លៃ"], type: "money" },
     {
       key: "quantity",
@@ -97,13 +102,15 @@ export function ProductsView() {
             downloadText(
               "choronai-products.csv",
               toCsv([
-                CSV_COLUMNS,
+                CSV_COLUMNS.map((name) =>
+                  name === "Cost" && !can("products.cost") ? "" : name,
+                ),
                 ...products.map((product) => [
                   product.name,
                   product.sku,
                   product.category,
                   productUnit(product),
-                  productCost(product),
+                  can("products.cost") ? productCost(product) : "",
                   product.price,
                   quantity(product),
                   product.alertQuantity ?? 0,
@@ -111,11 +118,15 @@ export function ProductsView() {
               ]),
             ),
         },
-        {
-          icon: "plus",
-          label: t.add,
-          onClick: () => router.push("/inventory/products/add"),
-        },
+        ...(can("products.add")
+          ? [
+              {
+                icon: "plus" as const,
+                label: t.add,
+                onClick: () => router.push("/inventory/products/add"),
+              },
+            ]
+          : []),
         {
           icon: "clock",
           label: t.history,
@@ -147,6 +158,9 @@ export function ProductsView() {
           )
         }
         rowClassName={(product) => (isLowStock(product) ? "row-warning" : "")}
+        onRowClick={(product) =>
+          openProductDialog({ kind: "details", product })
+        }
         actions={(product) => (
           <ActionMenu
             items={[
@@ -155,33 +169,41 @@ export function ProductsView() {
                 label: l(["Product Details", "ព័ត៌មានលម្អិត"]),
                 onClick: () => openProductDialog({ kind: "details", product }),
               },
-              {
-                icon: "edit",
-                label: t.edit,
-                onClick: () =>
-                  router.push(`/inventory/products/edit/${product.id}`),
-              },
+              ...(can("products.edit")
+                ? [
+                    {
+                      icon: "edit" as const,
+                      label: t.edit,
+                      onClick: () =>
+                        router.push(`/inventory/products/edit/${product.id}`),
+                    },
+                  ]
+                : []),
               {
                 icon: "clock",
                 label: t.history,
                 onClick: () =>
                   openProductDialog({ kind: "history", productId: product.id }),
               },
-              {
-                icon: "trash",
-                label: l(["Delete Product", "លុបមុខទំនិញ"]),
-                danger: true,
-                onClick: async () => {
-                  if (
-                    await confirmAction(
-                      t.confirmDeleteOne.replace("{item}", product.name),
-                    )
-                  ) {
-                    deleteProduct(product.id);
-                    notify(t.deleted);
-                  }
-                },
-              },
+              ...(can("products.delete")
+                ? [
+                    {
+                      icon: "trash" as const,
+                      label: l(["Delete Product", "លុបមុខទំនិញ"]),
+                      danger: true,
+                      onClick: async () => {
+                        if (
+                          await confirmAction(
+                            t.confirmDeleteOne.replace("{item}", product.name),
+                          )
+                        ) {
+                          deleteProduct(product.id);
+                          notify(t.deleted);
+                        }
+                      },
+                    },
+                  ]
+                : []),
             ]}
           />
         )}

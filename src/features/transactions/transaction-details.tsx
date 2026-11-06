@@ -3,6 +3,7 @@ import type { Row, Transaction } from "@/data/types";
 import { useLanguage } from "@/i18n";
 import { formatDate, formatMoney, formatNumber } from "@/lib/format";
 import { StatusLabel } from "@/components/ui/status-label";
+import { reasonLabel } from "./reasons";
 
 /** Printable summary of a sale, return or stock movement. */
 export function TransactionDetails({ row }: { row: Row }) {
@@ -72,6 +73,11 @@ export function TransactionDetails({ row }: { row: Row }) {
               <td className="align-center">{i + 1}</td>
               <td>
                 {line.code} - {line.name}
+                {line.reason && (
+                  <small className="line-note">
+                    {l(reasonLabel(line.reason))}
+                  </small>
+                )}
                 {line.description && (
                   <small className="line-note">{line.description}</small>
                 )}

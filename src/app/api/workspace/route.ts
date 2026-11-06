@@ -1,47 +1,72 @@
-import { actor, commit, publicSnapshot } from "@/server/database";
+import { apiRequest } from "@/server/laravel";
+import { localGet, localPost } from "@/server/local-workspace";
+
 export const runtime = "nodejs";
-export async function GET(request: Request) {
-  const user = actor(request);
-  if (!user)
-    return Response.json({ error: "Sign in required" }, { status: 401 });
-  return Response.json(publicSnapshot(user), {
+export const dynamic = "force-dynamic";
+
+/**
+ * The browser's shared collections.
+ * - CHORONAI_WORKSPACE=laravel: Laravel + PostgreSQL (GET/POST
+ *   /api/v1/frontend/workspace). Needs `php artisan migrate` on the backend.
+ * - anything else (default for now): the old SQLite file in .data/.
+ */
+const useLocal = () => process.env.CHORONAI_WORKSPACE !== "laravel";
+const MAX_COMMIT = 25_000_000;
+
+/** Passes Laravel's answer on; its { message } becomes the { error } sync.ts shows. */
+async function relay(upstream: Response) {
+  const body = await upstream.json().catch(() => ({}));
+  const result =
+    upstream.ok || body.error
+      ? body
+      : {
+          ...body,
+          error:
+            upstream.status === 401
+              ? "Sign in required"
+              : body.message || `Server error (${upstream.status})`,
+        };
+  return Response.json(result, {
+    status: upstream.status,
     headers: { "Cache-Control": "no-store" },
   });
 }
-export async function POST(request: Request) {
-  if (
-    request.headers.get("origin") &&
-    request.headers.get("origin") !== new URL(request.url).origin
-  )
-    return Response.json({ error: "Forbidden" }, { status: 403 });
-  const user = actor(request);
-  if (!user)
-    return Response.json({ error: "Sign in required" }, { status: 401 });
+
+const unreachable = () =>
+  Response.json(
+    { error: "Cannot reach the Choronai API. Check that it is running." },
+    { status: 503 },
+  );
+
+export async function GET(request: Request) {
+  if (useLocal()) return localGet(request);
   try {
-    const text = await request.text();
-    if (text.length > 25_000_000)
-      return Response.json(
-        { error: "Workspace update too large" },
-        { status: 413 },
-      );
-    const body = JSON.parse(text);
-    if (
-      typeof body.id !== "string" ||
-      body.id.length > 100 ||
-      !Number.isSafeInteger(body.revision)
-    )
-      throw new Error("Invalid commit");
-    const result = commit(user, body);
-    const current = publicSnapshot(user);
-    return Response.json({
-      ...result,
-      ...(current.revision === result.revision ? { data: current.data } : {}),
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Update failed";
+    return await relay(await apiRequest("frontend/workspace"));
+  } catch {
+    return unreachable();
+  }
+}
+
+export async function POST(request: Request) {
+  if (useLocal()) return localPost(request);
+  const origin = request.headers.get("origin");
+  if (origin && origin !== new URL(request.url).origin)
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  const text = await request.text();
+  if (text.length > MAX_COMMIT)
     return Response.json(
-      { error: message },
-      { status: message === "conflict" ? 409 : 400 },
+      { error: "Workspace update too large" },
+      { status: 413 },
     );
+  try {
+    return await relay(
+      await apiRequest("frontend/workspace", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: text,
+      }),
+    );
+  } catch {
+    return unreachable();
   }
 }

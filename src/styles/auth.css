@@ -255,6 +255,74 @@
 }
 
 /* ---------- Waiting for the session check ---------- */
+/* Loading screen: logo in a circle, a spinning ring around it. */
+.logo-loader {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 18px;
+  min-height: 100dvh;
+  background: radial-gradient(circle at 50% 45%, #ffffff 0, #eef3fa 55%);
+}
+.logo-loader-badge {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  display: grid;
+  place-items: center;
+}
+.logo-loader-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  /* A blue → red arc, like the logo's ribbon; the mask cuts the middle out. */
+  background: conic-gradient(from 0deg, #0c64e6 0deg, #d7263d 200deg, #d7263d00 300deg);
+  mask: radial-gradient(farthest-side, #0000 calc(100% - 6px), #000 calc(100% - 5px));
+  animation: spin 1s linear infinite;
+}
+.logo-loader-disc {
+  width: 124px;
+  height: 124px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 8px 24px #0c3a7a26;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  animation:
+    logo-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both,
+    logo-breathe 1.8s ease-in-out 0.45s infinite;
+}
+.logo-loader-disc img {
+  width: 82%;
+  height: auto;
+}
+.logo-loader-label {
+  color: #5b6b82;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  animation: logo-in 0.6s ease-out 0.2s both;
+}
+@keyframes logo-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+@keyframes logo-breathe {
+  50% {
+    transform: scale(1.04);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .logo-loader-ring {
+    animation-duration: 3s;
+  }
+  .logo-loader-disc,
+  .logo-loader-label {
+    animation: none;
+  }
+}
 .auth-loading {
   display: grid;
   place-items: center;

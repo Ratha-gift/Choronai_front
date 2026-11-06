@@ -1,6 +1,6 @@
 "use client";
 import { currentUsername } from "@/lib/auth";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Icon } from "@/components/icons";
 import { Box } from "@/components/ui/box";
@@ -25,7 +25,16 @@ import {
   toNumber,
 } from "@/lib/format";
 import { notify } from "@/lib/toast";
-import { KINDS, lineDelta, appliedStock, type TransactionKind } from "./kinds";
+import {
+  KINDS,
+  lineDelta,
+  appliedStock,
+  APPROVED_STATUSES,
+  canReceiveTransfer,
+  statusMovesStock,
+  type TransactionKind,
+} from "./kinds";
+import { ADJUST_REASONS, WASTE_REASONS, type AdjustReason } from "./reasons";
 import { canPerform } from "@/lib/permissions";
 import { reverseSalePoints } from "@/features/pos/loyalty";
 import { warehouseOfBranch } from "@/features/settings/branches";
@@ -78,7 +87,7 @@ export function TransactionForm({
       }))
       .filter((line) => line.quantity > 0);
   const requestedTransfer = issues.rows.find(
-    (row) => row.id === requestedIssue,
+    (row) => row.id === requestedIssue && canReceiveTransfer(row),
   );
   const existing = recordId
     ? (records.rows.find((row) => row.id === recordId) as
@@ -125,33 +134,75 @@ export function TransactionForm({
     party: String(record.customer ?? record.supplier ?? ""),
     // Saved records keep the tax amount, not the rate: keep it unless changed.
     taxRate: toNumber(record.orderTax) > 0 ? KEEP_TAX : "",
-    status: record.status,
+    // Older Stock Issues (completed, dispatched, received) were already accepted.
+    status: kind.statuses.includes(String(record.status))
+      ? String(record.status)
+      : kind.statuses.includes("accepted")
+        ? "accepted"
+        : record.status,
     discount: record.discount,
     shipping: record.shipping,
     paid: record.paid,
     note: record.note ?? "",
     document: String(record.document ?? ""),
   });
+  // Unfinished form kept in this browser, so a refresh does not lose it.
+  const draftKey = `choronai-form-draft-v1:${kindId}:${recordId ?? requestedTransfer?.id ?? "new"}`;
+  const [draft] = useState(() =>
+    readDraft<ReturnType<typeof fromExisting>>(draftKey),
+  );
   const [form, setForm] = useState(() =>
-    existing
-      ? fromExisting(existing)
-      : requestedTransfer && kindId === "stock-receive"
-        ? {
-            ...fresh(),
-            transferId: requestedTransfer.id,
-            branch: requestedTransfer.toBranch ?? "",
-            warehouse: String(requestedTransfer.toWarehouse ?? ""),
-            referenceTo: requestedTransfer.reference,
-          }
-        : fresh(),
+    draft
+      ? {
+          ...draft.form,
+          // A new record takes the next free reference, not the saved one.
+          ...(recordId ? {} : { reference: fresh().reference }),
+        }
+      : existing
+        ? fromExisting(existing)
+        : requestedTransfer && kindId === "stock-receive"
+          ? {
+              ...fresh(),
+              transferId: requestedTransfer.id,
+              branch: requestedTransfer.toBranch ?? "",
+              warehouse: String(requestedTransfer.toWarehouse ?? ""),
+              referenceTo: requestedTransfer.reference,
+            }
+          : fresh(),
   );
   const [items, setItems] = useState<LineItem[]>(() =>
-    existing
-      ? existing.items.map((line) => ({ ...line }))
-      : requestedTransfer && kindId === "stock-receive"
-        ? remainingItems(requestedTransfer)
-        : [],
+    draft
+      ? draft.items
+      : existing
+        ? existing.items.map((line) => ({ ...line }))
+        : requestedTransfer && kindId === "stock-receive"
+          ? remainingItems(requestedTransfer)
+          : [],
   );
+  useEffect(() => {
+    try {
+      if (items.length)
+        sessionStorage.setItem(draftKey, JSON.stringify({ form, items }));
+      else sessionStorage.removeItem(draftKey);
+    } catch {
+      // Storage full or blocked: the form still works, only without a draft.
+    }
+  }, [draftKey, form, items]);
+  // The draft only survives a refresh: leaving the page (unmount) drops it.
+  // A refresh unloads the page without running this cleanup.
+  useEffect(
+    () => () => {
+      try {
+        sessionStorage.removeItem(draftKey);
+      } catch {}
+    },
+    [draftKey],
+  );
+  const clearDraft = () => {
+    try {
+      sessionStorage.removeItem(draftKey);
+    } catch {}
+  };
   const [search, setSearch] = useState("");
   const [moreOptions, setMoreOptions] = useState(true);
   const set = (patch: Partial<ReturnType<typeof fresh>>) =>
@@ -334,14 +385,14 @@ export function TransactionForm({
       return;
     }
     if (
-      kindId === "adjustment" &&
-      (form.status === "approved" || existing?.status === "approved") &&
+      (APPROVED_STATUSES.includes(form.status) ||
+        APPROVED_STATUSES.includes(String(existing?.status))) &&
       !canPerform("stock.approve")
     ) {
       notify(
         l([
-          "You do not have permission to approve or change an approved adjustment.",
-          "អ្នកមិនមានសិទ្ធិអនុម័តការកែស្តុកទេ។",
+          "You do not have permission to approve, accept or reject, or to change an approved record.",
+          "អ្នកមិនមានសិទ្ធិអនុម័ត ទទួលយក ឬបដិសេធទេ។",
         ]),
       );
       return;
@@ -412,7 +463,10 @@ export function TransactionForm({
       warehouse: form.warehouse,
       ...(kind.toBranch ? { toWarehouse: form.toWarehouse } : {}),
       ...(kind.party === "customer" ? { customer: form.party } : {}),
-      ...(kind.party === "supplier" ? { supplier: form.party } : {}),
+      ...(kind.party === "supplier" ||
+      (kindId === "stock-receive" && form.party && !form.transferId)
+        ? { supplier: form.party }
+        : {}),
       items,
       total,
       orderTax,
@@ -424,8 +478,13 @@ export function TransactionForm({
       returned: toNumber(existing?.returned),
       balance: grandTotal - paid,
       paymentStatus: paid >= grandTotal ? "paid" : paid > 0 ? "partial" : "due",
-      status: kind.toBranch && form.toBranch ? "dispatched" : form.status,
-      stockApplied: kindId !== "adjustment" || form.status === "approved",
+      // Editing an accepted transfer keeps "received" / "partial".
+      status:
+        form.status === "accepted" &&
+        ["received", "partial"].includes(String(existing?.status))
+          ? String(existing?.status)
+          : form.status,
+      stockApplied: statusMovesStock(kindId, form.status),
       ...(kindId === "adjustment" && form.status === "approved"
         ? {
             approvedBy: currentUsername(),
@@ -462,6 +521,7 @@ export function TransactionForm({
           })),
         ]);
       notify(t.saved);
+      clearDraft();
       router.push(kind.listHref);
       return;
     }
@@ -513,6 +573,7 @@ export function TransactionForm({
         ),
       );
     notify(t.added);
+    clearDraft();
     router.push(kind.listHref);
   }
 
@@ -592,7 +653,10 @@ export function TransactionForm({
                   {l(["Other stock receipt", "ទទួលស្តុកផ្សេង"])}
                 </option>
                 {issues.rows
-                  .filter((row) => row.toBranch && remainingItems(row).length)
+                  .filter(
+                    (row) =>
+                      canReceiveTransfer(row) && remainingItems(row).length,
+                  )
                   .map((row) => (
                     <option key={row.id} value={row.id}>
                       {row.reference} → {row.toBranch}
@@ -647,9 +711,7 @@ export function TransactionForm({
                   branch: event.target.value,
                   // The branch's own warehouse comes with it.
                   warehouse:
-                    ownWarehouse ||
-                    warehouseOfBranch(event.target.value) ||
-                    "",
+                    ownWarehouse || warehouseOfBranch(event.target.value) || "",
                   // A branch cannot send to itself.
                   ...(event.target.value === form.toBranch
                     ? { toBranch: "" }
@@ -699,26 +761,45 @@ export function TransactionForm({
               </select>
             </Field>
           )}
-          <Field label={t.warehouse} required>
-            <select
-              className="form-control"
-              required
-              value={form.warehouse}
-              onChange={(event) => set({ warehouse: event.target.value })}
-            >
-              <option value="">{t.select}</option>
-              {warehouses.rows
-                .filter(
-                  (row) =>
-                    (row.branch || "Central") === form.branch &&
-                    (!ownWarehouse || String(row.name) === ownWarehouse),
-                )
-                .map((row) => (
+          {kindId === "stock-receive" && (
+            // The warehouse comes with the branch, so the supplier goes here.
+            // A transfer between branches has no supplier.
+            <Field label={t.supplier}>
+              <select
+                className="form-control"
+                value={form.transferId ? "" : form.party}
+                disabled={!!form.transferId}
+                onChange={(event) => set({ party: event.target.value })}
+              >
+                <option value="">{t.selectSupplier}</option>
+                {parties.rows.map((row) => (
                   <option key={row.id}>{String(row.name)}</option>
                 ))}
-            </select>
-          </Field>
-          {kind.statuses.length > 1 && (
+              </select>
+            </Field>
+          )}
+          {!kind.toBranch && kindId !== "stock-receive" && (
+            <Field label={t.warehouse} required>
+              <select
+                className="form-control"
+                required
+                value={form.warehouse}
+                onChange={(event) => set({ warehouse: event.target.value })}
+              >
+                <option value="">{t.select}</option>
+                {warehouses.rows
+                  .filter(
+                    (row) =>
+                      (row.branch || "Central") === form.branch &&
+                      (!ownWarehouse || String(row.name) === ownWarehouse),
+                  )
+                  .map((row) => (
+                    <option key={row.id}>{String(row.name)}</option>
+                  ))}
+              </select>
+            </Field>
+          )}
+          {kind.statuses.length > 1 && kindId !== "adjustment" && (
             <Field label={t.status} required>
               <select
                 className="form-control"
@@ -728,7 +809,9 @@ export function TransactionForm({
                 {kind.statuses
                   .filter(
                     (status) =>
-                      status !== "approved" || canPerform("stock.approve"),
+                      !APPROVED_STATUSES.includes(status) ||
+                      status === form.status ||
+                      canPerform("stock.approve"),
                   )
                   .map((status) => (
                     <option key={status} value={status}>
@@ -830,6 +913,7 @@ export function TransactionForm({
             <thead>
               <tr>
                 <th>{t.productCodeName}</th>
+                {isAdjust && <th>{l(["Reason", "មូលហេតុ"])}</th>}
                 {isAdjust && <th>{l(["Description", "ពិពណ៌នា"])}</th>}
                 {isAdjust && <th>{l(currentStockLabel)}</th>}
                 {kind.expiry && !isAdjust && <th>{t.expiryDate}</th>}
@@ -877,6 +961,32 @@ export function TransactionForm({
                     <td>
                       {line.code} - {line.name}
                     </td>
+                    {isAdjust && (
+                      <td className="cell-input">
+                        <select
+                          aria-label={l(["Reason", "មូលហេតុ"])}
+                          value={line.reason ?? "count"}
+                          onChange={(event) => {
+                            const reason = event.target.value;
+                            // Thrown-away or lost goods always leave stock.
+                            change({
+                              reason,
+                              ...(WASTE_REASONS.includes(
+                                reason as AdjustReason,
+                              ) || reason === "lost"
+                                ? { type: "subtraction" as const }
+                                : {}),
+                            });
+                          }}
+                        >
+                          {ADJUST_REASONS.map(([id, label]) => (
+                            <option key={id} value={id}>
+                              {l(label)}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    )}
                     {isAdjust && (
                       <td className="cell-input">
                         <input
@@ -970,7 +1080,7 @@ export function TransactionForm({
               })}
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="no-data">
+                  <td colSpan={10} className="no-data">
                     {t.noItemsYet}
                   </td>
                 </tr>
@@ -1088,6 +1198,7 @@ export function TransactionForm({
             type="button"
             onClick={() => {
               // Editing: back to the saved values; adding: an empty form.
+              clearDraft();
               setForm(existing ? fromExisting(existing) : fresh());
               setItems(
                 existing ? existing.items.map((line) => ({ ...line })) : [],
@@ -1100,4 +1211,15 @@ export function TransactionForm({
       </form>
     </Box>
   );
+}
+
+/** The unfinished form saved for this page, if any. */
+function readDraft<F>(key: string): { form: F; items: LineItem[] } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(key) ?? "null");
+    return saved?.items?.length ? saved : null;
+  } catch {
+    return null;
+  }
 }

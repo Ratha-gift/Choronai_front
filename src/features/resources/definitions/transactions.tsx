@@ -3,15 +3,22 @@ import {
   KINDS,
   lineDelta,
   appliedStock,
+  canReceiveTransfer,
   type TransactionKind,
 } from "@/features/transactions/kinds";
 import { adjustStock } from "@/features/products/store";
 import type { Row, Transaction } from "@/data/types";
 import type { ResourceDef } from "../types";
+import type { Label } from "@/i18n";
+import type { MenuItem } from "@/components/ui/action-menu";
+import { currentUsername } from "@/lib/auth";
 import { openPaymentDialog } from "@/features/sales/payments";
 import { balanceOf, col } from "./helpers";
-import { getRows } from "@/data/collections";
+import { getRows, setRows } from "@/data/collections";
+import { stockAt, getProducts } from "@/features/products/store";
+import { notify } from "@/lib/toast";
 import { canPerform } from "@/lib/permissions";
+import { usesLaravel } from "@/lib/sync";
 
 const details = (row: Row) => <TransactionDetails row={row} />;
 
@@ -30,8 +37,88 @@ const reverseStock = (kind: TransactionKind) => (row: Row) => {
   );
 };
 
+/**
+ * Approving a pending Stock Issue or Stock Adjustment applies its stock
+ * change; it is refused when stock would go below zero.
+ */
+function approve(
+  kind: "stock-issue" | "adjustment",
+  row: Transaction,
+  l: (label: Label) => string,
+) {
+  const def = KINDS[kind];
+  const products = getProducts();
+  const short = row.items.some((line) => {
+    const product = products.find((item) => item.id === line.productId);
+    return !product || stockAt(product, row) + lineDelta(def, line) < 0;
+  });
+  if (short) {
+    notify(
+      l([
+        "Not enough stock in the warehouse.",
+        "ស្តុកក្នុងឃ្លាំងមិនគ្រប់គ្រាន់។",
+      ]),
+      "error",
+    );
+    return;
+  }
+  setRows(def.collection, (rows) =>
+    rows.map((item) =>
+      item.id === row.id
+        ? {
+            ...item,
+            status: kind === "adjustment" ? "approved" : "accepted",
+            stockApplied: true,
+            approvedBy: currentUsername(),
+            approvedAt: new Date().toISOString(),
+          }
+        : item,
+    ),
+  );
+  adjustStock(
+    row.items.map((line) => ({
+      productId: line.productId,
+      delta: lineDelta(def, line),
+      location: row,
+    })),
+  );
+}
+
+/** Accept / Reject actions for a pending record. */
+const approvalItems = (
+  kind: "stock-issue" | "adjustment",
+  row: Row,
+  l: (label: Label) => string,
+): MenuItem[] =>
+  row.status === "pending" && canPerform("stock.approve")
+    ? [
+        {
+          icon: "check",
+          label: l(
+            kind === "adjustment"
+              ? ["Approve", "អនុម័ត"]
+              : ["Accept", "ទទួលយក"],
+          ),
+          onClick: () => approve(kind, row as Transaction, l),
+        },
+        {
+          icon: "x",
+          label: l(["Reject", "បដិសេធ"]),
+          onClick: () =>
+            setRows(KINDS[kind].collection, (rows) =>
+              rows.map((item) =>
+                item.id === row.id
+                  ? { ...item, status: "rejected", stockApplied: false }
+                  : item,
+              ),
+            ),
+        },
+      ]
+    : [];
+
 const stockFilters = {
   branch: "branches",
+  supplier: "suppliers",
   toBranch: "branches",
   warehouse: "warehouses",
   createdBy: "users",
@@ -119,24 +206,38 @@ export const transactionResources: ResourceDef[] = [
         label: l(["View Payments", "មើលការទូទាត់"]),
         onClick: () => openPaymentDialog({ kind: "view", saleId: row.id }),
       },
-      {
-        icon: "plus",
-        label: l(["Add Payment", "បន្ថែមការទូទាត់"]),
-        onClick: () => openPaymentDialog({ kind: "add", saleId: row.id }),
-      },
-      {
-        icon: "edit",
-        label: l(["Edit Sale", "កែការលក់"]),
-        onClick: () => navigate(`/sales/pos-sales/edit/${row.id}`),
-      },
-      {
-        icon: "undo",
-        label: l(["Return Sale", "លក់ត្រឡប់"]),
-        onClick: () =>
-          navigate(
-            `/sales/returns/add?sale=${encodeURIComponent(String(row.reference))}`,
-          ),
-      },
+      // Group Permissions: Payments, Edit, Return Sales.
+      ...(canPerform("sales.payments")
+        ? [
+            {
+              icon: "plus" as const,
+              label: l(["Add Payment", "បន្ថែមការទូទាត់"]),
+              onClick: () => openPaymentDialog({ kind: "add", saleId: row.id }),
+            },
+          ]
+        : []),
+      // Laravel keeps posted sales as they are (correct them with a return).
+      ...(canPerform("sales.edit") && !usesLaravel()
+        ? [
+            {
+              icon: "edit" as const,
+              label: l(["Edit Sale", "កែការលក់"]),
+              onClick: () => navigate(`/sales/pos-sales/edit/${row.id}`),
+            },
+          ]
+        : []),
+      ...(canPerform("sales.returns")
+        ? [
+            {
+              icon: "undo" as const,
+              label: l(["Return Sale", "លក់ត្រឡប់"]),
+              onClick: () =>
+                navigate(
+                  `/sales/returns/add?sale=${encodeURIComponent(String(row.reference))}`,
+                ),
+            },
+          ]
+        : []),
     ],
     filterFrom: saleFilters,
     branchOf: (row) => [row.branch],
@@ -207,6 +308,7 @@ export const transactionResources: ResourceDef[] = [
       date,
       reference,
       col("branch", "Branch", "សាខា"),
+      col("supplier", "Supplier", "អ្នកផ្គត់ផ្គង់"),
       col("warehouse", "Warehouse", "ឃ្លាំង"),
       col("grandTotal", "Total Cost", "ថ្លៃដើមសរុប", "money", { total: true }),
       col("createdBy", "Created by", "បង្កើតដោយ"),
@@ -221,18 +323,20 @@ export const transactionResources: ResourceDef[] = [
         (receipt) => receipt.transferId === row.id,
       ),
     menuItems: (row, { navigate, l }) =>
-      row.toBranch && row.status !== "received"
-        ? [
-            {
-              icon: "download",
-              label: l(["Receive transfer", "ទទួលការផ្ទេរ"]),
-              onClick: () =>
-                navigate(
-                  `/inventory/stock-receive/add?issue=${encodeURIComponent(row.id)}`,
-                ),
-            },
-          ]
-        : [],
+      row.status === "pending"
+        ? approvalItems("stock-issue", row, l)
+        : canReceiveTransfer(row)
+          ? [
+              {
+                icon: "download",
+                label: l(["Receive transfer", "ទទួលការផ្ទេរ"]),
+                onClick: () =>
+                  navigate(
+                    `/inventory/stock-receive/add?issue=${encodeURIComponent(row.id)}`,
+                  ),
+              },
+            ]
+          : [],
     title: [
       "Stock Issue (All Branches) (All Warehouses)",
       "បញ្ចេញស្តុក (គ្រប់សាខា) (គ្រប់ឃ្លាំង)",
@@ -275,6 +379,7 @@ export const transactionResources: ResourceDef[] = [
     initialSort: sortByDate,
     details,
     editHref: (row) => `/inventory/stock-adjustment/edit/${row.id}`,
+    menuItems: (row, { l }) => approvalItems("adjustment", row, l),
     onDelete: reverseStock("adjustment"),
     branchOf: (row) => [row.branch],
     filterFrom: stockFilters,

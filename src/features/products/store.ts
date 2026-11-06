@@ -1,5 +1,4 @@
 "use client";
-import { useEffect } from "react";
 import { readStored, useStored, writeStored } from "@/lib/store";
 import { SAMPLE_PRODUCTS } from "./data/sample-products";
 import type { PriceChange, Product } from "./types";
@@ -41,16 +40,6 @@ export const stockAt = (product: Product, location: StockLocation) => {
 const PRODUCT_KEY = "choronai-next-catalog-v1";
 const HISTORY_KEY = "choronai-next-price-history-v1";
 const NO_HISTORY: PriceChange[] = [];
-/** Records which sample set was merged in; see the effect in useProducts. */
-const TOPUP_KEY = "choronai-catalog-topup";
-
-/** Appends static products a saved catalog (from an older build) lacks. */
-const withMissingSamples = (rows: Product[]) => {
-  const have = new Set(rows.map((row) => row.id));
-  const missing = SAMPLE_PRODUCTS.filter((product) => !have.has(product.id));
-  return missing.length ? [...rows, ...missing] : rows;
-};
-
 export const productUnit = (product: Product) => product.unit || "kg";
 export const productStock = (product: Product) => product.quantity ?? 0;
 export const productCost = (product: Product) => product.cost ?? 0;
@@ -66,23 +55,14 @@ export const isLowStock = (product: Product) =>
   productStock(product) <= (product.alertQuantity ?? 0);
 
 export function useProducts() {
+  // The catalog comes from the server (applyRemote). The old "top up with
+  // sample products" step is gone: it pushed demo rows into the shared data.
   const [products, setProducts] = useStored(PRODUCT_KEY, SAMPLE_PRODUCTS);
   const [history, setHistory] = useStored(HISTORY_KEY, NO_HISTORY);
-  // A catalog saved before new static products existed stays missing them.
-  // Top it up once per sample set (tracked by size) so deletions stick later.
-  useEffect(() => {
-    const version = String(SAMPLE_PRODUCTS.length);
-    if (readStored(TOPUP_KEY, "") === version) return;
-    const stored = readStored(PRODUCT_KEY, SAMPLE_PRODUCTS);
-    const merged = withMissingSamples(stored);
-    writeStored(TOPUP_KEY, "", version);
-    if (merged !== stored) setProducts(merged);
-  }, [setProducts]);
   return { products, setProducts, history, setHistory };
 }
 
-export const getProducts = () =>
-  withMissingSamples(readStored(PRODUCT_KEY, SAMPLE_PRODUCTS));
+export const getProducts = () => readStored(PRODUCT_KEY, SAMPLE_PRODUCTS);
 
 export const updateProducts = (next: (old: Product[]) => Product[]) =>
   writeStored(PRODUCT_KEY, SAMPLE_PRODUCTS, next);

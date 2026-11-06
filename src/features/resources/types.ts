@@ -32,7 +32,8 @@ export type FieldDef = {
 };
 
 /** Settings lists a column filter can offer as choices (see ResourcePage). */
-export type FilterSource = "branches" | "warehouses" | "users" | "customers";
+export type FilterSource = "branches" | "warehouses" | "users" | "customers"
+  | "suppliers";
 
 export type ResourceDef = {
   id: string;

@@ -23,6 +23,9 @@ let queue: Commit[] = [],
   draft: Changes = {},
   timer: ReturnType<typeof setTimeout> | undefined;
 let recoveredOutbox: { key: string; value: string } | undefined;
+/** "laravel" when the shared data lives in the Laravel API (see /api/workspace). */
+let backend = "";
+export const usesLaravel = () => backend === "laravel";
 let state = { status: "idle", pending: 0, error: "" };
 const listeners = new Set<() => void>();
 const emit = (status: string, error = "") => {
@@ -100,7 +103,16 @@ export async function flush() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(queue[0]),
       });
-      const result = await response.json();
+      const result = await response.json().catch(() => ({}));
+      // Server down or restarting (5xx): keep the work and retry later,
+      // like being offline. Selling goes on.
+      if (response.status >= 500) {
+        emit(
+          "offline",
+          "The server is not answering. Changes are kept and sent automatically.",
+        );
+        return;
+      }
       if (!response.ok) {
         emit(
           response.status === 409 ? "conflict" : "error",
@@ -185,9 +197,20 @@ export async function connectWorkspace(user: string, owner: boolean) {
     emit("offline", "Working from this device's saved data.");
     return;
   }
-  if (!response.ok)
+  // Only "not signed in" ends the session. A server error or a restart keeps
+  // the user signed in and working from this device's saved data.
+  if (response.status === 401 || response.status === 403)
     throw new Error("Sign in to the server to load the workspace.");
+  if (!response.ok) {
+    connected = true;
+    emit(
+      "offline",
+      "The server is not answering. Working from this device's saved data.",
+    );
+    return;
+  }
   let remote = await response.json();
+  backend = String(remote.backend ?? "");
   if (!remote.initialized) {
     if (!owner)
       throw new Error(

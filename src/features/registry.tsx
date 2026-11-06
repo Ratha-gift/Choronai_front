@@ -14,6 +14,7 @@ import {
 } from "./reports/chart-reports";
 import {
   AdjustmentDetails,
+  WasteReport,
   AdjustmentReport,
   BrandReport,
   CategoriesReport,
@@ -26,6 +27,9 @@ import {
 } from "./reports/table-reports";
 import { resources } from "./resources";
 import { ResourcePage } from "./resources/resource-page";
+import { TransfersPage } from "./transfers/transfers-page";
+import { NotificationsPage } from "./notifications/notifications-page";
+import { ShopSettingsPage } from "./settings/shop-settings-page";
 import { ChangeLogo } from "./settings/change-logo";
 import { POS_SECTIONS, SYSTEM_SECTIONS } from "./settings/definitions";
 import { EmailTemplates } from "./settings/email-templates";
@@ -43,6 +47,9 @@ const PAGES: Record<string, (params: string[]) => ReactNode> = {
   "sales/member-cards": () => <MemberCardsPage />,
   "inventory/product-rewards": () => <ProductRewardsPage />,
   "": () => <DashboardView />,
+  transfers: () => <TransfersPage />,
+  notifications: () => <NotificationsPage />,
+  "shop-settings": () => <ShopSettingsPage />,
   "inventory/products": () => <ProductsView />,
   "inventory/products/add": () => <ProductFormPage />,
   "inventory/products/edit": ([id]) => (
@@ -98,7 +105,10 @@ const PAGES: Record<string, (params: string[]) => ReactNode> = {
   "reports/inventory-in-out-expiry": () => <InventoryInOutExpiry />,
   "reports/adjustments": () => <AdjustmentReport />,
   "reports/adjustment-details": () => <AdjustmentDetails />,
+  "reports/waste": () => <WasteReport />,
   "reports/product-sales": () => <ProductSalesReport />,
+  "reports/product-sales/simple": () => <ProductSalesReport type="simple" />,
+  "reports/product-sales/combo": () => <ProductSalesReport type="combo" />,
 };
 
 export function ModuleView({ segments }: { segments: string[] }) {

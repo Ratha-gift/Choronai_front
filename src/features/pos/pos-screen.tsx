@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icons";
 import { NumberInput } from "@/components/ui/fields";
+import { SyncButton } from "@/components/layout/sync-button";
 import { UserMenu } from "@/components/layout/user-menu";
 import { confirmAction } from "@/components/ui/confirm";
 import { Modal } from "@/components/ui/modal";
@@ -594,6 +595,7 @@ function PosScreen() {
           </span>
         )}
         <nav className="pos-nav" aria-label={l(["POS menu", "ម៉ឺនុយ POS"])}>
+          <SyncButton />
           <Link href="/" className="pos-nav-btn" title={t.dashboard}>
             <Icon name="dashboard" />
             <span>{t.dashboard}</span>

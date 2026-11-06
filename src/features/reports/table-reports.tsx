@@ -19,7 +19,13 @@ import { useLanguage, type Label } from "@/i18n";
 import { downloadText, toCsv } from "@/lib/csv";
 import { formatDate } from "@/lib/format";
 import { useBranchTitle } from "@/features/settings/permissions";
+import {
+  WASTE_REASONS,
+  reasonLabel,
+  type AdjustReason,
+} from "@/features/transactions/reasons";
 import { useReportData } from "./use-report-data";
+import { appliedStock } from "@/features/transactions/kinds";
 
 const DAY = 86_400_000;
 
@@ -129,7 +135,7 @@ export function QuantityAlerts() {
 }
 
 /** Received lines with an expiry date, newest batches first. */
-function useExpiryRows() {
+export function useExpiryRows() {
   const { stockReceives } = useReportData();
   return stockReceives.flatMap((receive) =>
     receive.items
@@ -189,27 +195,126 @@ export function ExpiryAlerts() {
   );
 }
 
+/**
+ * Stock per batch (product + warehouse + expiry date): what came in with
+ * Stock Receive and what went out with approved Stock Adjustments (thrown
+ * away, sold off...). Each warehouse keeps its own balance, so goods thrown
+ * away in one branch never lower another branch's batch.
+ */
 export function InventoryInOutExpiry() {
-  const rows = useExpiryRows();
+  const { l } = useLanguage();
+  const { stockReceives, adjustments } = useReportData();
+  type Batch = {
+    id: string;
+    date: string;
+    reference: string;
+    branch: string;
+    warehouse: string;
+    code: string;
+    name: string;
+    unit: string;
+    expiry: string;
+    quantityIn: number;
+    quantityOut: number;
+    reasons: string[];
+  };
+  const batches = new Map<string, Batch>();
+  const batch = (
+    record: {
+      date: string;
+      reference: string;
+      branch?: string;
+      warehouse?: string;
+    },
+    line: {
+      productId: string;
+      code: string;
+      name: string;
+      unit?: string;
+      expiry?: string;
+    },
+  ) => {
+    const key = JSON.stringify([
+      line.productId,
+      record.warehouse ?? "",
+      line.expiry,
+    ]);
+    let row = batches.get(key);
+    if (!row) {
+      row = {
+        id: key,
+        date: record.date,
+        reference: record.reference,
+        branch: record.branch ?? "",
+        warehouse: record.warehouse ?? "",
+        code: line.code,
+        name: line.name,
+        unit: line.unit ?? "kg",
+        expiry: String(line.expiry),
+        quantityIn: 0,
+        quantityOut: 0,
+        reasons: [],
+      };
+      batches.set(key, row);
+    }
+    return row;
+  };
+  for (const receive of stockReceives)
+    for (const line of receive.items.filter((item) => item.expiry))
+      batch(receive, line).quantityIn += line.quantity;
+  for (const record of adjustments.filter((row) =>
+    appliedStock("adjustment", row),
+  ))
+    for (const line of record.items.filter((item) => item.expiry)) {
+      const row = batch(record, line);
+      if (line.type === "subtraction") {
+        row.quantityOut += line.quantity;
+        const reason = l(reasonLabel(line.reason));
+        if (!row.reasons.includes(reason)) row.reasons.push(reason);
+      } else row.quantityIn += line.quantity;
+    }
+  const rows = [...batches.values()].map((row) => ({
+    ...row,
+    quantityIn: round3(row.quantityIn),
+    quantityOut: round3(row.quantityOut),
+    balance: round3(row.quantityIn - row.quantityOut),
+    reasons: row.reasons.join(", "),
+  }));
   return (
     <ReportTable
       icon="calendar"
       file="inventory-in-out-expiry"
       title={["Inventory In / Out Expiry", "ស្តុកចូល / ចេញ តាមផុតកំណត់"]}
+      intro={[
+        "Each batch is counted in its own branch and warehouse. Out is approved Stock Adjustments (thrown away and other removals) with the batch's expiry date.",
+        "ទំនិញនីមួយៗគិតតាមសាខា និងឃ្លាំងរបស់វាផ្ទាល់។ ចេញ = ការកែតម្រូវស្តុកដែលបានអនុម័ត (បោះចោល ។ល។) ដែលមានថ្ងៃផុតកំណត់ដូចគ្នា។",
+      ]}
       rows={rows}
       initialSort={{ key: "expiry" }}
       columns={[
         c("date", "Date", "កាលបរិច្ឆេទ", "datetime"),
         c("reference", "Reference No", "លេខយោង"),
+        c("branch", "Branch", "សាខា", undefined, { filter: "chips" }),
+        c("warehouse", "Warehouse", "ឃ្លាំង", undefined, { filter: "chips" }),
         c("code", "Code", "កូដ"),
         c("name", "Name", "ឈ្មោះ"),
-        c("warehouse", "Warehouse", "ឃ្លាំង"),
         c("expiry", "Expiry Date", "ថ្ងៃផុតកំណត់", "date"),
-        c("quantity", "Quantity In", "បរិមាណចូល", "qty", { unit, total: true }),
+        c("quantityIn", "Quantity In", "បរិមាណចូល", "qty", {
+          unit,
+          total: true,
+        }),
+        c("quantityOut", "Quantity Out", "បរិមាណចេញ", "qty", {
+          unit,
+          total: true,
+        }),
+        c("reasons", "Reason", "មូលហេតុ"),
+        c("balance", "Balance", "នៅសល់", "qty", { unit, total: true }),
       ]}
     />
   );
 }
+
+const round3 = (value: number) => Math.round(value * 1000) / 1000;
 
 const amountColumns = (): Column<Row>[] => [
   c("receivedQty", "Received", "បានទទួល", "qty", { total: true }),
@@ -422,6 +527,7 @@ export function AdjustmentReport() {
 
 export function AdjustmentDetails() {
   const { adjustments } = useReportData();
+  const reasonColumn = useReasonColumn();
   const rows = adjustments.flatMap((record) =>
     record.items.map((line, i) => ({
       id: `${record.id}-${i}`,
@@ -430,6 +536,7 @@ export function AdjustmentDetails() {
       code: line.code,
       name: line.name,
       type: line.type,
+      reason: line.reason ?? "",
       quantity: line.quantity,
       unit: line.unit,
       warehouse: record.warehouse,
@@ -449,33 +556,130 @@ export function AdjustmentDetails() {
         c("name", "Product Name", "ឈ្មោះមុខទំនិញ"),
         c("warehouse", "Warehouse", "ឃ្លាំង"),
         c("type", "Type", "ប្រភេទ", "status"),
+        reasonColumn,
         c("quantity", "Quantity", "បរិមាណ", "qty", { unit }),
       ]}
     />
   );
 }
 
-export function ProductSalesReport() {
-  const { sales } = useReportData();
-  const rows = sales.flatMap((sale) =>
-    sale.items.map((line, i) => ({
-      id: `${sale.id}-${i}`,
-      date: sale.date,
-      reference: sale.reference,
-      customer: sale.customer,
-      code: line.code,
-      name: line.name,
-      quantity: line.quantity,
-      unit: line.unit,
-      price: line.price,
-      subtotal: line.price * line.quantity,
-    })),
+/** Reason of an adjustment line, as a filterable column. */
+function useReasonColumn(): Column<Row> {
+  const { l } = useLanguage();
+  return c("reason", "Reason", "មូលហេតុ", undefined, {
+    value: (row) => (row.reason ? l(reasonLabel(String(row.reason))) : "—"),
+    filter: "chips",
+  });
+}
+
+/**
+ * Products thrown away (spoiled, expired, damaged) through Stock Adjustment,
+ * with what they cost. Pending adjustments are listed but not yet counted.
+ */
+export function WasteReport() {
+  const { adjustments, products } = useReportData();
+  const reasonColumn = useReasonColumn();
+  const costOf = new Map(products.map((p) => [p.id, productCost(p)]));
+  const rows = adjustments.flatMap((record) =>
+    record.items
+      .map((line, i) => ({ line, i }))
+      .filter(
+        ({ line }) =>
+          line.type === "subtraction" &&
+          WASTE_REASONS.includes(line.reason as AdjustReason),
+      )
+      .map(({ line, i }) => {
+        const cost = costOf.get(line.productId) ?? 0;
+        const approved = record.status !== "pending";
+        return {
+          id: `${record.id}-${i}`,
+          date: record.date,
+          reference: record.reference,
+          branch: record.branch ?? "",
+          warehouse: record.warehouse ?? "",
+          code: line.code,
+          name: line.name,
+          reason: line.reason ?? "",
+          description: line.description ?? "",
+          quantity: line.quantity,
+          unit: line.unit,
+          cost,
+          // Pending adjustments have not removed stock yet.
+          value: approved ? Math.round(cost * line.quantity) : 0,
+          status: record.status,
+          createdBy: record.createdBy,
+        };
+      }),
   );
   return (
     <ReportTable
-      icon="barcode"
-      file="product-sales"
-      title={["Product Sales Report", "របាយការណ៍លក់មុខទំនិញ"]}
+      icon="trash"
+      file="waste-report"
+      title={[
+        "Waste Report (All Warehouses)",
+        "របាយការណ៍ទំនិញចោល (គ្រប់ឃ្លាំង)",
+      ]}
+      intro={[
+        "Products thrown away through Stock Adjustment (reason: spoiled, expired or damaged). Value is at product cost; pending adjustments count once approved.",
+        "ទំនិញដែលបានចោលតាម Stock Adjustment (មូលហេតុ៖ ខូច ផុតកំណត់ ឬបែក)។ តម្លៃគិតតាមថ្លៃដើម។ ការកែតម្រូវដែលកំពុងរង់ចាំ គិតពេលអនុម័ត។",
+      ]}
+      rows={rows}
+      initialSort={{ key: "date", desc: true }}
+      columns={[
+        c("date", "Date", "កាលបរិច្ឆេទ", "datetime"),
+        c("reference", "Reference No", "លេខយោង"),
+        c("branch", "Branch", "សាខា", undefined, { filter: "chips" }),
+        c("warehouse", "Warehouse", "ឃ្លាំង", undefined, { filter: "chips" }),
+        c("code", "Product Code", "កូដមុខទំនិញ"),
+        c("name", "Product Name", "ឈ្មោះមុខទំនិញ"),
+        reasonColumn,
+        c("description", "Description", "ពិពណ៌នា"),
+        c("quantity", "Quantity", "បរិមាណ", "qty", { unit, total: true }),
+        c("value", "Value (cost)", "តម្លៃ (ថ្លៃដើម)", "money", { total: true }),
+        c("status", "Status", "ស្ថានភាព", "status"),
+        c("createdBy", "Created by", "បង្កើតដោយ"),
+      ]}
+    />
+  );
+}
+
+/** Sold lines; `type` keeps only simple (stocked) or combo products. */
+export function ProductSalesReport({ type }: { type?: "simple" | "combo" }) {
+  const { sales, products } = useReportData();
+  const comboIds = new Set(
+    products.filter((item) => item.type === "combo").map((item) => item.id),
+  );
+  const isCombo = (productId: string) => comboIds.has(productId);
+  const rows = sales.flatMap((sale) =>
+    sale.items
+      .filter((line) =>
+        !type ? true : (type === "combo") === isCombo(line.productId),
+      )
+      .map((line, i) => ({
+        id: `${sale.id}-${i}`,
+        date: sale.date,
+        reference: sale.reference,
+        customer: sale.customer,
+        code: line.code,
+        name: line.name,
+        quantity: line.quantity,
+        unit: line.unit,
+        price: line.price,
+        subtotal: line.price * line.quantity,
+        type: isCombo(line.productId) ? "Combo" : "Simple",
+      })),
+  );
+  return (
+    <ReportTable
+      icon={type === "combo" ? "layers" : "barcode"}
+      file={type ? `product-sales-${type}` : "product-sales"}
+      title={
+        type === "combo"
+          ? ["Product Sales Report (Combo)", "របាយការណ៍លក់មុខទំនិញ (ឈុត)"]
+          : type === "simple"
+            ? ["Product Sales Report (Simple)", "របាយការណ៍លក់មុខទំនិញ (ធម្មតា)"]
+            : ["Product Sales Report", "របាយការណ៍លក់មុខទំនិញ"]
+      }
       rows={rows}
       initialSort={{ key: "date", desc: true }}
       columns={[
@@ -484,6 +688,9 @@ export function ProductSalesReport() {
         c("customer", "Customer", "អតិថិជន"),
         c("code", "Product Code", "កូដមុខទំនិញ"),
         c("name", "Product Name", "ឈ្មោះមុខទំនិញ"),
+        ...(type
+          ? []
+          : [c("type", "Type", "ប្រភេទ", undefined, { filter: "chips" })]),
         c("quantity", "Quantity", "បរិមាណ", "qty", { unit, total: true }),
         c("price", "Unit Price", "តម្លៃឯកតា", "money"),
         c("subtotal", "Subtotal", "សរុបរង", "money", { total: true }),

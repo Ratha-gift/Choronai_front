@@ -82,7 +82,8 @@ export const KINDS: Record<TransactionKind, KindDef> = {
     toBranch: true,
     stock: -1,
     price: "cost",
-    statuses: ["completed"],
+    // Stock leaves only once someone with "stock.approve" accepts it.
+    statuses: ["pending", "accepted", "rejected"],
     charges: false,
   },
   adjustment: {
@@ -95,7 +96,8 @@ export const KINDS: Record<TransactionKind, KindDef> = {
     stock: 1,
     price: "none",
     expiry: true,
-    statuses: ["pending", "approved"],
+    // New adjustments are pending; Approve / Reject are in the list's actions.
+    statuses: ["pending", "approved", "rejected"],
   },
 };
 
@@ -108,6 +110,24 @@ export const lineDelta = (kind: KindDef, line: LineItem) =>
         ? -line.quantity
         : line.quantity
       : kind.stock * line.quantity;
+
+/** Statuses that need the "stock.approve" permission. */
+export const APPROVED_STATUSES = ["approved", "accepted", "rejected"];
+
+/** Whether a record's status moves stock. */
+export const statusMovesStock = (kind: TransactionKind, status: string) =>
+  kind === "adjustment"
+    ? status === "approved"
+    : kind === "stock-issue"
+      ? status === "accepted"
+      : true;
+
+/** An accepted transfer (or one sent before approvals existed) can be received. */
+export const canReceiveTransfer = (row: object) =>
+  !!(row as { toBranch?: unknown }).toBranch &&
+  ["accepted", "dispatched", "partial"].includes(
+    String((row as { status?: unknown }).status),
+  );
 
 /** Legacy saved records already moved stock, including old pending adjustments. */
 export const appliedStock = (

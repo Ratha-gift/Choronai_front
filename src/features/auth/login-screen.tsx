@@ -5,17 +5,11 @@ import { Icon } from "@/components/icons";
 import { LanguageMenu } from "@/components/layout/language-menu";
 import { useSettings } from "@/features/settings/store";
 import { useLanguage, type Label } from "@/i18n";
-import { useCollection } from "@/data/collections";
-import { hashPassword, login, useSession, type LoginResult } from "@/lib/auth";
+import { login, useSession, type LoginResult } from "@/lib/auth";
 import { LOGO_KEY, NO_LOGO } from "@/features/settings/change-logo";
 import { useHydrated, useStored } from "@/lib/store";
 
 const DEFAULT_LOGO = "/brand/choronai-logo.png";
-const DEMO_ACCOUNTS = [
-  ["admin021", "admin123"],
-  ["manager01", "manager123"],
-  ["cashier01", "cashier123"],
-] as const;
 
 /** Only same-site paths, so ?next= cannot send people elsewhere. */
 const safeNext = (value: string | null) =>
@@ -56,15 +50,6 @@ export function LoginScreen() {
   const [error, setError] = useState<Exclude<LoginResult, "ok"> | null>(null);
   const [busy, setBusy] = useState(false);
   const siteName = String(system.siteName || "CHORONAI");
-  const users = useCollection("users").rows;
-  // Show sample logins only while they still use their starting passwords.
-  const demoAccounts = DEMO_ACCOUNTS.filter(([user, pass]) => {
-    const row = users.find((item) => item.username === user);
-    return (
-      row &&
-      (!row.passwordHash || row.passwordHash === hashPassword(user, pass))
-    );
-  });
 
   // Already signed in (or just signed in): go to the requested page.
   useEffect(() => {
@@ -73,8 +58,13 @@ export function LoginScreen() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    // Read the boxes themselves: browser autofill does not always tell React.
+    const form = new FormData(event.currentTarget as HTMLFormElement);
+    const user = String(form.get("username") ?? username).trim();
+    const pass = String(form.get("password") ?? password);
+    if (!user || !pass) return;
     setBusy(true);
-    const result = await login(username, password, remember);
+    const result = await login(user, pass, remember);
     if (result !== "ok") {
       setError(result);
       setPassword("");
@@ -108,6 +98,7 @@ export function LoginScreen() {
             <input
               autoFocus
               required
+              name="username"
               autoComplete="username"
               autoCapitalize="none"
               spellCheck={false}
@@ -126,6 +117,7 @@ export function LoginScreen() {
           <div className="login-input">
             <input
               required
+              name="password"
               type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               value={password}
@@ -159,33 +151,9 @@ export function LoginScreen() {
           {l(["Keep me signed in for 30 days", "ចងចាំខ្ញុំ 30 ថ្ងៃ"])}
         </label>
 
-        <button
-          className="login-submit"
-          type="submit"
-          disabled={busy || !username.trim() || !password}
-        >
+        <button className="login-submit" type="submit" disabled={busy}>
           {l(["Sign in", "ចូលប្រើប្រាស់"])}
         </button>
-
-        {demoAccounts.length > 0 && (
-          <div className="login-demo">
-            <span>{l(["Sample accounts:", "គណនីគំរូ៖"])}</span>
-            {demoAccounts.map(([user, pass]) => (
-              <button
-                key={user}
-                type="button"
-                title={l(["Fill in this account", "បំពេញគណនីនេះ"])}
-                onClick={() => {
-                  setUsername(user);
-                  setPassword(pass);
-                  setError(null);
-                }}
-              >
-                {user} / {pass}
-              </button>
-            ))}
-          </div>
-        )}
       </form>
 
       <p className="login-foot">

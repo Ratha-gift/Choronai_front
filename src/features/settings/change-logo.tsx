@@ -5,6 +5,7 @@ import { Field } from "@/components/ui/fields";
 import { useLanguage } from "@/i18n";
 import { useStored } from "@/lib/store";
 import { notify } from "@/lib/toast";
+import { uploadOrKeep } from "@/lib/upload";
 
 export const LOGO_KEY = "choronai-logo-v1";
 export const NO_LOGO = "";
@@ -56,9 +57,25 @@ export function ChangeLogo() {
         <div className="button-row">
           <button
             className="btn btn-primary"
-            onClick={() => {
-              setLogo(preview);
-              notify(t.settingsSaved);
+            onClick={async () => {
+              // PNG / JPEG go to the image bucket (business-images/); SVG and
+              // offline uploads stay in the browser.
+              const isSvg = preview.startsWith("data:image/svg");
+              const { url, uploaded } =
+                preview.startsWith("data:") && !isSvg
+                  ? await uploadOrKeep(preview, "business-images")
+                  : { url: preview, uploaded: true };
+              setLogo(url);
+              setPreview(url);
+              notify(
+                uploaded
+                  ? t.settingsSaved
+                  : l([
+                      "Saved on this computer only: the server could not be reached.",
+                      "បានរក្សាទុកតែក្នុងកុំព្យូទ័រនេះ៖ មិនអាចភ្ជាប់ម៉ាស៊ីនមេបានទេ។",
+                    ]),
+                uploaded ? "success" : "error",
+              );
             }}
           >
             {l(["Upload Logo", "បញ្ចូលឡូហ្គោ"])}

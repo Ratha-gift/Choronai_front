@@ -19,7 +19,6 @@ import {
 } from "@/config/modules";
 import { ProductDialogs } from "@/features/products/components/product-dialogs";
 import { PaymentDialogs } from "@/features/sales/payments";
-import { isLowStock, useProducts } from "@/features/products/store";
 import { LOGO_KEY, NO_LOGO } from "@/features/settings/change-logo";
 import { useOpenRegister } from "@/features/pos/register";
 import { OpenRegisterModal } from "@/features/pos/register-modals";
@@ -31,6 +30,8 @@ import { formatDate } from "@/lib/format";
 import { useSession } from "@/lib/auth";
 import { useStored } from "@/lib/store";
 import { usePermissions } from "@/features/settings/permissions";
+import { AlertsMenu } from "./alerts-menu";
+import { SyncButton } from "./sync-button";
 import { Calculator } from "./calculator";
 import { LanguageMenu } from "./language-menu";
 import { UserMenu } from "./user-menu";
@@ -120,7 +121,6 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [settings] = useSettings("system");
   const [logo] = useStored(LOGO_KEY, NO_LOGO);
-  const { products } = useProducts();
   // Starts as the slim icon rail; the header button opens the full menu.
   // The choice is remembered (v2 key, so the new default reaches everyone).
   const [collapsed, setCollapsed] = useStored(
@@ -151,7 +151,6 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
   const group = groupOf(module.id);
   const folder = folderOf(module.id);
   const parent = module.parent ? findModule(module.parent) : undefined;
-  const alerts = products.filter(isLowStock).length;
   const siteName = String(settings.siteName || "CHORONAI");
   const onRegistersPage = isRegistersPage(pathname);
 
@@ -192,6 +191,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
           <Icon name={collapsed ? "sidebarOpen" : "sidebarClose"} size={20} />
         </button>
         <div className="header-actions">
+          <SyncButton buttonClass="hbtn" />
           <Link
             href="/"
             className="hbtn"
@@ -229,17 +229,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
             </Link>
           )}
           <LanguageMenu />
-          {canOpen("reports/quantity-alerts") && (
-            <Link
-              href="/reports/quantity-alerts"
-              className="hbtn yellow badge-host"
-              title={t.quantityAlerts}
-              aria-label={`${t.quantityAlerts}: ${alerts}`}
-            >
-              <Icon name="alert" />
-              {alerts > 0 && <i className="badge">{alerts}</i>}
-            </Link>
-          )}
+          <AlertsMenu />
           {can("sales.pos") && (
             <Link
               href="/pos"

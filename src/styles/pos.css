@@ -102,6 +102,11 @@
 .pos-nav > * {
   flex: 0 0 auto;
 }
+/* Buttons sit on the right; when they overflow, the margin collapses so the
+   row still scrolls from its first button. */
+.pos-nav > :first-child {
+  margin-left: auto;
+}
 .pos-nav-btn {
   display: inline-flex;
   align-items: center;
@@ -1364,4 +1369,106 @@
   background: none;
   color: inherit;
   cursor: pointer;
+}
+
+/* POS header: data kept on this device (offline) and its sync state.
+   An icon-only database button; the dot is green / orange / red. */
+.sync-icon {
+  position: relative;
+  justify-content: center;
+  width: var(--touch);
+  padding: 0;
+}
+.sync-dot {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--brand);
+  border-radius: 50%;
+  background: #2ecc71;
+}
+.sync-button.busy .sync-dot {
+  background: #5bc0de;
+  animation: sync-pulse 1s ease-in-out infinite;
+}
+.sync-button.offline .sync-dot {
+  background: #f0ad4e;
+}
+.sync-button.error .sync-dot {
+  background: #ff5b4f;
+}
+@keyframes sync-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sync-button.busy .sync-dot {
+    animation: none;
+  }
+}
+.sync-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sync-button.ok .sync-title svg {
+  color: #1e8e4a;
+}
+.sync-button.offline .sync-title svg {
+  color: #c77c0e;
+}
+.sync-button.error .sync-title svg {
+  color: #d93025;
+}
+.sync-popover {
+  position: fixed;
+  z-index: 70;
+  width: min(320px, calc(100vw - 24px));
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid #e3e8ef;
+  border-radius: 12px;
+  box-shadow: 0 14px 32px #0f254a2e;
+  color: #1f2a37;
+}
+.sync-popover p {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.sync-popover .sync-pending {
+  color: var(--muted);
+}
+.sync-popover .button-row {
+  margin-top: 10px;
+}
+
+/* The POS nav row scrolls sideways, which clips anything below it: the
+   profile menu is pinned to the window under the header instead. */
+.pos-nav .user-dropdown {
+  position: fixed;
+  top: calc(var(--pos-header, 64px) + 6px);
+  right: 12px;
+  z-index: 70;
+}
+
+/* Offline: the whole POS header turns black so the cashier notices. */
+.pos-header,
+.header {
+  transition: background 0.3s;
+}
+/* Offline: the POS and back office headers turn black. */
+.pos-header:has(.sync-button.offline),
+.header:has(.sync-button.offline) {
+  background: #111;
+}
+.pos-header:has(.sync-button.offline) .sync-dot,
+.header:has(.sync-button.offline) .sync-dot {
+  border-color: #111;
+}
+.header .sync-button {
+  position: relative;
 }

@@ -3,6 +3,7 @@ import { useEffect, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth";
 import { useHydrated } from "@/lib/store";
+import { LogoLoader } from "@/components/ui/logo-loader";
 
 /** Shows its children only to a signed-in user; others go to /login. */
 export function AuthGate({ children }: { children: ReactNode }) {
@@ -14,11 +15,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
     if (hydrated && !session)
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
   }, [hydrated, session, router, pathname]);
-  if (!hydrated || !session)
-    return (
-      <div className="auth-loading" role="status" aria-live="polite">
-        <span className="spinner" aria-hidden="true" />
-      </div>
-    );
+  if (!hydrated || !session) return <LogoLoader />;
   return <>{children}</>;
 }
