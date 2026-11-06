@@ -1461,3 +1461,24 @@ label.btn.disabled {
     transition: none;
   }
 }
+
+/* Sign-in history (Server Status) */
+.login-history {
+  width: 100%;
+  border-collapse: collapse;
+}
+.login-history th,
+.login-history td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #eef2f7;
+  text-align: left;
+}
+.login-history tr.failed td {
+  background: #fff5f5;
+}
+.login-history-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+}

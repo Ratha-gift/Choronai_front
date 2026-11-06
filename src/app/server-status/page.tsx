@@ -4,7 +4,7 @@ import { Icon } from "@/components/icons";
 import { Box } from "@/components/ui/box";
 import { useCollection } from "@/data/collections";
 import { useLanguage } from "@/i18n";
-import { useSession } from "@/lib/auth";
+import { LoginHistory } from "@/components/layout/login-history";
 
 type Metrics = {
   time: string;
@@ -69,7 +69,6 @@ function Status({ ok, children }: { ok: boolean; children: string }) {
 
 export default function ServerStatusPage() {
   const { l } = useLanguage();
-  const session = useSession();
   const branches = useCollection("branches").rows;
   const sales = useCollection("sales").rows;
 
@@ -143,10 +142,7 @@ export default function ServerStatusPage() {
     const timer = setInterval(load, 10000);
     return () => clearInterval(timer);
   }, [auto, load]);
-  useEffect(() => {
-    if (session) addLog("security", `Signed in: ${session.username}`);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.username]);
+  // Real sign-ins come from the server: see <LoginHistory /> below.
 
   function backup() {
     const data: Record<string, string | null> = {};
@@ -311,6 +307,7 @@ export default function ServerStatusPage() {
           ))}
         </ul>
       </Box>
+      <LoginHistory />
     </div>
   );
 }
