@@ -1,4 +1,5 @@
 "use client";
+import { NativeSelect } from "@/components/ui/select";
 import { useState } from "react";
 import { Icon } from "@/components/icons";
 import { Modal } from "@/components/ui/modal";
@@ -82,7 +83,7 @@ export function OpenRegisterModal({
       <div className="register-form">
         <label className="field">
           <span className="field-label">{l(["Warehouse", "ឃ្លាំង"])}</span>
-          <select
+          <NativeSelect
             className="form-control"
             required
             value={selectedWarehouse}
@@ -93,7 +94,7 @@ export function OpenRegisterModal({
                 {String(row.branch || "Central")} / {String(row.name)}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <label className="field">
           <span className="field-label">

@@ -1,5 +1,9 @@
 "use client";
 import {
+  Children,
+  Fragment,
+  isValidElement,
+  type ReactElement,
   useEffect,
   useId,
   useMemo,
@@ -204,7 +208,11 @@ export function Select({
         onClick={() => (open ? hide() : show())}
         onKeyDown={onKeyDown}
       >
-        <span className={selected ? "select-value" : "select-placeholder"}>
+        <span
+          // A new choice fades in.
+          key={value}
+          className={selected ? "select-value" : "select-placeholder"}
+        >
           {selected ? selected.label : placeholder}
         </span>
         <span className="select-chevron" aria-hidden="true">
@@ -259,6 +267,8 @@ export function Select({
                     role="option"
                     aria-selected={isSelected}
                     className={`select-option ${index === active ? "active" : ""} ${isSelected ? "selected" : ""}`}
+                    // Items appear one after another (the first ten).
+                    style={{ animationDelay: `${Math.min(index, 10) * 18}ms` }}
                     onMouseEnter={() => setActive(index)}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => choose(option)}
@@ -279,5 +289,71 @@ export function Select({
           button.current?.closest("dialog") ?? document.body,
         )}
     </div>
+  );
+}
+
+type OptionElement = ReactElement<{
+  value?: string | number;
+  children?: ReactNode;
+  disabled?: boolean;
+}>;
+
+/** Every <option> inside children, also inside fragments and arrays. */
+function readOptions(children: ReactNode): SelectOption[] {
+  const out: SelectOption[] = [];
+  Children.forEach(children, (child) => {
+    if (!isValidElement(child)) return;
+    if (child.type === Fragment) {
+      out.push(
+        ...readOptions((child.props as { children?: ReactNode }).children),
+      );
+      return;
+    }
+    if (child.type !== "option") return;
+    const { value, children: label, disabled } = (child as OptionElement).props;
+    if (disabled) return;
+    const text = Children.toArray(label).join("");
+    out.push({ value: String(value ?? text), label: label ?? text, text });
+  });
+  return out;
+}
+
+/**
+ * Drop-in for a native <select>: the same props and <option> children, drawn
+ * as the animated Select. onChange gets `{ target: { value } }` like the
+ * native change event, so existing handlers keep working.
+ */
+export function NativeSelect({
+  value,
+  onChange,
+  children,
+  required,
+  disabled,
+  className = "",
+  "aria-label": ariaLabel,
+  title,
+}: {
+  value?: string | number;
+  onChange?: (event: { target: { value: string } }) => void;
+  children?: ReactNode;
+  required?: boolean;
+  disabled?: boolean;
+  className?: string;
+  "aria-label"?: string;
+  title?: string;
+}) {
+  const options = readOptions(children);
+  return (
+    <span className="native-select" title={title}>
+      <Select
+        value={String(value ?? "")}
+        options={options}
+        onChange={(next) => onChange?.({ target: { value: next } })}
+        required={required}
+        disabled={disabled}
+        ariaLabel={ariaLabel}
+        className={className.replace(/\bform-control\b/, "").trim()}
+      />
+    </span>
   );
 }

@@ -107,7 +107,10 @@ export async function DELETE(request: Request) {
   if (!sameOrigin(request))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   try {
-    await apiRequest("auth/logout", { method: "POST" });
+    await apiRequest("auth/logout", {
+      method: "POST",
+      headers: { "X-Client-IP": clientIp(request) },
+    });
   } catch {
     // Expire the local token cookie even when the API is offline.
   }

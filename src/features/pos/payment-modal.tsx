@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Icon } from "@/components/icons";
 import { NumberInput } from "@/components/ui/fields";
 import { Modal } from "@/components/ui/modal";
-import { Select } from "@/components/ui/select";
+import { Select, NativeSelect } from "@/components/ui/select";
 import { usePermissions } from "@/features/settings/permissions";
 import { useCollection } from "@/data/collections";
 import { useLanguage } from "@/i18n";
@@ -180,7 +180,7 @@ export function PaymentModal({
             </label>
             <label className="field">
               <span className="field-label">{t.branch} *</span>
-              <select
+              <NativeSelect
                 className="form-control"
                 value={branch}
                 onChange={(event) => setBranch(event.target.value)}
@@ -190,7 +190,7 @@ export function PaymentModal({
                   .map((row) => (
                     <option key={row.id}>{String(row.name)}</option>
                   ))}
-              </select>
+              </NativeSelect>
             </label>
             <textarea
               className="form-control"

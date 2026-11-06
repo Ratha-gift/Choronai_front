@@ -10,7 +10,7 @@ import { SyncButton } from "@/components/layout/sync-button";
 import { UserMenu } from "@/components/layout/user-menu";
 import { confirmAction } from "@/components/ui/confirm";
 import { Modal } from "@/components/ui/modal";
-import { Select } from "@/components/ui/select";
+import { Select, NativeSelect } from "@/components/ui/select";
 import { addRow, getRows, setRows, useCollection } from "@/data/collections";
 import { warehouseOfBranch } from "@/features/settings/branches";
 import type { LineItem, Row, Transaction } from "@/data/types";
@@ -1495,7 +1495,7 @@ function AdjustModal({
       }
     >
       {kind === "tax" ? (
-        <select
+        <NativeSelect
           className="form-control"
           aria-label={title}
           value={
@@ -1521,7 +1521,7 @@ function AdjustModal({
               {String(row.name)}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       ) : (
         <div className="input-group">
           <NumberInput

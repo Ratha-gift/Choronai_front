@@ -1163,3 +1163,77 @@
     display: none;
   }
 }
+
+/* Select: smoother opening, items one after another, check pop, value fade. */
+.select-option {
+  animation: select-item 0.18s ease-out both;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    padding-left 0.15s;
+}
+.select-option.active {
+  padding-left: 14px;
+}
+.select-option.selected .icon {
+  animation: select-check 0.3s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+.select-button {
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    transform 0.1s;
+}
+.select-button:active {
+  transform: scale(0.99);
+}
+.select.open .select-button {
+  box-shadow: 0 0 0 3px var(--brand-soft);
+}
+.select-value {
+  animation: select-value 0.22s ease-out;
+}
+@keyframes select-item {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+@keyframes select-check {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+}
+@keyframes select-value {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .select-option,
+  .select-option.selected .icon,
+  .select-value {
+    animation: none;
+  }
+}
+
+/* NativeSelect: an animated Select where a native <select> used to be. */
+.native-select {
+  display: block;
+  min-width: 0;
+}
+.native-select > .select {
+  width: 100%;
+}
+/* Next to a "+" button (input-group) the select fills the row, like the
+   native select with .form-control did. */
+.input-group > .native-select {
+  flex: 1;
+  min-width: 0;
+}
+.input-group > .native-select .select-button {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}

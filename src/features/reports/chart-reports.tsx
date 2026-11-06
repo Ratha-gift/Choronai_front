@@ -1,4 +1,5 @@
 "use client";
+import { NativeSelect } from "@/components/ui/select";
 import { useState } from "react";
 import Link from "next/link";
 import { Icon, type IconName } from "@/components/icons";
@@ -11,7 +12,10 @@ import {
 } from "@/components/ui/charts";
 import { categoriesOf, categoryLabel } from "@/features/products/labels";
 import { stockAt, productCost } from "@/features/products/store";
-import { usePermissions, useBranchTitle } from "@/features/settings/permissions";
+import {
+  usePermissions,
+  useBranchTitle,
+} from "@/features/settings/permissions";
 import { useLanguage, type Label } from "@/i18n";
 import { formatMoney, formatNumber } from "@/lib/format";
 import { lastMonths, monthKey, useReportData } from "./use-report-data";
@@ -221,7 +225,7 @@ export function WarehouseStockChart() {
     >
       <label className="field">
         <span>{l(["Warehouse", "ឃ្លាំង"])}</span>
-        <select
+        <NativeSelect
           className="form-control"
           value={warehouseId}
           onChange={(event) => setWarehouseId(event.target.value)}
@@ -232,7 +236,7 @@ export function WarehouseStockChart() {
               {String(row.branch || "Central")} / {String(row.name)}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </label>
       <div className="tiles two">
         <StatTile

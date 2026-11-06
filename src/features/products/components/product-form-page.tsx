@@ -1,4 +1,5 @@
 "use client";
+import { NativeSelect } from "@/components/ui/select";
 import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Icon, type IconName } from "@/components/icons";
@@ -522,7 +523,7 @@ export function ProductFormPage({ productId }: { productId?: string }) {
             <div className="form-grid cols-3">
               <Field label={l(["Category", "ប្រភេទ"])} required>
                 {withAdd(
-                  <select
+                  <NativeSelect
                     className="form-control"
                     required
                     value={form.category}
@@ -540,13 +541,13 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                           {String(row.name)}
                         </option>
                       ))}
-                  </select>,
+                  </NativeSelect>,
                   "category",
                   ["Add Category", "បន្ថែមប្រភេទ"],
                 )}
               </Field>
               <Field label={l(["Sub Category", "ប្រភេទរង"])}>
-                <select
+                <NativeSelect
                   className="form-control"
                   value={form.subCategory}
                   disabled={!subCategories.length}
@@ -564,11 +565,11 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                       {String(row.name)}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </Field>
               <Field label={l(["Brand", "ម៉ាក"])}>
                 {withAdd(
-                  <select
+                  <NativeSelect
                     className="form-control"
                     value={form.brand}
                     onChange={(event) => set({ brand: event.target.value })}
@@ -579,7 +580,7 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                         {String(row.name)}
                       </option>
                     ))}
-                  </select>,
+                  </NativeSelect>,
                   "brand",
                   ["Add Brand", "បន្ថែមម៉ាក"],
                 )}
@@ -599,7 +600,7 @@ export function ProductFormPage({ productId }: { productId?: string }) {
               <div className="form-grid cols-3">
                 <Field label={l(["Product Unit", "ឯកតាមុខទំនិញ"])} required>
                   {withAdd(
-                    <select
+                    <NativeSelect
                       className="form-control"
                       required
                       value={form.unit}
@@ -621,7 +622,7 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                             {String(row.code)} — {String(row.name)}
                           </option>
                         ))}
-                    </select>,
+                    </NativeSelect>,
                     "unit",
                     ["Add Unit", "បន្ថែមឯកតា"],
                   )}
@@ -635,7 +636,7 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                         : l(["Default Purchase Unit", "ឯកតាទិញ"])
                     }
                   >
-                    <select
+                    <NativeSelect
                       className="form-control"
                       value={form[key]}
                       disabled={!form.unit}
@@ -650,7 +651,7 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                           {String(row.code)} — {String(row.name)}
                         </option>
                       ))}
-                    </select>
+                    </NativeSelect>
                   </Field>
                 ))}
               </div>
@@ -1108,7 +1109,7 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                 return (
                   <div key={i} className="supplier-row">
                     <div className="input-group">
-                      <select
+                      <NativeSelect
                         className="form-control"
                         aria-label={l(["Supplier", "អ្នកផ្គត់ផ្គង់"])}
                         value={row.supplier}
@@ -1125,7 +1126,7 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                             {String(supplier.company || supplier.name)}
                           </option>
                         ))}
-                      </select>
+                      </NativeSelect>
                       {form.suppliers.length > 1 && (
                         <button
                           type="button"

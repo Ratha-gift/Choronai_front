@@ -1,4 +1,5 @@
 "use client";
+import { NativeSelect } from "./select";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLanguage, type Label } from "@/i18n";
 import { formatDate, formatMoney, formatNumber, toNumber } from "@/lib/format";
@@ -559,7 +560,7 @@ export function DataTable<T extends { id: string }>({
               <Icon name="chevronRight" size={14} />
             </button>
           </nav>
-          <select
+          <NativeSelect
             className="page-size"
             aria-label={t.rowsPerPage}
             value={pageSize}
@@ -570,7 +571,7 @@ export function DataTable<T extends { id: string }>({
                 {size} {t.perPage}
               </option>
             ))}
-          </select>
+          </NativeSelect>
           {pages > 1 && (
             <label className="go-to">
               {t.goTo}

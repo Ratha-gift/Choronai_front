@@ -1,4 +1,5 @@
 "use client";
+import { NativeSelect } from "@/components/ui/select";
 import { useState } from "react";
 import { useCollection } from "@/data/collections";
 import type { Row } from "@/data/types";
@@ -135,7 +136,7 @@ export function MemberCardsPage() {
         >
           <label className="field">
             <span>{l(["Reward", "រង្វាន់"])}</span>
-            <select
+            <NativeSelect
               required
               className="form-control"
               value={reward}
@@ -147,11 +148,11 @@ export function MemberCardsPage() {
                   {String(row.name)} ({String(row.points)})
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
           <label className="field">
             <span>{l(["Warehouse", "ឃ្លាំង"])}</span>
-            <select
+            <NativeSelect
               required
               className="form-control"
               value={warehouseId}
@@ -163,7 +164,7 @@ export function MemberCardsPage() {
                   {String(row.branch || "Central")} / {String(row.name)}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
         </Modal>
       )}

@@ -1,4 +1,5 @@
 "use client";
+import { NativeSelect } from "@/components/ui/select";
 import { currentUsername } from "@/lib/auth";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -629,7 +630,7 @@ export function TransactionForm({
         <FormGrid columns={3}>
           {kindId === "stock-receive" && !existing && (
             <Field label={l(["Receive a transfer", "ទទួលការផ្ទេរ"])}>
-              <select
+              <NativeSelect
                 className="form-control"
                 value={form.transferId}
                 onChange={(event) => {
@@ -662,7 +663,7 @@ export function TransactionForm({
                       {row.reference} → {row.toBranch}
                     </option>
                   ))}
-              </select>
+              </NativeSelect>
             </Field>
           )}
           <Field label={t.date} required>
@@ -676,7 +677,7 @@ export function TransactionForm({
           </Field>
           {kind.source && (
             <Field label={t.saleReference} required>
-              <select
+              <NativeSelect
                 className="form-control"
                 required
                 value={form.referenceTo}
@@ -688,7 +689,7 @@ export function TransactionForm({
                     {row.reference}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
           )}
           <Field label={t.referenceNo}>
@@ -702,7 +703,7 @@ export function TransactionForm({
             label={kind.toBranch ? l(["From Branch", "ពីសាខា"]) : t.branch}
             required
           >
-            <select
+            <NativeSelect
               className="form-control"
               required
               value={form.branch}
@@ -724,11 +725,11 @@ export function TransactionForm({
                 .map((row) => (
                   <option key={row.id}>{String(row.name)}</option>
                 ))}
-            </select>
+            </NativeSelect>
           </Field>
           {kind.toBranch && (
             <Field label={l(["To Branch", "ទៅសាខា"])}>
-              <select
+              <NativeSelect
                 className="form-control"
                 value={form.toBranch}
                 onChange={(event) =>
@@ -741,12 +742,12 @@ export function TransactionForm({
                   .map((row) => (
                     <option key={row.id}>{String(row.name)}</option>
                   ))}
-              </select>
+              </NativeSelect>
             </Field>
           )}
           {kind.toBranch && form.toBranch && (
             <Field label={l(["Destination warehouse", "ឃ្លាំងគោលដៅ"])} required>
-              <select
+              <NativeSelect
                 className="form-control"
                 required
                 value={form.toWarehouse}
@@ -758,14 +759,14 @@ export function TransactionForm({
                   .map((row) => (
                     <option key={row.id}>{String(row.name)}</option>
                   ))}
-              </select>
+              </NativeSelect>
             </Field>
           )}
           {kindId === "stock-receive" && (
             // The warehouse comes with the branch, so the supplier goes here.
             // A transfer between branches has no supplier.
             <Field label={t.supplier}>
-              <select
+              <NativeSelect
                 className="form-control"
                 value={form.transferId ? "" : form.party}
                 disabled={!!form.transferId}
@@ -775,12 +776,12 @@ export function TransactionForm({
                 {parties.rows.map((row) => (
                   <option key={row.id}>{String(row.name)}</option>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
           )}
           {!kind.toBranch && kindId !== "stock-receive" && (
             <Field label={t.warehouse} required>
-              <select
+              <NativeSelect
                 className="form-control"
                 required
                 value={form.warehouse}
@@ -796,12 +797,12 @@ export function TransactionForm({
                   .map((row) => (
                     <option key={row.id}>{String(row.name)}</option>
                   ))}
-              </select>
+              </NativeSelect>
             </Field>
           )}
           {kind.statuses.length > 1 && kindId !== "adjustment" && (
             <Field label={t.status} required>
-              <select
+              <NativeSelect
                 className="form-control"
                 value={form.status}
                 onChange={(event) => set({ status: event.target.value })}
@@ -818,7 +819,7 @@ export function TransactionForm({
                       {status.charAt(0).toUpperCase() + status.slice(1)}
                     </option>
                   ))}
-              </select>
+              </NativeSelect>
             </Field>
           )}
           <Field label={t.attachDocument}>
@@ -851,7 +852,7 @@ export function TransactionForm({
                 label={kind.party === "customer" ? t.customer : t.supplier}
                 required
               >
-                <select
+                <NativeSelect
                   className="form-control"
                   required
                   value={form.party}
@@ -865,7 +866,7 @@ export function TransactionForm({
                   {parties.rows.map((row) => (
                     <option key={row.id}>{String(row.name)}</option>
                   ))}
-                </select>
+                </NativeSelect>
               </Field>
             </div>
           </div>
@@ -963,7 +964,7 @@ export function TransactionForm({
                     </td>
                     {isAdjust && (
                       <td className="cell-input">
-                        <select
+                        <NativeSelect
                           aria-label={l(["Reason", "មូលហេតុ"])}
                           value={line.reason ?? "count"}
                           onChange={(event) => {
@@ -984,7 +985,7 @@ export function TransactionForm({
                               {l(label)}
                             </option>
                           ))}
-                        </select>
+                        </NativeSelect>
                       </td>
                     )}
                     {isAdjust && (
@@ -1017,7 +1018,7 @@ export function TransactionForm({
                     )}
                     {kind.price === "none" && (
                       <td className="cell-input">
-                        <select
+                        <NativeSelect
                           aria-label={t.type}
                           value={line.type}
                           onChange={(event) =>
@@ -1028,7 +1029,7 @@ export function TransactionForm({
                         >
                           <option value="addition">{t.addition}</option>
                           <option value="subtraction">{t.subtraction}</option>
-                        </select>
+                        </NativeSelect>
                       </td>
                     )}
                     <td className="cell-input qty-col">
@@ -1134,7 +1135,7 @@ export function TransactionForm({
             {charges && (
               <>
                 <Field label={t.orderTax}>
-                  <select
+                  <NativeSelect
                     className="form-control"
                     value={form.taxRate}
                     onChange={(event) => set({ taxRate: event.target.value })}
@@ -1149,7 +1150,7 @@ export function TransactionForm({
                     {taxRates.rows.map((row) => (
                       <option key={row.id}>{String(row.name)}</option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </Field>
                 <Field label={t.discount}>
                   <NumberInput
