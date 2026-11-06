@@ -1,4 +1,5 @@
 "use client";
+import { makeId } from "./format";
 import { useSyncExternalStore } from "react";
 import { SEED } from "@/data/seed";
 import { applyRemote } from "./store";
@@ -50,7 +51,7 @@ export const useSyncStatus = () =>
 function outboxKey() {
   let client = sessionStorage.getItem("choronai-client");
   if (!client) {
-    client = crypto.randomUUID();
+    client = makeId();
     sessionStorage.setItem("choronai-client", client);
   }
   return `choronai-outbox-${username}-${client}`;
@@ -77,7 +78,7 @@ export function queueChange(key: string, value: unknown) {
 function seal() {
   if (!Object.keys(draft).length) return;
   queue.push({
-    id: crypto.randomUUID(),
+    id: makeId(),
     revision: revision + queue.length,
     changes: draft,
   });
@@ -227,7 +228,7 @@ export async function connectWorkspace(user: string, owner: boolean) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        id: crypto.randomUUID(),
+        id: makeId(),
         revision: remote.revision,
         bootstrap: true,
         changes: local,
