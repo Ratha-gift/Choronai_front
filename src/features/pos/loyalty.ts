@@ -1,4 +1,5 @@
 "use client";
+import { makeId } from "@/lib/format";
 import { addRow, getRows, setRows } from "@/data/collections";
 import type { Row, Transaction } from "@/data/types";
 import { currentUsername } from "@/lib/auth";
@@ -120,7 +121,7 @@ export function redeemReward(
     throw new Error("Choose a standard or service product for this reward.");
   if (product.type !== "service" && stockAt(product, location) < quantity)
     throw new Error("Not enough reward stock in this warehouse.");
-  const eventId = `redeem:${crypto.randomUUID()}`;
+  const eventId = `redeem:${makeId()}`;
   adjustStock([{ productId: product.id, delta: -quantity, location }]);
   postPoints({
     eventId,

@@ -1,8 +1,7 @@
+import { isHttps, isSameOrigin } from "@/server/request-origin";
 import { actor, authenticate, COOKIE, logoutToken } from "@/server/database";
 export const runtime = "nodejs";
-const sameOrigin = (request: Request) =>
-  !request.headers.get("origin") ||
-  request.headers.get("origin") === new URL(request.url).origin;
+const sameOrigin = isSameOrigin;
 export async function POST(request: Request) {
   if (!sameOrigin(request))
     return Response.json({ error: "Forbidden" }, { status: 403 });
@@ -16,7 +15,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "invalid" }, { status: 400 });
     const result = authenticate(body.username, body.password, !!body.remember);
     if (!result) return Response.json({ error: "invalid" }, { status: 401 });
-    const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
+    const secure = isHttps(request) ? "; Secure" : "";
     return Response.json(
       { session: result.session },
       {

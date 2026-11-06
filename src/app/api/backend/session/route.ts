@@ -1,18 +1,19 @@
+import { isHttps, isSameOrigin } from "@/server/request-origin";
 import { NextResponse } from "next/server";
 import { API_TOKEN_COOKIE, apiRequest } from "@/server/laravel";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const sameOrigin = (request: Request) =>
-  !request.headers.get("origin") ||
-  request.headers.get("origin") === new URL(request.url).origin;
+const sameOrigin = isSameOrigin;
 
 function sessionFromUser(user: Record<string, unknown>, expiresAt?: string) {
   return {
     userId: String(user.id ?? ""),
     username: String(user.username ?? ""),
-    name: String(user.name ?? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()),
+    name: String(
+      user.name ?? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
+    ),
     group: String(user.group ?? ""),
     permissions: user.permissions ?? [],
     expiresAt: expiresAt ? new Date(expiresAt).getTime() : null,
@@ -30,18 +31,15 @@ export async function POST(request: Request) {
       body.password.length > 1024
     )
       return NextResponse.json({ error: "Invalid login" }, { status: 400 });
-    const upstream = await apiRequest(
-      "auth/login",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: body.username,
-          password: body.password,
-          remember: !!body.remember,
-        }),
-      },
-    );
+    const upstream = await apiRequest("auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: body.username,
+        password: body.password,
+        remember: !!body.remember,
+      }),
+    });
     const result = await upstream.json().catch(() => ({}));
     if (!upstream.ok)
       return NextResponse.json(
@@ -57,15 +55,16 @@ export async function POST(request: Request) {
       },
       { headers: { "Cache-Control": "no-store" } },
     );
-    const secure = new URL(request.url).protocol === "https:";
+    const secure = isHttps(request);
     response.cookies.set(API_TOKEN_COOKIE, String(result.token), {
       httpOnly: true,
       sameSite: "strict",
       secure,
       path: "/",
-      expires: result.expiresAt || result.expires_at
-        ? new Date(result.expiresAt ?? result.expires_at)
-        : undefined,
+      expires:
+        result.expiresAt || result.expires_at
+          ? new Date(result.expiresAt ?? result.expires_at)
+          : undefined,
     });
     return response;
   } catch {
@@ -106,7 +105,7 @@ export async function DELETE(request: Request) {
   response.cookies.set(API_TOKEN_COOKIE, "", {
     httpOnly: true,
     sameSite: "strict",
-    secure: new URL(request.url).protocol === "https:",
+    secure: isHttps(request),
     path: "/",
     maxAge: 0,
   });

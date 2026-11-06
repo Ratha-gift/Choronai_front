@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiRequest } from "@/server/laravel";
+import { isSameOrigin } from "@/server/request-origin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,7 +9,7 @@ type Context = { params: Promise<{ path: string[] }> };
 async function forward(request: Request, context: Context) {
   const url = new URL(request.url);
   const origin = request.headers.get("origin");
-  if (!["GET", "HEAD"].includes(request.method) && origin && origin !== url.origin)
+  if (!["GET", "HEAD"].includes(request.method) && origin && !isSameOrigin(request))
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
 
   const { path } = await context.params;

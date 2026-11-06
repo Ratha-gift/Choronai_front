@@ -1,3 +1,4 @@
+import { isSameOrigin } from "@/server/request-origin";
 import { actor, commit, publicSnapshot } from "@/server/database";
 /** The old workspace kept in .data/choronai.sqlite (CHORONAI_WORKSPACE=local). */
 export async function localGet(request: Request) {
@@ -9,10 +10,7 @@ export async function localGet(request: Request) {
   });
 }
 export async function localPost(request: Request) {
-  if (
-    request.headers.get("origin") &&
-    request.headers.get("origin") !== new URL(request.url).origin
-  )
+  if (request.headers.get("origin") && !isSameOrigin(request))
     return Response.json({ error: "Forbidden" }, { status: 403 });
   const user = actor(request);
   if (!user)

@@ -1,3 +1,4 @@
+import { isSameOrigin } from "@/server/request-origin";
 import { apiRequest } from "@/server/laravel";
 import { localGet, localPost } from "@/server/local-workspace";
 
@@ -50,7 +51,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   if (useLocal()) return localPost(request);
   const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin)
+  if (origin && !isSameOrigin(request))
     return Response.json({ error: "Forbidden" }, { status: 403 });
   const text = await request.text();
   if (text.length > MAX_COMMIT)
