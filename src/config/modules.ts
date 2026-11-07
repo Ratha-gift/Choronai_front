@@ -201,31 +201,12 @@ export const groups: NavGroup[] = [
         "filter",
       ),
       m("reports/waste", "Waste Report", "របាយការណ៍ទំនិញចោល", "trash"),
-      {
-        id: "reports/product-sales-folder",
-        label: ["Product Sales Report", "របាយការណ៍លក់មុខទំនិញ"],
-        icon: "barcode",
-        page: m(
-          "reports/product-sales",
-          "Product Sales Report",
-          "របាយការណ៍លក់មុខទំនិញ",
-          "barcode",
-        ),
-        items: [
-          m(
-            "reports/product-sales/simple",
-            "Simple Products",
-            "មុខទំនិញធម្មតា",
-            "barcode",
-          ),
-          m(
-            "reports/product-sales/combo",
-            "Combo Products",
-            "មុខទំនិញឈុត",
-            "layers",
-          ),
-        ],
-      },
+      m(
+        "reports/product-sales",
+        "Product Sales Report",
+        "របាយការណ៍លក់មុខទំនិញ",
+        "barcode",
+      ),
     ],
   },
 ];

@@ -1,4 +1,8 @@
 "use client";
+import { useState, type ReactNode } from "react";
+import { NativeSelect } from "@/components/ui/select";
+import { useCollection } from "@/data/collections";
+import { useWarehouseStock } from "@/features/products/warehouse-stock";
 import type { IconName } from "@/components/icons";
 import { Box } from "@/components/ui/box";
 import {
@@ -18,7 +22,10 @@ import {
 import { useLanguage, type Label } from "@/i18n";
 import { downloadText, toCsv } from "@/lib/csv";
 import { formatDate } from "@/lib/format";
-import { useBranchTitle } from "@/features/settings/permissions";
+import {
+  useBranchTitle,
+  usePermissions,
+} from "@/features/settings/permissions";
 import {
   WASTE_REASONS,
   reasonLabel,
@@ -48,6 +55,7 @@ function ReportTable({
   headerGroups,
   initialSort,
   file,
+  toolbar,
 }: {
   icon: IconName;
   title: Label;
@@ -57,6 +65,8 @@ function ReportTable({
   headerGroups?: HeaderGroup[];
   initialSort?: { key: string; desc?: boolean };
   file: string;
+  /** Extra controls next to the search box (warehouse, type ...). */
+  toolbar?: ReactNode;
 }) {
   const { l, t } = useLanguage();
   const branchTitle = useBranchTitle();
@@ -88,13 +98,14 @@ function ReportTable({
         { icon: "print", label: t.print, onClick: () => window.print() },
       ]}
     >
-      <div className="print-area">
+      <div className="print-area report-grid">
         <DataTable
           columns={columns}
           rows={rows}
           selectable={false}
           headerGroups={headerGroups}
           initialSort={initialSort}
+          toolbar={toolbar}
         />
       </div>
     </Box>
@@ -385,36 +396,97 @@ export function CategoriesReport() {
   );
 }
 
+/**
+ * Each product: sold quantity and amount, stock and its value at cost.
+ * "All warehouse" adds up every warehouse; one warehouse counts only its
+ * sales and its stock. Users kept to their branch see their warehouse.
+ */
 export function ProductsReport() {
-  const { language } = useLanguage();
-  const { movements } = useReportData();
-  const rows = movements.map((move) => ({
-    id: move.product.id,
-    code: move.product.sku,
-    name: move.product.name,
-    category: categoryLabel(move.product.category, language),
-    unit: productUnit(move.product),
-    receivedQty: move.receivedQty,
-    receivedAmount: move.receivedAmount,
-    soldQty: move.soldQty,
-    soldAmount: move.soldAmount,
-    stockQty: productStock(move.product),
-    stockAmount: productStock(move.product) * productCost(move.product),
-  }));
+  const { l, language } = useLanguage();
+  const { warehouse: ownWarehouse } = usePermissions();
+  const { movements, sales } = useReportData();
+  const warehouses = useCollection("warehouses").rows;
+  const [warehouse, setWarehouse] = useState("");
+  const [type, setType] = useState("");
+  const inWarehouse = useWarehouseStock(warehouse);
+
+  const sold = new Map<string, { qty: number; amount: number }>();
+  for (const sale of sales) {
+    if (warehouse && sale.warehouse !== warehouse) continue;
+    for (const line of sale.items) {
+      const row = sold.get(line.productId) ?? { qty: 0, amount: 0 };
+      row.qty += line.quantity;
+      row.amount += line.quantity * line.price;
+      sold.set(line.productId, row);
+    }
+  }
+
+  const rows = movements
+    .filter((move) => !type || (move.product.type ?? "standard") === type)
+    .map((move) => {
+      const product = move.product;
+      const stockQty = inWarehouse
+        ? (inWarehouse.get(product.id) ?? 0)
+        : productStock(product);
+      return {
+        id: product.id,
+        code: product.sku,
+        name: product.name,
+        category: categoryLabel(product.category, language),
+        subCategory: product.subCategory ?? "",
+        unit: productUnit(product),
+        soldQty: sold.get(product.id)?.qty ?? 0,
+        soldAmount: sold.get(product.id)?.amount ?? 0,
+        stockQty,
+        stockAmount: stockQty * productCost(product),
+      };
+    });
+
   return (
     <ReportTable
       icon="barcode"
-      file="products-report"
+      file={warehouse ? `products-report-${warehouse}` : "products-report"}
       title={["Products Report", "របាយការណ៍មុខទំនិញ"]}
+      intro={[
+        "Please customize the report below. You can download it as CSV or print it.",
+        "សូមកំណត់របាយការណ៍ខាងក្រោម។ អ្នកអាចទាញយកជា CSV ឬបោះពុម្ពបាន។",
+      ]}
       rows={rows}
+      toolbar={
+        <>
+          {!ownWarehouse && (
+            <NativeSelect
+              className="form-control report-toolbar-select"
+              value={warehouse}
+              onChange={(event) => setWarehouse(event.target.value)}
+              aria-label={l(["Warehouse", "ឃ្លាំង"])}
+            >
+              <option value="">{l(["All warehouse", "គ្រប់ឃ្លាំង"])}</option>
+              {warehouses.map((row) => (
+                <option key={row.id} value={String(row.name)}>
+                  {String(row.name)}
+                </option>
+              ))}
+            </NativeSelect>
+          )}
+          <NativeSelect
+            className="form-control report-toolbar-select"
+            value={type}
+            onChange={(event) => setType(event.target.value)}
+            aria-label={l(["Product type", "ប្រភេទទំនិញ"])}
+          >
+            <option value="">{l(["All types", "គ្រប់ប្រភេទ"])}</option>
+            <option value="standard">{l(["Standard", "ធម្មតា"])}</option>
+            <option value="combo">{l(["Combo", "ឈុត"])}</option>
+            <option value="service">{l(["Service", "សេវាកម្ម"])}</option>
+          </NativeSelect>
+        </>
+      }
       columns={[
         c("code", "Product Code", "កូដមុខទំនិញ"),
         c("name", "Product Name", "ឈ្មោះមុខទំនិញ"),
-        c("category", "Category", "ប្រភេទ"),
-        c("receivedQty", "Received", "បានទទួល", "qty", { unit, total: true }),
-        c("receivedAmount", "Received Cost", "ថ្លៃដើមបានទទួល", "money", {
-          total: true,
-        }),
+        c("category", "Category", "ប្រភេទ", undefined, { filter: "chips" }),
+        c("subCategory", "Subcategory", "ប្រភេទរង"),
         c("soldQty", "Sold", "បានលក់", "qty", { unit, total: true }),
         c("soldAmount", "Sold Amount", "ទឹកប្រាក់លក់", "money", {
           total: true,
@@ -638,62 +710,6 @@ export function WasteReport() {
         c("value", "Value (cost)", "តម្លៃ (ថ្លៃដើម)", "money", { total: true }),
         c("status", "Status", "ស្ថានភាព", "status"),
         c("createdBy", "Created by", "បង្កើតដោយ"),
-      ]}
-    />
-  );
-}
-
-/** Sold lines; `type` keeps only simple (stocked) or combo products. */
-export function ProductSalesReport({ type }: { type?: "simple" | "combo" }) {
-  const { sales, products } = useReportData();
-  const comboIds = new Set(
-    products.filter((item) => item.type === "combo").map((item) => item.id),
-  );
-  const isCombo = (productId: string) => comboIds.has(productId);
-  const rows = sales.flatMap((sale) =>
-    sale.items
-      .filter((line) =>
-        !type ? true : (type === "combo") === isCombo(line.productId),
-      )
-      .map((line, i) => ({
-        id: `${sale.id}-${i}`,
-        date: sale.date,
-        reference: sale.reference,
-        customer: sale.customer,
-        code: line.code,
-        name: line.name,
-        quantity: line.quantity,
-        unit: line.unit,
-        price: line.price,
-        subtotal: line.price * line.quantity,
-        type: isCombo(line.productId) ? "Combo" : "Simple",
-      })),
-  );
-  return (
-    <ReportTable
-      icon={type === "combo" ? "layers" : "barcode"}
-      file={type ? `product-sales-${type}` : "product-sales"}
-      title={
-        type === "combo"
-          ? ["Product Sales Report (Combo)", "របាយការណ៍លក់មុខទំនិញ (ឈុត)"]
-          : type === "simple"
-            ? ["Product Sales Report (Simple)", "របាយការណ៍លក់មុខទំនិញ (ធម្មតា)"]
-            : ["Product Sales Report", "របាយការណ៍លក់មុខទំនិញ"]
-      }
-      rows={rows}
-      initialSort={{ key: "date", desc: true }}
-      columns={[
-        c("date", "Date", "កាលបរិច្ឆេទ", "datetime"),
-        c("reference", "Reference No", "លេខយោង"),
-        c("customer", "Customer", "អតិថិជន"),
-        c("code", "Product Code", "កូដមុខទំនិញ"),
-        c("name", "Product Name", "ឈ្មោះមុខទំនិញ"),
-        ...(type
-          ? []
-          : [c("type", "Type", "ប្រភេទ", undefined, { filter: "chips" })]),
-        c("quantity", "Quantity", "បរិមាណ", "qty", { unit, total: true }),
-        c("price", "Unit Price", "តម្លៃឯកតា", "money"),
-        c("subtotal", "Subtotal", "សរុបរង", "money", { total: true }),
       ]}
     />
   );

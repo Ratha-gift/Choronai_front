@@ -35,7 +35,6 @@ import {
   statusMovesStock,
   type TransactionKind,
 } from "./kinds";
-import { ADJUST_REASONS, WASTE_REASONS, type AdjustReason } from "./reasons";
 import { canPerform } from "@/lib/permissions";
 import { reverseSalePoints } from "@/features/pos/loyalty";
 import { warehouseOfBranch } from "@/features/settings/branches";
@@ -707,6 +706,7 @@ export function TransactionForm({
               className="form-control"
               required
               value={form.branch}
+              disabled={!!ownBranch}
               onChange={(event) =>
                 set({
                   branch: event.target.value,
@@ -785,6 +785,7 @@ export function TransactionForm({
                 className="form-control"
                 required
                 value={form.warehouse}
+                disabled={!!ownWarehouse}
                 onChange={(event) => set({ warehouse: event.target.value })}
               >
                 <option value="">{t.select}</option>
@@ -914,13 +915,15 @@ export function TransactionForm({
             <thead>
               <tr>
                 <th>{t.productCodeName}</th>
-                {isAdjust && <th>{l(["Reason", "មូលហេតុ"])}</th>}
                 {isAdjust && <th>{l(["Description", "ពិពណ៌នា"])}</th>}
                 {isAdjust && <th>{l(currentStockLabel)}</th>}
                 {kind.expiry && !isAdjust && <th>{t.expiryDate}</th>}
                 {!isAdjust && <th>{priceLabel}</th>}
-                {isAdjust && <th>{t.type}</th>}
-                <th>{t.quantity}</th>
+                <th>
+                  {isAdjust
+                    ? l(["Quantity (+ add / − remove)", "បរិមាណ (+ បន្ថែម / − ដក)"])
+                    : t.quantity}
+                </th>
                 {!isAdjust && <th>{t.subtotal}</th>}
                 {isAdjust && <th>{l(stockAfterLabel)}</th>}
                 {kind.expiry && isAdjust && <th>{t.expiryDate}</th>}
@@ -964,32 +967,6 @@ export function TransactionForm({
                     </td>
                     {isAdjust && (
                       <td className="cell-input">
-                        <NativeSelect
-                          aria-label={l(["Reason", "មូលហេតុ"])}
-                          value={line.reason ?? "count"}
-                          onChange={(event) => {
-                            const reason = event.target.value;
-                            // Thrown-away or lost goods always leave stock.
-                            change({
-                              reason,
-                              ...(WASTE_REASONS.includes(
-                                reason as AdjustReason,
-                              ) || reason === "lost"
-                                ? { type: "subtraction" as const }
-                                : {}),
-                            });
-                          }}
-                        >
-                          {ADJUST_REASONS.map(([id, label]) => (
-                            <option key={id} value={id}>
-                              {l(label)}
-                            </option>
-                          ))}
-                        </NativeSelect>
-                      </td>
-                    )}
-                    {isAdjust && (
-                      <td className="cell-input">
                         <input
                           aria-label={l(["Description", "ពិពណ៌នា"])}
                           value={line.description ?? ""}
@@ -1016,30 +993,33 @@ export function TransactionForm({
                         />
                       </td>
                     )}
-                    {kind.price === "none" && (
-                      <td className="cell-input">
-                        <NativeSelect
-                          aria-label={t.type}
-                          value={line.type}
-                          onChange={(event) =>
+                    <td className="cell-input qty-col">
+                      {isAdjust ? (
+                        // Signed: 5 adds 5, -5 removes 5 (no Type column).
+                        <NumberInput
+                          step="any"
+                          aria-label={t.quantity}
+                          value={
+                            line.type === "subtraction"
+                              ? -line.quantity
+                              : line.quantity
+                          }
+                          onChange={(next) =>
                             change({
-                              type: event.target.value as LineItem["type"],
+                              type: next < 0 ? "subtraction" : "addition",
+                              quantity: Math.abs(next),
                             })
                           }
-                        >
-                          <option value="addition">{t.addition}</option>
-                          <option value="subtraction">{t.subtraction}</option>
-                        </NativeSelect>
-                      </td>
-                    )}
-                    <td className="cell-input qty-col">
-                      <NumberInput
-                        min="0.001"
-                        step="any"
-                        aria-label={t.quantity}
-                        value={line.quantity}
-                        onChange={(next) => change({ quantity: next })}
-                      />
+                        />
+                      ) : (
+                        <NumberInput
+                          min="0.001"
+                          step="any"
+                          aria-label={t.quantity}
+                          value={line.quantity}
+                          onChange={(next) => change({ quantity: next })}
+                        />
+                      )}
                     </td>
                     {!isAdjust && (
                       <td className="align-right">

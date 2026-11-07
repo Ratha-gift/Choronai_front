@@ -34,8 +34,8 @@ import { categoryLabel, categoriesOf } from "@/features/products/labels";
 import { useLanguage } from "@/i18n";
 import {
   formatDate,
+  formatMoney,
   formatNumber,
-  formatUsd,
   localDateTime,
   nextReference,
   toNumber,
@@ -108,8 +108,11 @@ function PosScreen() {
     reason: string;
     run: () => void;
   } | null>(null);
+  // With the Laravel server the PIN itself never reaches the browser (only
+  // hasPin); the PIN dialog then asks the server to check it.
+  const pinRequired = Boolean(pin) || Boolean(pos.hasPin);
   const withPin = (reason: string, run: () => void) =>
-    pin ? setPinRequest({ reason, run }) : run();
+    pinRequired ? setPinRequest({ reason, run }) : run();
   const [system] = useSettings("system");
   const [logo] = useStored(LOGO_KEY, NO_LOGO);
   const { products } = useProducts();
@@ -140,7 +143,10 @@ function PosScreen() {
   const userBranch = String(
     users.rows.find((row) => row.username === username)?.branch ?? "",
   );
+  // Staff without "See all branches" sell from their branch's warehouse.
+  const { warehouse: ownWarehouse } = usePermissions();
   const [warehouse, setWarehouse] = useState(() => {
+    if (ownWarehouse) return ownWarehouse;
     const me = getRows("users").find((row) => row.username === username);
     const branch = String(me?.branch || pos.defaultBranch || "");
     return warehouseOfBranch(branch) || String(system.defaultWarehouse);
@@ -362,13 +368,14 @@ function PosScreen() {
   }
 
   async function cancelSale() {
-    if (isCashier || !cart.items.length) return;
+    // Cashiers may cancel only when a PIN is set and entered.
+    if (!cart.items.length || (isCashier && !pinRequired)) return;
     const question = l([
       "Cancel this sale and clear the cart?",
       "បោះបង់ការលក់នេះ ហើយសម្អាតកន្ត្រក?",
     ]);
     // With a PIN, entering it is the confirmation.
-    if (pin) withPin(question, cart.clear);
+    if (pinRequired) withPin(question, cart.clear);
     else if (await confirmAction(question)) cart.clear();
   }
 
@@ -798,11 +805,13 @@ function PosScreen() {
               <Select
                 className="grow"
                 ariaLabel={t.warehouse}
-                disabled={!!register}
+                disabled={!!register || !!ownWarehouse}
                 value={warehouse}
                 onChange={setWarehouse}
                 searchPlaceholder={`${t.searchLabel}…`}
-                options={warehouses.rows.map((row) => ({
+                options={warehouses.rows
+                  .filter((row) => !ownWarehouse || row.name === ownWarehouse)
+                  .map((row) => ({
                   value: String(row.name),
                   label: String(row.name),
                 }))}
@@ -839,7 +848,7 @@ function PosScreen() {
                     <li key={product.id}>
                       <button onClick={() => addToCart(product)}>
                         {product.sku} - {product.name}{" "}
-                        <b>{formatUsd(product.price, rate)}</b>
+                        <b>{formatMoney(product.price)}</b>
                       </button>
                     </li>
                   ))
@@ -858,8 +867,8 @@ function PosScreen() {
                 type="button"
                 className="pos-link danger"
                 onClick={cancelSale}
-                disabled={isCashier}
-                aria-disabled={isCashier}
+                disabled={isCashier && !pinRequired}
+                aria-disabled={isCashier && !pinRequired}
               >
                 <Icon name="trash" size={13} /> {l(["Clear", "សម្អាត"])}
               </button>
@@ -890,7 +899,7 @@ function PosScreen() {
                         line.quantity,
                         qtyDecimals(line.quantity, line.unit),
                       )}{" "}
-                      {line.unit} × {formatUsd(line.price, rate)}
+                      {line.unit} × {formatMoney(line.price)}
                     </small>
                     {productDiscountAmount > 0 && (
                       <small className="cart-discount">
@@ -898,7 +907,7 @@ function PosScreen() {
                         {productDiscount.percent
                           ? `(${formatNumber(productDiscount.value, 2)}%)`
                           : ""}
-                        : -{formatUsd(productDiscountAmount, rate)}
+                        : -{formatMoney(productDiscountAmount)}
                       </small>
                     )}
                   </div>
@@ -945,7 +954,7 @@ function PosScreen() {
                     </button>
                   </div>
                   <b className="cart-subtotal">
-                    {formatUsd(cart.lineTotal(line.productId), rate)}
+                    {formatMoney(cart.lineTotal(line.productId))}
                   </b>
                 </div>
               );
@@ -980,7 +989,7 @@ function PosScreen() {
                 >
                   {t.orderTax} <Icon name="edit" size={12} />
                 </button>
-                <b>{formatUsd(cart.totals.orderTax, rate)}</b>
+                <b>{formatMoney(cart.totals.orderTax)}</b>
               </div>
               <div>
                 <button
@@ -990,13 +999,13 @@ function PosScreen() {
                 >
                   {t.shipping} <Icon name="edit" size={12} />
                 </button>
-                <b>{formatUsd(cart.totals.shipping, rate)}</b>
+                <b>{formatMoney(cart.totals.shipping)}</b>
               </div>
             </div>
             <div className="pos-summary-column">
               <div>
                 <span>{t.subtotal}</span>
-                <b>{formatUsd(cart.totals.total, rate)}</b>
+                <b>{formatMoney(cart.totals.total)}</b>
               </div>
               <div>
                 <span>
@@ -1008,7 +1017,7 @@ function PosScreen() {
                       2,
                     )}%)`}
                 </span>
-                <b>{formatUsd(cart.totals.productDiscount, rate)}</b>
+                <b>{formatMoney(cart.totals.productDiscount)}</b>
               </div>
               <div>
                 <span>
@@ -1017,7 +1026,7 @@ function PosScreen() {
                     cart.adjustments.discount > 0 &&
                     ` (${formatNumber(cart.adjustments.discount, 2)}%)`}
                 </span>
-                <b>{formatUsd(cart.totals.orderDiscount, rate)}</b>
+                <b>{formatMoney(cart.totals.orderDiscount)}</b>
               </div>
             </div>
           </div>
@@ -1025,7 +1034,7 @@ function PosScreen() {
             <span>{t.totalPayable}</span>
             <div>
               <strong>
-                {formatUsd(cart.totals.payable, rate)}
+                {formatMoney(cart.totals.payable)}
               </strong>
             </div>
           </div>
@@ -1043,8 +1052,8 @@ function PosScreen() {
               type="button"
               className="pos-btn danger"
               onClick={cancelSale}
-              disabled={isCashier || !cart.items.length}
-              aria-disabled={isCashier || !cart.items.length}
+              disabled={(isCashier && !pinRequired) || !cart.items.length}
+              aria-disabled={(isCashier && !pinRequired) || !cart.items.length}
             >
               <Icon name="x" size={15} /> {t.cancel}
             </button>
@@ -1155,7 +1164,7 @@ function PosScreen() {
                     onClick={() => setSelectedProduct(product)}
                     title={
                       pos.tooltips !== "no"
-                        ? `${product.name} — ${formatUsd(product.price, rate)}${stockInfo}`
+                        ? `${product.name} — ${formatMoney(product.price)}${stockInfo}`
                         : undefined
                     }
                   >
@@ -1176,7 +1185,7 @@ function PosScreen() {
                     <span className="pos-card-info">
                       <span className="pos-card-name">{product.name}</span>
                       <span className="pos-card-price">
-                        {formatUsd(product.price, rate)}
+                        {formatMoney(product.price)}
                         {WEIGHT_UNITS.includes(productUnit(product))
                           ? `/${productUnit(product)}`
                           : ""}
@@ -1341,7 +1350,7 @@ function PosScreen() {
                     <td className="align-center">
                       {(row.items as LineItem[]).length}
                     </td>
-                    <td className="align-right">{formatUsd(row.total, rate)}</td>
+                    <td className="align-right">{formatMoney(row.total)}</td>
                     <td className="align-center">
                       <div className="button-row center">
                         <button
@@ -1451,6 +1460,7 @@ function PosScreen() {
         <Receipt
           title={l(["Receipt", "បង្កាន់ដៃ"])}
           onClose={() => setReceipt(null)}
+          autoPrint={pos.afterSalePage === "print"}
           logo={brandLogo}
           siteName={String(system.siteName)}
           address={branchAddress}
@@ -1752,7 +1762,7 @@ function ProductSalePanel({
       </div>
       <div className="pos-discount-preview">
         <span>{l(["Product price", "តម្លៃទំនិញ"])}</span>
-        <b>{formatUsd(product.price * Math.max(0, quantityValue), rate)}</b>
+        <b>{formatMoney(product.price * Math.max(0, quantityValue))}</b>
       </div>
       <button
         type="button"
@@ -1781,6 +1791,7 @@ function Receipt({
   address,
   phone,
   cashier,
+  autoPrint = false,
 }: {
   title: string;
   record: Pick<
@@ -1805,8 +1816,25 @@ function Receipt({
   address?: string;
   phone?: string;
   cashier?: string;
+  /** Print as soon as it opens (POS Settings → After Sale Page = Print). */
+  autoPrint?: boolean;
 }) {
   const { l, t } = useLanguage();
+  // Once printed (or the print dialog is closed) the receipt closes, so the
+  // cashier is back at the POS without a second preview.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    const done = () => closeRef.current();
+    window.addEventListener("afterprint", done);
+    const timer = autoPrint
+      ? window.setTimeout(() => window.print(), 300)
+      : undefined;
+    return () => {
+      window.removeEventListener("afterprint", done);
+      window.clearTimeout(timer);
+    };
+  }, [autoPrint]);
   const change = record.paid - record.grandTotal;
   const paidInFull = record.paid >= record.grandTotal;
   const productDiscountAmount = (line: LineItem) => {
@@ -1896,14 +1924,14 @@ function Receipt({
                     {line.name}
                     <small>
                       {formatNumber(line.quantity, 3)} {line.unit} ×{" "}
-                      {formatUsd(line.price, rate)}
+                      {formatMoney(line.price)}
                     </small>
                   </td>
                   <td className="num">
-                    {formatUsd(line.quantity * line.price, rate)}
+                    {formatMoney(line.quantity * line.price)}
                     {lineDiscount > 0 && (
                       <small className="receipt-discount">
-                        -{formatUsd(lineDiscount, rate)}
+                        -{formatMoney(lineDiscount)}
                         {line.productDiscount?.percent
                           ? ` (${formatNumber(line.productDiscount.value, 2)}%)`
                           : ""}
@@ -1918,7 +1946,7 @@ function Receipt({
             {record.total != null && (
               <tr>
                 <td>{t.subtotal}</td>
-                <td className="num">{formatUsd(record.total, rate)}</td>
+                <td className="num">{formatMoney(record.total)}</td>
               </tr>
             )}
             <tr>
@@ -1929,7 +1957,7 @@ function Receipt({
               </td>
               <td className="num">
                 {productDiscountTotal > 0 ? "-" : ""}
-                {formatUsd(productDiscountTotal, rate)}
+                {formatMoney(productDiscountTotal)}
               </td>
             </tr>
             <tr>
@@ -1940,26 +1968,26 @@ function Receipt({
               </td>
               <td className="num">
                 {generalDiscount > 0 ? "-" : ""}
-                {formatUsd(generalDiscount, rate)}
+                {formatMoney(generalDiscount)}
               </td>
             </tr>
             {!!record.orderTax && (
               <tr>
                 <td>{t.orderTax}</td>
-                <td className="num">{formatUsd(record.orderTax, rate)}</td>
+                <td className="num">{formatMoney(record.orderTax)}</td>
               </tr>
             )}
             {!!record.shipping && (
               <tr>
                 <td>{t.shipping}</td>
-                <td className="num">{formatUsd(record.shipping, rate)}</td>
+                <td className="num">{formatMoney(record.shipping)}</td>
               </tr>
             )}
             <tr className="strong grand">
               <td>{t.grandTotal}</td>
               <td className="num">
                 <b className="receipt-grand">
-                  {formatUsd(record.grandTotal, rate)}
+                  {formatMoney(record.grandTotal)}
                 </b>
               </td>
             </tr>
@@ -1967,12 +1995,12 @@ function Receipt({
               <>
                 <tr>
                   <td>{t.paid}</td>
-                  <td className="num">{formatUsd(record.paid, rate)}</td>
+                  <td className="num">{formatMoney(record.paid)}</td>
                 </tr>
                 {change > 0 && (
                   <tr>
                     <td>{l(["Change", "ប្រាក់អាប់"])}</td>
-                    <td className="num">{formatUsd(change, rate)}</td>
+                    <td className="num">{formatMoney(change)}</td>
                   </tr>
                 )}
               </>

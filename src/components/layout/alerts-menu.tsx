@@ -15,17 +15,22 @@ import { useReportData } from "@/features/reports/use-report-data";
 import { usePermissions } from "@/features/settings/permissions";
 import { useLanguage, type Label } from "@/i18n";
 import { formatDate, formatNumber } from "@/lib/format";
+import { useSession } from "@/lib/auth";
+import { notify } from "@/lib/toast";
 
 const SHOWN = 5;
 
 /**
- * The yellow alert button in the header: low stock, batches about to expire
- * and transfers waiting to be received, each with a link to the full list.
- * Follows the user's permissions and branch (see usePermissions).
+ * The yellow alert button in the header: low stock, batches about to expire,
+ * transfers coming to the user's branch (waiting for approval, or ready to
+ * receive) and stock issues waiting for the user's approval, each with a link
+ * to the full list. A new transfer also shows a message once. Follows the
+ * user's permissions and branch (see usePermissions).
  */
 export function AlertsMenu() {
   const { l } = useLanguage();
-  const { canOpen, branch } = usePermissions();
+  const { can, canOpen, branch } = usePermissions();
+  const username = useSession()?.username ?? "";
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   // Hover opens the panel; a short delay lets the mouse reach it.
@@ -62,7 +67,59 @@ export function AlertsMenu() {
         )
         .sort((a, b) => String(b.date).localeCompare(String(a.date)))
     : [];
-  const total = lowStock.length + expiring.length + toReceive.length;
+  // Sent to this branch but not yet accepted by the sending branch.
+  const onTheWay = canOpen("inventory/stock-receive/add")
+    ? issues
+        .filter(
+          (row) =>
+            !!row.toBranch &&
+            row.status === "pending" &&
+            (!branch || row.toBranch === branch),
+        )
+        .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+    : [];
+  const incoming = [...toReceive, ...onTheWay];
+  // Stock issues from this branch that wait for this user's approval.
+  const toApprove = can("stock.approve")
+    ? issues
+        .filter(
+          (row) =>
+            row.status === "pending" && (!branch || row.branch === branch),
+        )
+        .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+    : [];
+  const total =
+    lowStock.length + expiring.length + incoming.length + toApprove.length;
+
+  // A message once per new transfer (remembered per user on this device).
+  const incomingKey = incoming
+    .map((row) => `${row.id}:${row.status}`)
+    .join(",");
+  useEffect(() => {
+    if (!username || !incomingKey) return;
+    const key = `choronai-seen-transfers-${username}`;
+    let seen: string[] = [];
+    try {
+      seen = JSON.parse(localStorage.getItem(key) ?? "[]");
+    } catch {
+      seen = [];
+    }
+    const fresh = incomingKey.split(",").filter((id) => !seen.includes(id));
+    if (!fresh.length) return;
+    const ready = fresh.filter((id) => !id.endsWith(":pending")).length;
+    notify(
+      ready
+        ? l([
+            `${ready} transfer(s) arrived: ready to receive.`,
+            `មានការផ្ទេរស្តុក ${ready} មកដល់ ត្រៀមទទួល។`,
+          ])
+        : l([
+            `${fresh.length} transfer(s) on the way to your branch (waiting for approval).`,
+            `មានការផ្ទេរស្តុក ${fresh.length} កំពុងមកសាខាអ្នក (រង់ចាំអនុម័ត)។`,
+          ]),
+    );
+    localStorage.setItem(key, JSON.stringify([...seen, ...fresh].slice(-200)));
+  }, [incomingKey, username, l]);
 
   useEffect(() => {
     if (!open) return;
@@ -82,14 +139,15 @@ export function AlertsMenu() {
   if (
     !canOpen("reports/quantity-alerts") &&
     !canOpen("reports/expiry-alerts") &&
-    !canOpen("inventory/stock-receive/add")
+    !canOpen("inventory/stock-receive/add") &&
+    !can("stock.approve")
   )
     return null;
 
   const close = () => setOpen(false);
   const section = (
     title: Label,
-    icon: "alert" | "calendar" | "download",
+    icon: "alert" | "calendar" | "download" | "check",
     count: number,
     href: string,
     body: React.ReactNode,
@@ -189,12 +247,12 @@ export function AlertsMenu() {
             )}
           {canOpen("inventory/stock-receive/add") &&
             section(
-              ["To receive", "ត្រូវទទួល"],
+              ["Transfers to you", "ការផ្ទេរមកអ្នក"],
               "download",
-              toReceive.length,
+              incoming.length,
               "/inventory/stock-issue",
               <ul>
-                {toReceive.slice(0, SHOWN).map((row) => (
+                {incoming.slice(0, SHOWN).map((row) => (
                   <li key={row.id}>
                     <span>
                       {row.reference}
@@ -202,19 +260,56 @@ export function AlertsMenu() {
                         {row.branch} → {row.toBranch} · {formatDate(row.date)}
                       </small>
                     </span>
+                    {row.status === "pending" ? (
+                      <small className="text-warning">
+                        {l(["Waiting for approval", "រង់ចាំអនុម័ត"])}
+                      </small>
+                    ) : (
+                      <Link
+                        className="btn btn-primary btn-xs"
+                        href={`/inventory/stock-receive/add?issue=${encodeURIComponent(row.id)}`}
+                        onClick={close}
+                      >
+                        {l(["Receive", "ទទួល"])}
+                      </Link>
+                    )}
+                  </li>
+                ))}
+              </ul>,
+              [
+                "No transfers are coming to you.",
+                "គ្មានការផ្ទេរកំពុងមករកអ្នកទេ។",
+              ],
+            )}
+          {can("stock.approve") &&
+            section(
+              ["Waiting for your approval", "រង់ចាំអ្នកអនុម័ត"],
+              "check",
+              toApprove.length,
+              "/inventory/stock-issue",
+              <ul>
+                {toApprove.slice(0, SHOWN).map((row) => (
+                  <li key={row.id}>
+                    <span>
+                      {row.reference}
+                      <small>
+                        {row.branch} → {row.toBranch || "—"} ·{" "}
+                        {formatDate(row.date)}
+                      </small>
+                    </span>
                     <Link
-                      className="btn btn-primary btn-xs"
-                      href={`/inventory/stock-receive/add?issue=${encodeURIComponent(row.id)}`}
+                      className="btn btn-default btn-xs"
+                      href="/inventory/stock-issue"
                       onClick={close}
                     >
-                      {l(["Receive", "ទទួល"])}
+                      {l(["Open", "បើក"])}
                     </Link>
                   </li>
                 ))}
               </ul>,
               [
-                "No transfers are waiting to be received.",
-                "គ្មានការផ្ទេរដែលរង់ចាំទទួលទេ។",
+                "No stock issue waits for approval.",
+                "គ្មានការបញ្ចេញស្តុករង់ចាំអនុម័តទេ។",
               ],
             )}
         </div>

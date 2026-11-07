@@ -8,7 +8,7 @@ import { resources } from "@/features/resources";
 import { ResourcePage } from "@/features/resources/resource-page";
 import { DataTable } from "@/components/ui/data-table";
 import { Modal } from "@/components/ui/modal";
-import { useLanguage } from "@/i18n";
+import { useLanguage, type Label } from "@/i18n";
 import { canPerform } from "@/lib/permissions";
 import { notify } from "@/lib/toast";
 import { redeemReward } from "@/features/pos/loyalty";
@@ -46,6 +46,10 @@ export function ProductRewardsPage() {
 
 export function MemberCardsPage() {
   const { l } = useLanguage();
+  const customers = useCollection("customers").rows;
+  const base = resources["sales/member-cards"];
+  const customerOf = (row: Row) =>
+    customers.find((item) => item.id === row.customerId);
   const rewards = useCollection("productRewards").rows;
   const ledger = useCollection("rewardLedger").rows;
   const warehouses = useCollection("warehouses").rows;
@@ -56,7 +60,62 @@ export function MemberCardsPage() {
     <>
       <ResourcePage
         def={{
-          ...resources["sales/member-cards"],
+          ...base,
+          // Every card belongs to a customer from People → Customers.
+          columns: [
+            ...base.columns.slice(0, 1),
+            {
+              key: "customerName",
+              label: ["Customer", "អតិថិជន"],
+              value: (row) =>
+                customerOf(row)?.name ??
+                l(["⚠ Not in Customers", "⚠ មិនមានក្នុងបញ្ជីអតិថិជន"]),
+            },
+            ...base.columns.slice(1),
+          ],
+          fields: (base.fields ?? []).map((field) =>
+            field.key === "customer"
+              ? {
+                  key: "customerId",
+                  label: ["Customer", "អតិថិជន"],
+                  required: true,
+                  type: "select" as const,
+                  options: customers.map((row): [string, Label] => {
+                    const text = [row.name, row.phone]
+                      .map((value) => String(value ?? "").trim())
+                      .filter((value) => value && value !== "-")
+                      .join(" — ");
+                    return [String(row.id), [text, text]];
+                  }),
+                }
+              : field,
+          ),
+          prepare: (values, existing) => {
+            const customer = customers.find(
+              (row) => row.id === values.customerId,
+            );
+            if (!customer)
+              return {
+                error: [
+                  "Choose a customer. Add new people in People → Customers first.",
+                  "សូមជ្រើសអតិថិជន។ បើមិនទាន់មាន សូមបន្ថែមនៅ មនុស្ស → អតិថិជន ជាមុនសិន។",
+                ],
+              };
+            const result = base.prepare
+              ? base.prepare(
+                  { ...values, customer: String(customer.phone ?? "") },
+                  existing,
+                )
+              : { values };
+            if ("error" in result) return result;
+            return {
+              values: {
+                ...result.values,
+                customer: String(customer.phone ?? ""),
+                customerId: customer.id,
+              },
+            };
+          },
           rowActions: "menu",
           canDelete: (row) => !ledger.some((entry) => entry.cardId === row.id),
           menuItems: (row) => [

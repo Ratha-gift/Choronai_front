@@ -20,6 +20,8 @@ export type FieldDef = {
     | "textarea"
     | "password";
   required?: boolean;
+  /** Label of the empty choice of a select that is not required (default "Select..."). */
+  emptyLabel?: Label;
   options?: [string, Label][];
   /** Offer the values of another collection's field as options. */
   collection?: {
@@ -75,6 +77,8 @@ export type ResourceDef = {
   formColumns?: 1 | 2 | 3;
   canEdit?: boolean;
   canDelete?: (row: Row) => boolean;
+  /** Per row: false hides Edit and Delete (e.g. users with more rights). */
+  canManageRow?: (row: Row) => boolean;
   /** Called after a record is deleted (e.g. to reverse stock). */
   onDelete?: (row: Row) => void;
   /**

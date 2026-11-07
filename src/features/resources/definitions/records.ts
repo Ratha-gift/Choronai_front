@@ -223,7 +223,9 @@ export const recordResources: ResourceDef[] = [
       col("username", "Username", "ឈ្មោះគណនី"),
       col("email", "Email Address", "អ៊ីមែល"),
       col("group", "Group", "ក្រុម", undefined, { filter: "chips" }),
-      col("branch", "Branch", "សាខា"),
+      col("branch", "Branch", "សាខា", undefined, {
+        value: (row) => row.branch || "All branches / គ្រប់សាខា",
+      }),
       col("status", "Status", "ស្ថានភាព", "status", { filter: "chips" }),
     ],
     filterFrom: { branch: "branches" },
@@ -237,8 +239,10 @@ export const recordResources: ResourceDef[] = [
         collection: { name: "userGroups", field: "description" },
       }),
       // The branch the user works at; the POS sells for this branch.
-      required("branch", "Branch", "សាខា", {
+      // Empty = all branches (the POS then uses its default branch).
+      field("branch", "Branch", "សាខា", {
         type: "select",
+        emptyLabel: ["All branches", "គ្រប់សាខា"],
         collection: { name: "branches", field: "name" },
       }),
       required("status", "Status", "ស្ថានភាព", {

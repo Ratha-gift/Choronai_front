@@ -424,7 +424,7 @@ export const POS_SECTIONS: SettingSection[] = [
     legend: ["POS Configuration", "ការកំណត់ POS"],
     fields: [
       f("displayProducts", "Display Products", "ចំនួនទំនិញបង្ហាញ", 30),
-      f("pinCode", "POS Pin Code", "លេខកូដ POS", "", {
+      f("pinCode", "POS Pin Code (leave blank to keep)", "លេខកូដ POS (ទុកទទេ = រក្សាដដែល)", "", {
         type: "password",
         required: false,
       }),
@@ -491,6 +491,7 @@ export const POS_SECTIONS: SettingSection[] = [
         type: "select",
         options: [
           ["receipt", ["Receipt", "វិក្កយបត្រ"]],
+          ["print", ["Print receipt at once", "បោះពុម្ពវិក្កយបត្រភ្លាម"]],
           ["pos", ["POS", "POS"]],
         ],
       }),

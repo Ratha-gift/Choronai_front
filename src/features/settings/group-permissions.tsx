@@ -5,7 +5,12 @@ import { useCollection } from "@/data/collections";
 import { useLanguage, type Label } from "@/i18n";
 import { useStored } from "@/lib/store";
 import { notify } from "@/lib/toast";
-import { DEFAULT_PERMISSIONS, PERMISSIONS_KEY } from "./permissions";
+import {
+  DEFAULT_PERMISSIONS,
+  PERMISSIONS_KEY,
+  useMayManageGroup,
+  usePermissions,
+} from "./permissions";
 
 const CRUD: [string, Label][] = [
   ["view", ["View", "មើល"]],
@@ -137,6 +142,8 @@ export function GroupPermissions({ groupId }: { groupId?: string }) {
   const { rows: groups } = useCollection("userGroups");
   const [saved, setSaved] = useStored(PERMISSIONS_KEY, DEFAULT_PERMISSIONS);
   const group = groups.find((row) => row.id === groupId) ?? groups[0];
+  const mayManageGroup = useMayManageGroup();
+  const { can } = usePermissions();
   const [values, setValues] = useState<Record<string, boolean>>(
     (group && saved[group.id]) ?? {},
   );
@@ -146,10 +153,15 @@ export function GroupPermissions({ groupId }: { groupId?: string }) {
         <p>{t.noDataTable}</p>
       </Box>
     );
+  // Only rights the user has can be given; stronger groups are read-only.
+  const readOnly = !mayManageGroup(group);
   const setMany = (keys: string[], on: boolean) =>
+    !readOnly &&
     setValues((old) => ({
       ...old,
-      ...Object.fromEntries(keys.map((key) => [key, on])),
+      ...Object.fromEntries(
+        keys.filter((key) => !on || can(key)).map((key) => [key, on]),
+      ),
     }));
   const selectAll = l(["Select all", "ជ្រើសទាំងអស់"]);
   const box = (key: string) => (
@@ -157,6 +169,7 @@ export function GroupPermissions({ groupId }: { groupId?: string }) {
       type="checkbox"
       aria-label={key}
       checked={!!values[key]}
+      disabled={readOnly || (!values[key] && !can(key))}
       onChange={() => setValues((old) => ({ ...old, [key]: !old[key] }))}
     />
   );
@@ -246,8 +259,17 @@ export function GroupPermissions({ groupId }: { groupId?: string }) {
           </tbody>
         </table>
       </div>
+      {readOnly && (
+        <p className="text-warning">
+          {l([
+            "This group has rights you do not have: only the owner can change it.",
+            "ក្រុមនេះមានសិទ្ធិដែលអ្នកមិនមាន៖ មានតែ Owner ទេដែលអាចកែបាន។",
+          ])}
+        </p>
+      )}
       <button
         className="btn btn-primary form-actions"
+        disabled={readOnly}
         onClick={() => {
           setSaved((old) => ({ ...old, [group.id]: values }));
           notify(t.settingsSaved);

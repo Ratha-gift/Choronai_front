@@ -23,8 +23,55 @@ export const formatNumber = (value: unknown, decimals = 0) =>
     maximumFractionDigits: decimals,
   });
 
-/** All amounts are stored in riel (KHR). */
-export const formatMoney = (value: unknown) => `${formatNumber(value)} ៛`;
+/** Reads a JSON value from localStorage, parsed once per change. */
+const parsed = new Map<string, [string | null, unknown]>();
+function stored(key: string): unknown {
+  if (typeof window === "undefined") return null;
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+  const hit = parsed.get(key);
+  if (hit && hit[0] === raw) return hit[1];
+  let value: unknown = null;
+  try {
+    value = raw ? JSON.parse(raw) : null;
+  } catch {
+    value = null;
+  }
+  parsed.set(key, [raw, value]);
+  return value;
+}
+
+/**
+ * The currency amounts are shown in: System Settings → Default Currency
+ * (KHR or USD), at the USD rate of Settings → Currencies. Amounts are
+ * always stored in riel; only the display changes.
+ */
+export function displayCurrency(): { code: "KHR" | "USD"; rate: number } {
+  const system = stored("choronai-system-settings-v1") as {
+    defaultCurrency?: string;
+  } | null;
+  const code = String(system?.defaultCurrency ?? "KHR").toUpperCase();
+  if (code !== "USD") return { code: "KHR", rate: 1 };
+  const rows = stored("choronai-currencies-v1");
+  const usd = Array.isArray(rows)
+    ? (rows as { code?: string; rate?: unknown }[]).find(
+        (row) => String(row.code).toUpperCase() === "USD",
+      )
+    : undefined;
+  return { code: "USD", rate: toNumber(usd?.rate) || 4100 };
+}
+
+/** All amounts are stored in riel (KHR); shown in the default currency. */
+export const formatMoney = (value: unknown) => {
+  const { code, rate } = displayCurrency();
+  return code === "USD"
+    ? `$${formatNumber(toNumber(value) / rate, 2)}`
+    : `${formatNumber(value)} ៛`;
+};
 
 export const formatUsd = (riel: unknown, rate: number) =>
   `$${formatNumber(toNumber(riel) / (rate || 4100), 2)}`;

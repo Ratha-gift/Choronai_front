@@ -1,4 +1,5 @@
 "use client";
+import { usePermissions } from "@/features/settings/permissions";
 import { NativeSelect } from "@/components/ui/select";
 import { useState } from "react";
 import { Icon } from "@/components/icons";
@@ -6,7 +7,7 @@ import { Modal } from "@/components/ui/modal";
 import { addRow, useCollection } from "@/data/collections";
 import type { Transaction } from "@/data/types";
 import { useLanguage, type Label } from "@/i18n";
-import { formatDate, formatUsd, toNumber } from "@/lib/format";
+import { formatDate, formatMoney, toNumber } from "@/lib/format";
 import { METHODS } from "./payment-modal";
 import { summarize, type Register } from "./register";
 
@@ -41,8 +42,14 @@ export function OpenRegisterModal({
   const [note, setNote] = useState("");
   // Opening cash is counted in dollars (main); the warehouse is chosen here (Sethy).
   const total = Math.round(toNumber(usd) * rate);
-  const warehouses = useCollection("warehouses").rows;
-  const [selectedWarehouse, setSelectedWarehouse] = useState(warehouse);
+  // Staff without "See all branches" open it in their branch's warehouse.
+  const { warehouse: ownWarehouse } = usePermissions();
+  const warehouses = useCollection("warehouses").rows.filter(
+    (row) => !ownWarehouse || String(row.name) === ownWarehouse,
+  );
+  const [selectedWarehouse, setSelectedWarehouse] = useState(
+    ownWarehouse || warehouse,
+  );
 
   return (
     <Modal
@@ -87,6 +94,7 @@ export function OpenRegisterModal({
             className="form-control"
             required
             value={selectedWarehouse}
+            disabled={!!ownWarehouse}
             onChange={(event) => setSelectedWarehouse(event.target.value)}
           >
             {warehouses.map((row) => (
@@ -115,7 +123,7 @@ export function OpenRegisterModal({
         </label>
         <p className="register-total">
           {l(["Total cash in hand", "សាច់ប្រាក់សរុប"])}:{" "}
-          <b>{formatUsd(total, rate)}</b>
+          <b>{formatMoney(total)}</b>
         </p>
         <label className="field">
           <span className="field-label">{l(["Note", "កំណត់ចំណាំ"])}</span>
@@ -155,7 +163,7 @@ export function CloseRegisterModal({
   const summary = summarize(register, sales, saleReturns);
   const counted = Math.round(toNumber(countedUsd) * rate);
   const difference = counted - summary.expectedCash;
-  const dollars = (riel: number) => formatUsd(riel, rate);
+  const dollars = (riel: number) => formatMoney(riel);
 
   const rows: [Label, React.ReactNode, boolean?][] = [
     [["Cash in hand", "សាច់ប្រាក់ក្នុងដៃ"], dollars(register.cashInHand)],

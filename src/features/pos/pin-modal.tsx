@@ -20,6 +20,31 @@ export function PinModal({
   const { l } = useLanguage();
   const [value, setValue] = useState("");
   const [wrong, setWrong] = useState(false);
+  const [error, setError] = useState("");
+  const [checking, setChecking] = useState(false);
+
+  /**
+   * Local data keeps the PIN in POS Settings: compare here. With the Laravel
+   * server only a hash exists there: POST /pos/verify-pin (every try is
+   * logged, 5 wrong tries lock it for a minute).
+   */
+  async function check() {
+    if (pin) return value === pin;
+    const response = await fetch("/api/backend/pos/verify-pin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin: value, reason }),
+    });
+    if (response.status === 429)
+      throw new Error(
+        l([
+          "Too many wrong PINs. Wait a minute.",
+          "បញ្ចូល PIN ខុសច្រើនដងពេក។ សូមរង់ចាំមួយនាទី។",
+        ]),
+      );
+    if (!response.ok) throw new Error(String(response.status));
+    return Boolean((await response.json()).ok);
+  }
 
   return (
     <Modal
@@ -33,15 +58,37 @@ export function PinModal({
       }
       intro={reason}
       onSubmit={() => {
-        if (value === pin) onSuccess();
-        else {
-          setWrong(true);
-          setValue("");
-        }
+        if (checking) return;
+        setChecking(true);
+        setError("");
+        check()
+          .then((ok) => {
+            if (ok) onSuccess();
+            else {
+              setWrong(true);
+              setValue("");
+            }
+          })
+          .catch((reasonError: unknown) =>
+            setError(
+              reasonError instanceof Error &&
+                !/^\d+$/.test(reasonError.message)
+                ? reasonError.message
+                : l([
+                    "Cannot check the PIN: no connection to the server. Try again when online.",
+                    "មិនអាចពិនិត្យ PIN បាន៖ គ្មានការភ្ជាប់ទៅ server។ សូមព្យាយាមម្តងទៀតពេលមានអ៊ីនធឺណិត។",
+                  ]),
+            ),
+          )
+          .finally(() => setChecking(false));
       }}
       footer={
-        <button type="submit" className="btn btn-primary pin-ok">
-          OK
+        <button
+          type="submit"
+          className="btn btn-primary pin-ok"
+          disabled={checking}
+        >
+          {checking ? "…" : "OK"}
         </button>
       }
     >
@@ -59,6 +106,11 @@ export function PinModal({
           setWrong(false);
         }}
       />
+      {error && (
+        <p className="pin-error" role="alert">
+          {error}
+        </p>
+      )}
       {wrong && (
         <p className="pin-error" role="alert">
           {l([
