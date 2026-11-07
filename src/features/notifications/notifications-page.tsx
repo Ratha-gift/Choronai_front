@@ -114,12 +114,17 @@ export function NotificationsPage() {
       items: issues
         .filter(
           (row) =>
-            canReceiveTransfer(row) && (!branch || row.toBranch === branch),
+            (canReceiveTransfer(row) ||
+              (!!row.toBranch && row.status === "pending")) &&
+            (!branch || row.toBranch === branch),
         )
         .map((row) => ({
           id: row.id,
           text: `${row.reference} · ${row.branch} → ${row.toBranch}`,
-          note: formatDate(row.date, true),
+          note:
+            row.status === "pending"
+              ? `${l(["Waiting for approval", "រង់ចាំអនុម័ត"])} · ${formatDate(row.date, true)}`
+              : formatDate(row.date, true),
           href: `/inventory/stock-receive/add?issue=${encodeURIComponent(row.id)}`,
         })),
     });

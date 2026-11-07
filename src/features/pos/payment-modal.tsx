@@ -182,7 +182,8 @@ export function PaymentModal({
               <span className="field-label">{t.branch} *</span>
               <NativeSelect
                 className="form-control"
-                value={branch}
+                value={ownBranch ?? branch}
+                disabled={!!ownBranch}
                 onChange={(event) => setBranch(event.target.value)}
               >
                 {branches.rows

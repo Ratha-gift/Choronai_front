@@ -1,5 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
+import { RecordHistory } from "@/components/layout/audit-log";
 import { Modal } from "@/components/ui/modal";
 import { useCollection } from "@/data/collections";
 import { usePermissions } from "@/features/settings/permissions";
@@ -234,6 +235,8 @@ function ProductDetails({
           ])}
         </p>
       )}
+
+      <RecordHistory id={product.id} refreshKey={product} defaultOpen />
 
       <div className="button-bar">
         <button className="btn btn-primary" onClick={() => window.print()}>

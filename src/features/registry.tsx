@@ -21,10 +21,10 @@ import {
   ExpiryAlerts,
   InventoryInOut,
   InventoryInOutExpiry,
-  ProductSalesReport,
   ProductsReport,
   QuantityAlerts,
 } from "./reports/table-reports";
+import { ProductSalesReport } from "./reports/product-sales-report";
 import { resources } from "./resources";
 import { ResourcePage } from "./resources/resource-page";
 import { TransfersPage } from "./transfers/transfers-page";
@@ -107,8 +107,6 @@ const PAGES: Record<string, (params: string[]) => ReactNode> = {
   "reports/adjustment-details": () => <AdjustmentDetails />,
   "reports/waste": () => <WasteReport />,
   "reports/product-sales": () => <ProductSalesReport />,
-  "reports/product-sales/simple": () => <ProductSalesReport type="simple" />,
-  "reports/product-sales/combo": () => <ProductSalesReport type="combo" />,
 };
 
 export function ModuleView({ segments }: { segments: string[] }) {

@@ -1482,3 +1482,223 @@ label.btn.disabled {
   gap: 6px;
   margin-right: auto;
 }
+
+/* Change log of one record (product details, edit forms) and the activity log */
+.record-history {
+  margin-top: 16px;
+  border-top: 1px solid var(--border, #e2e8f0);
+  padding-top: 8px;
+}
+.record-history-toggle {
+  display: block;
+  margin: 0 auto 6px;
+  border: 0;
+  background: none;
+  color: var(--primary, #1e40af);
+  font-size: 13px;
+  cursor: pointer;
+}
+.record-history-toggle:hover {
+  text-decoration: underline;
+}
+.record-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 8px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  font-size: 12.5px;
+  animation: record-history-in 0.18s ease-out;
+}
+.record-history-list > li {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+.record-history-list > li:last-child {
+  border-bottom: 0;
+}
+.audit-action {
+  font-weight: 600;
+}
+.audit-action.success {
+  color: #15803d;
+}
+.audit-action.info {
+  color: #1d4ed8;
+}
+.audit-action.warning {
+  color: #b45309;
+}
+.audit-action.danger {
+  color: #dc2626;
+}
+@keyframes record-history-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+.audit-changes {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  font-size: 12px;
+}
+.audit-changes s {
+  color: var(--muted, #94a3b8);
+}
+.audit-filters {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.audit-filters .form-control,
+.audit-filters .native-select {
+  width: auto;
+  min-width: 160px;
+}
+.audit-log td:last-child {
+  max-width: 420px;
+}
+
+/* Product Sales Report: grouped by category */
+.report-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px 14px;
+  align-items: end;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 6px;
+  animation: record-history-in 0.18s ease-out;
+}
+.report-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.report-form-buttons {
+  display: flex;
+  gap: 8px;
+}
+.product-sales-report th {
+  text-align: center;
+}
+.product-sales-report td.align-center {
+  text-align: center;
+}
+.product-sales-report .group-toggle {
+  width: 36px;
+}
+.product-sales-report .group-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: #111827;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.product-sales-report thead .group-dot {
+  background: #fff;
+  color: #1e3a8a;
+}
+.product-sales-report .category-row td {
+  background: #eceef1;
+  cursor: pointer;
+  user-select: none;
+}
+.product-sales-report .subtotal-row td,
+.product-sales-report tfoot td {
+  color: #1d4ed8;
+  font-weight: 600;
+  background: #f1f6fd;
+}
+.product-sales-report tfoot td {
+  background: #e4edf9;
+  color: inherit;
+}
+.product-sales-report .unit {
+  color: #2563eb;
+}
+.product-sales-report .text-danger {
+  color: #dc2626;
+}
+/* components.css centers every .data-table cell with !important */
+.data-table.product-sales-report td {
+  text-align: left !important;
+}
+.data-table.product-sales-report td.align-right {
+  text-align: right !important;
+}
+.data-table.product-sales-report td.align-center {
+  text-align: center !important;
+}
+/* Grid lines and blue header, like the WeERP report */
+.data-table.product-sales-report {
+  border-collapse: collapse;
+  border: 1px solid #d5dbe3;
+}
+.data-table.product-sales-report th,
+.data-table.product-sales-report td {
+  border: 1px solid #d5dbe3;
+  padding: 7px 10px;
+}
+.data-table.product-sales-report thead th {
+  background: #3c7ac9;
+  color: #fff;
+  border-color: #5a8fd4;
+}
+.data-table.product-sales-report
+  tbody
+  tr:not(.category-row):not(.subtotal-row):nth-child(even)
+  td {
+  background: #f7f9fc;
+}
+
+/* Report tables (ReportTable): thin grid lines, blue header, compact rows,
+   like the Product Sales Report. Cells only draw their right and bottom
+   border (the table is border-collapse: separate for the sticky header),
+   so lines stay 1px instead of doubling. */
+.report-grid .table-responsive {
+  border-color: #d5dbe3;
+}
+.report-grid .data-table th,
+.report-grid .data-table td {
+  border: 0;
+  border-right: 1px solid #d5dbe3;
+  border-bottom: 1px solid #d5dbe3;
+  padding: 7px 10px;
+}
+.report-grid .data-table th:last-child,
+.report-grid .data-table td:last-child {
+  border-right: 0;
+}
+.report-grid .data-table thead th {
+  background: #3c7ac9;
+  color: #fff;
+  border-right-color: #5a8fd4;
+  border-bottom-color: #3c7ac9;
+}
+.report-grid .data-table thead th * {
+  color: inherit;
+}
+.report-grid .data-table tbody tr:nth-child(even) td {
+  background: #f7f9fc;
+}
+.report-grid .data-table tfoot td {
+  background: #e4edf9;
+  font-weight: 700;
+}
+.report-toolbar-select {
+  width: auto;
+  min-width: 160px;
+}

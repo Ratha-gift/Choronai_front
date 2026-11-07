@@ -224,3 +224,20 @@ export function useBranchTitle() {
     });
   };
 }
+
+/**
+ * Mirrors the server (User::mayManageGroup): the owner manages every group;
+ * others only groups that are not Owner and whose permissions they all have.
+ * Used to hide choices the server would refuse.
+ */
+export function useMayManageGroup() {
+  const { can, isOwner } = usePermissions();
+  const [saved] = useStored(PERMISSIONS_KEY, DEFAULT_PERMISSIONS);
+  return (group?: { id: unknown; name?: unknown }) =>
+    isOwner ||
+    (!!group &&
+      String(group.name ?? "").toLowerCase() !== "owner" &&
+      Object.entries(saved[String(group.id)] ?? {}).every(
+        ([key, on]) => !on || can(key),
+      ));
+}

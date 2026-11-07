@@ -2,10 +2,12 @@
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { useCollection } from "@/data/collections";
 import type { Row, Transaction } from "@/data/types";
-import { useLanguage } from "@/i18n";
+import { useLanguage, type Label } from "@/i18n";
 import { summarize, type Register } from "@/features/pos/register";
 import { resources } from "@/features/resources";
 import { ResourcePage } from "@/features/resources/resource-page";
+import { useMayManageGroup } from "@/features/settings/permissions";
+import { useSession } from "@/lib/auth";
 
 /** User management with live cashier activity and a read-only shift history. */
 export function UsersPage() {
@@ -93,6 +95,18 @@ export function UsersPage() {
     },
   ];
   const base = resources["people/users"];
+  // Nobody may give more rights than they have (the server checks it too).
+  const groups = useCollection("userGroups").rows;
+  const mayManageGroup = useMayManageGroup();
+  const me = useSession()?.username;
+  const groupOf = (row: Row) =>
+    groups.find(
+      (group) =>
+        group.id === row.groupId ||
+        String(group.description) === String(row.group) ||
+        String(group.name) === String(row.group),
+    );
+  const assignable = groups.filter((group) => mayManageGroup(group));
   return (
     <>
       <p>
@@ -105,6 +119,20 @@ export function UsersPage() {
         def={{
           ...base,
           columns: [...base.columns, ...activityColumns],
+          canManageRow: (row) =>
+            row.username === me || mayManageGroup(groupOf(row)),
+          fields: (base.fields ?? []).map((field) =>
+            field.key === "group"
+              ? {
+                  ...field,
+                  collection: undefined,
+                  options: assignable.map((group): [string, Label] => {
+                    const name = String(group.description || group.name);
+                    return [name, [name, name]];
+                  }),
+                }
+              : field,
+          ),
           rowClassName: (row) =>
             latestFor(row)?.status === "open" ? "register-open" : "",
           details: (row) => (

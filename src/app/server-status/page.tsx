@@ -4,6 +4,8 @@ import { Icon } from "@/components/icons";
 import { Box } from "@/components/ui/box";
 import { useCollection } from "@/data/collections";
 import { useLanguage } from "@/i18n";
+import { ActivityLog } from "@/components/layout/audit-log";
+import { formatMoney } from "@/lib/format";
 import { LoginHistory } from "@/components/layout/login-history";
 
 type Metrics = {
@@ -262,7 +264,7 @@ export default function ServerStatusPage() {
                   <tr key={b.id}>
                     <td>{name}</td>
                     <td>{mine.length}</td>
-                    <td>{total.toLocaleString()} ៛</td>
+                    <td>{formatMoney(total)}</td>
                     <td>{last ? new Date(last).toLocaleString() : "—"}</td>
                     <td>
                       <span className={`label label-${active ? "success" : "warning"}`}>
@@ -308,6 +310,7 @@ export default function ServerStatusPage() {
         </ul>
       </Box>
       <LoginHistory />
+      <ActivityLog />
     </div>
   );
 }

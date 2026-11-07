@@ -1,4 +1,5 @@
 "use client";
+import { RecordHistory } from "@/components/layout/audit-log";
 import { useState } from "react";
 import { Field, FormGrid, PasswordInput } from "@/components/ui/fields";
 import { Modal } from "@/components/ui/modal";
@@ -53,12 +54,24 @@ function FieldSelect({
       ]
     : [];
   const options: SelectOption[] = [
-    ...(field.required ? [] : [{ value: "", label: t.select }]),
+    ...(field.required
+      ? []
+      : [
+          {
+            value: "",
+            label: field.emptyLabel ? l(field.emptyLabel) : t.select,
+          },
+        ]),
     ...(field.options ?? []).map(([option, label]) => ({
       value: option,
       label: l(label),
     })),
-    ...fromCollection,
+    // A value offered both ways (e.g. the built-in "VIP" and a VIP customer
+    // group) is listed once.
+    ...fromCollection.filter(
+      (option) =>
+        !(field.options ?? []).some(([value]) => value === option.value),
+    ),
   ];
   return (
     <Select
@@ -151,6 +164,7 @@ export function ResourceForm({
   onClose,
   onSave,
   submitLabel,
+  recordId,
 }: {
   open: boolean;
   title: string;
@@ -160,6 +174,8 @@ export function ResourceForm({
   onClose: () => void;
   onSave: (values: Values) => void;
   submitLabel: string;
+  /** When editing: shows the record's change log under the form. */
+  recordId?: string;
 }) {
   const { t } = useLanguage();
   const [values, setValues] = useState(initial);
@@ -189,6 +205,7 @@ export function ResourceForm({
           />
         ))}
       </FormGrid>
+      {recordId && <RecordHistory id={recordId} />}
     </Modal>
   );
 }

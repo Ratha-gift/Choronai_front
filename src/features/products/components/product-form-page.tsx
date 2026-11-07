@@ -1,4 +1,5 @@
 "use client";
+import { RecordHistory } from "@/components/layout/audit-log";
 import { NativeSelect } from "@/components/ui/select";
 import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -1212,6 +1213,8 @@ export function ProductFormPage({ productId }: { productId?: string }) {
           </Section>
         </aside>
       </div>
+
+      {existing && <RecordHistory id={existing.id} />}
 
       {quickAdd && quick && quickDef?.fields && (
         <ResourceForm

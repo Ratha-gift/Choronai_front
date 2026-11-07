@@ -49,7 +49,13 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
 
   async function deleteRows(targets: Row[]) {
     if (!targets.length) return;
-    if (targets.some((row) => def.canDelete && !def.canDelete(row))) {
+    if (
+      targets.some(
+        (row) =>
+          (def.canDelete && !def.canDelete(row)) ||
+          (def.canManageRow && !def.canManageRow(row)),
+      )
+    ) {
       notify(
         l([
           "This record is linked to a completed workflow and cannot be deleted.",
@@ -125,7 +131,7 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
                 },
               ]
             : []),
-          ...(canEdit
+          ...(canEdit && (def.canManageRow?.(row) ?? true)
             ? [
                 {
                   icon: "edit" as const,
@@ -135,7 +141,7 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
                 },
               ]
             : []),
-          ...(mayDelete
+          ...(mayDelete && (def.canManageRow?.(row) ?? true)
             ? [
                 {
                   icon: "trash" as const,
@@ -163,7 +169,7 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
             navigate: (href) => router.push(href),
             l,
           }) ?? []),
-          ...(canEdit
+          ...(canEdit && (def.canManageRow?.(row) ?? true)
             ? [
                 {
                   icon: "edit" as const,
@@ -172,7 +178,7 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
                 },
               ]
             : []),
-          ...(mayDelete
+          ...(mayDelete && (def.canManageRow?.(row) ?? true)
             ? [
                 {
                   icon: "trash" as const,
@@ -223,6 +229,7 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
             editing === "new" ? undefined : editing,
           )}
           submitLabel={`${editing === "new" ? t.addVerb : t.editVerb} ${noun}`}
+          recordId={editing === "new" ? undefined : String(editing.id)}
           onClose={() => setEditing(null)}
           onSave={(input) => {
             const existing = editing === "new" ? undefined : editing;
