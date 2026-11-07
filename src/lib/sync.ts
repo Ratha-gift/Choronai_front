@@ -5,7 +5,74 @@ import { SEED } from "@/data/seed";
 import { applyRemote } from "./store";
 
 type Changes = Record<string, unknown>;
-type Commit = { id: string; revision: number; changes: Changes };
+type Row = Record<string, unknown> & { id: unknown };
+/**
+ * What one commit changed in one key, so it can be replayed on newer server
+ * data when another device committed first (see rebase()).
+ */
+type Ops =
+  | { rows: { upsert: Row[]; remove: string[] } }
+  | { fields: Record<string, unknown>; removed: string[] }
+  | { value: unknown };
+type Commit = {
+  id: string;
+  revision: number;
+  changes: Changes;
+  ops?: Record<string, Ops>;
+};
+
+const same = (a: unknown, b: unknown) =>
+  JSON.stringify(a) === JSON.stringify(b);
+const isRows = (value: unknown): value is Row[] =>
+  Array.isArray(value) &&
+  value.every((row) => !!row && typeof row === "object" && "id" in row);
+const isPlain = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === "object" && !Array.isArray(value);
+
+/** The rows added, changed and removed (or fields set) from base to next. */
+function diff(base: unknown, next: unknown): Ops {
+  if (isRows(next) && (base === undefined || isRows(base))) {
+    const before = new Map((base ?? []).map((row) => [String(row.id), row]));
+    const ids = new Set(next.map((row) => String(row.id)));
+    return {
+      rows: {
+        upsert: next.filter((row) => !same(row, before.get(String(row.id)))),
+        remove: [...before.keys()].filter((id) => !ids.has(id)),
+      },
+    };
+  }
+  if (isPlain(next) && (base === undefined || isPlain(base))) {
+    const old = base ?? {};
+    return {
+      fields: Object.fromEntries(
+        Object.entries(next).filter(([key, value]) => !same(value, old[key])),
+      ),
+      removed: Object.keys(old).filter((key) => !(key in next)),
+    };
+  }
+  return { value: next };
+}
+
+/** Replays ops on the server's current value. */
+function replay(theirs: unknown, ops: Ops): unknown {
+  if ("rows" in ops) {
+    const rows = (isRows(theirs) ? theirs : []).filter(
+      (row) => !ops.rows.remove.includes(String(row.id)),
+    );
+    for (const row of ops.rows.upsert) {
+      const at = rows.findIndex((item) => String(item.id) === String(row.id));
+      if (at >= 0) rows[at] = row;
+      else rows.push(row);
+    }
+    return rows;
+  }
+  if ("fields" in ops) {
+    const merged = { ...(isPlain(theirs) ? theirs : {}), ...ops.fields };
+    ops.removed.forEach((key) => delete merged[key]);
+    return merged;
+  }
+  return ops.value;
+}
 const sharedKeys = new Set([
   ...Object.keys(SEED).map((name) => `choronai-${name}-v1`),
   "choronai-next-catalog-v1",
@@ -22,6 +89,8 @@ let revision = 0,
   busy = false;
 let queue: Commit[] = [],
   draft: Changes = {},
+  // Each draft key's value before the change, to work out what changed.
+  draftBase: Changes = {},
   timer: ReturnType<typeof setTimeout> | undefined;
 let recoveredOutbox: { key: string; value: string } | undefined;
 /** "laravel" when the shared data lives in the Laravel API (see /api/workspace). */
@@ -57,15 +126,19 @@ function outboxKey() {
   return `choronai-outbox-${username}-${client}`;
 }
 function persist() {
-  localStorage.setItem(outboxKey(), JSON.stringify({ revision, queue, draft }));
+  localStorage.setItem(
+    outboxKey(),
+    JSON.stringify({ revision, queue, draft, draftBase }),
+  );
 }
-export function queueChange(key: string, value: unknown) {
+export function queueChange(key: string, value: unknown, old?: unknown) {
   if (!isSharedKey(key)) return;
   if (!connected) return;
   if (state.status === "conflict" || state.status === "error")
     throw new Error(
       "Resolve the synchronization error before making more changes.",
     );
+  if (!(key in draft) && old !== undefined) draftBase[key] = old;
   draft[key] = value;
   persist();
   if (timer) clearTimeout(timer);
@@ -77,12 +150,22 @@ export function queueChange(key: string, value: unknown) {
 }
 function seal() {
   if (!Object.keys(draft).length) return;
+  // Without the value before the change a commit cannot be replayed; it
+  // then needs the "Sync needs attention" choice as before.
+  const keys = Object.keys(draft);
+  const ops = keys.every((key) => key in draftBase)
+    ? Object.fromEntries(
+        keys.map((key) => [key, diff(draftBase[key], draft[key])]),
+      )
+    : undefined;
   queue.push({
     id: makeId(),
     revision: revision + queue.length,
     changes: draft,
+    ...(ops ? { ops } : {}),
   });
   draft = {};
+  draftBase = {};
   persist();
   emit("pending");
 }
@@ -96,6 +179,7 @@ export async function flush() {
     return;
   seal();
   busy = true;
+  let rebases = 0;
   try {
     while (queue.length) {
       emit("syncing");
@@ -113,6 +197,12 @@ export async function flush() {
           "The server is not answering. Changes are kept and sent automatically.",
         );
         return;
+      }
+      // Another device committed first: replay this device's changes on
+      // the newer data and send again (a few times if devices keep racing).
+      if (response.status === 409 && rebases < 3 && (await rebase())) {
+        rebases++;
+        continue;
       }
       if (!response.ok) {
         emit(
@@ -185,6 +275,7 @@ export async function connectWorkspace(user: string, owner: boolean) {
     queue = parsed.queue ?? [];
     revision = parsed.revision ?? 0;
     draft = parsed.draft ?? {};
+    draftBase = parsed.draftBase ?? {};
     seal();
   }
   let response: Response;
@@ -251,6 +342,42 @@ export async function connectWorkspace(user: string, owner: boolean) {
     emit("synced");
   }
 }
+/**
+ * Rebuilds every queued commit on the server's current data: each commit's
+ * own added / changed / removed rows (or settings fields) are applied on
+ * top of what other devices saved meanwhile. Returns false when a commit
+ * cannot be replayed (older outbox without ops) or the server is not there.
+ */
+async function rebase(): Promise<boolean> {
+  if (!queue.every((commit) => commit.ops)) return false;
+  let remote: { revision: number; data: Changes };
+  try {
+    const response = await fetch("/api/workspace", { cache: "no-store" });
+    if (!response.ok) return false;
+    remote = await response.json();
+  } catch {
+    return false;
+  }
+  const running: Changes = { ...remote.data };
+  queue = queue.map((commit, index) => {
+    const changes: Changes = {};
+    for (const [key, ops] of Object.entries(commit.ops!)) {
+      changes[key] = replay(running[key], ops);
+      running[key] = changes[key];
+    }
+    // A new id: the rejected commit was not stored on the server.
+    return {
+      ...commit,
+      id: makeId(),
+      revision: remote.revision + index,
+      changes,
+    };
+  });
+  revision = remote.revision;
+  persist();
+  return true;
+}
+
 export async function refreshWorkspace() {
   if (!connected || busy) return;
   if (queue.length || Object.keys(draft).length) {

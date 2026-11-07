@@ -72,7 +72,7 @@ export function writeStored<T>(
     );
   }
   listeners.get(key)?.forEach((listener) => listener());
-  queueChange(key, value);
+  queueChange(key, value, old);
 }
 
 /** Apply a server snapshot without echoing it back as a new write. */
