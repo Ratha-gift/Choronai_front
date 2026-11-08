@@ -1505,3 +1505,34 @@
   display: block;
   font-size: 11px;
 }
+
+/* Discount typed as money or as a percentage */
+.discount-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.discount-label .field-label {
+  margin: 0;
+}
+.segmented.discount-mode {
+  margin-bottom: 10px;
+}
+.discount-label .segmented.discount-mode {
+  margin-bottom: 0;
+}
+.segmented.discount-mode button {
+  min-width: 34px;
+  padding: 3px 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.segmented.discount-mode button:first-child {
+  margin-left: 0;
+  border-radius: 6px 0 0 6px;
+}
+.segmented.discount-mode button:last-child {
+  border-radius: 0 6px 6px 0;
+}

@@ -1254,11 +1254,7 @@ function PosScreen() {
             rate={rate}
             onAdd={(quantity, productDiscount) => {
               if (!addLine(selectedProduct, quantity)) return false;
-              // An amount in riel for the whole line (not a percentage).
-              cart.setProductDiscount(selectedProduct.id, {
-                percent: false,
-                value: Math.max(0, productDiscount),
-              });
+              cart.setProductDiscount(selectedProduct.id, productDiscount);
               setSelectedProduct(null);
               setSearch("");
               return true;
@@ -1317,7 +1313,6 @@ function PosScreen() {
             key={key}
             kind={key}
             value={cart.adjustments}
-            discountAmount={cart.totals.orderDiscount}
             onClose={() => setPanel(null)}
             onSave={(value) => {
               cart.setAdjustments(value);
@@ -1480,14 +1475,11 @@ function PosScreen() {
 function AdjustModal({
   kind,
   value,
-  discountAmount,
   onClose,
   onSave,
 }: {
   kind: "tax" | "shipping" | "discount";
   value: CartAdjustments;
-  /** The general discount now, in riel (also when it was a percentage). */
-  discountAmount: number;
   onClose: () => void;
   onSave: (value: CartAdjustments) => void;
 }) {
@@ -1496,11 +1488,7 @@ function AdjustModal({
   // Amounts are typed in the shop's display currency and stored in riel.
   const money = displayCurrency();
   const symbol = money.code === "USD" ? "$" : "៛";
-  const [draft, setDraft] = useState(
-    kind === "discount"
-      ? { ...value, discount: discountAmount, discountPercent: false }
-      : value,
-  );
+  const [draft, setDraft] = useState(value);
   const title =
     kind === "tax"
       ? t.orderTax
@@ -1548,7 +1536,7 @@ function AdjustModal({
             </option>
           ))}
         </NativeSelect>
-      ) : (
+      ) : kind === "shipping" ? (
         <div className="input-group">
           <NumberInput
             className="form-control"
@@ -1556,26 +1544,89 @@ function AdjustModal({
             step="any"
             autoFocus
             aria-label={`${title} (${symbol})`}
-            value={
-              (kind === "shipping" ? draft.shipping : draft.discount) /
-              money.rate
-            }
+            value={draft.shipping / money.rate}
             onChange={(next) =>
-              setDraft(
-                kind === "shipping"
-                  ? { ...draft, shipping: next * money.rate }
-                  : {
-                      ...draft,
-                      discount: Math.max(0, next * money.rate),
-                      discountPercent: false,
-                    },
-              )
+              setDraft({ ...draft, shipping: next * money.rate })
             }
           />
           <span className="input-group-addon">{symbol}</span>
         </div>
+      ) : (
+        <>
+          <DiscountMode
+            symbol={symbol}
+            percent={draft.discountPercent}
+            onChange={(percent) =>
+              // The number means something else now: start again.
+              setDraft({ ...draft, discountPercent: percent, discount: 0 })
+            }
+          />
+          <div className="input-group">
+            <NumberInput
+              className="form-control"
+              min="0"
+              max={draft.discountPercent ? "100" : undefined}
+              step="any"
+              autoFocus
+              aria-label={`${title} (${draft.discountPercent ? "%" : symbol})`}
+              value={
+                draft.discountPercent
+                  ? draft.discount
+                  : draft.discount / money.rate
+              }
+              onChange={(next) =>
+                setDraft({
+                  ...draft,
+                  discount: draft.discountPercent
+                    ? Math.min(100, Math.max(0, next))
+                    : Math.max(0, next * money.rate),
+                })
+              }
+            />
+            <span className="input-group-addon">
+              {draft.discountPercent ? "%" : symbol}
+            </span>
+          </div>
+        </>
       )}
     </Modal>
+  );
+}
+
+/** Whether a discount is typed as money (៛ or $) or as a percentage. */
+function DiscountMode({
+  symbol,
+  percent,
+  onChange,
+}: {
+  symbol: string;
+  percent: boolean;
+  onChange: (percent: boolean) => void;
+}) {
+  const { l } = useLanguage();
+  return (
+    <div
+      className="segmented discount-mode"
+      role="group"
+      aria-label={l(["Discount type", "ប្រភេទបញ្ចុះតម្លៃ"])}
+    >
+      <button
+        type="button"
+        className={percent ? "" : "active"}
+        aria-pressed={!percent}
+        onClick={() => onChange(false)}
+      >
+        {symbol}
+      </button>
+      <button
+        type="button"
+        className={percent ? "active" : ""}
+        aria-pressed={percent}
+        onClick={() => onChange(true)}
+      >
+        %
+      </button>
+    </div>
   );
 }
 
@@ -1589,31 +1640,28 @@ function ProductSalePanel({
   product: Product | null;
   cart: ReturnType<typeof useCart>;
   rate: number;
-  /** productDiscount: riel off this line. */
-  onAdd: (quantity: number, productDiscount: number) => boolean;
+  /** productDiscount: a percentage, or riel off this line. */
+  onAdd: (
+    quantity: number,
+    productDiscount: { percent: boolean; value: number },
+  ) => boolean;
 }) {
   const { l } = useLanguage();
-  // The discount is typed in the display currency (៛ or $), kept in riel.
+  // Money is typed in the display currency (៛ or $) and kept in riel.
   const money = displayCurrency();
   const symbol = money.code === "USD" ? "$" : "៛";
   const [quantity, setQuantity] = useState("1");
-  const existingLine = cart.items.find(
-    (line) => line.productId === product?.id,
-  );
   const existingProductDiscount = product
     ? cart.discountFor(product.id)
-    : { percent: true, value: 0 };
-  const existingProductSubtotal = existingLine
-    ? existingLine.price * existingLine.quantity
-    : 0;
+    : { percent: false, value: 0 };
+  // The way the line's discount was entered; money for a new line.
+  const [discountPercent, setDiscountPercent] = useState(
+    existingProductDiscount.percent && existingProductDiscount.value > 0,
+  );
   const [productDiscount, setProductDiscount] = useState(() => {
-    const riel =
-      existingLine && existingProductSubtotal > 0
-        ? cart.productDiscountAmount(existingLine.productId)
-        : existingProductDiscount.percent
-          ? 0
-          : existingProductDiscount.value;
-    const value = Math.round((riel / money.rate) * 100) / 100;
+    const value = existingProductDiscount.percent
+      ? existingProductDiscount.value
+      : Math.round((existingProductDiscount.value / money.rate) * 100) / 100;
     return value ? String(value) : "";
   });
   const [activeField, setActiveField] = useState<
@@ -1623,10 +1671,13 @@ function ProductSalePanel({
   const unit = product ? productUnit(product) : "";
   const quantityValue = toNumber(quantity);
   const lineTotal = (product?.price ?? 0) * Math.max(0, quantityValue);
+  const typedDiscount = Math.max(0, toNumber(productDiscount));
   // Riel off the line, never more than the line itself.
   const productDiscountValue = Math.min(
     lineTotal,
-    Math.max(0, toNumber(productDiscount) * money.rate),
+    discountPercent
+      ? (lineTotal * Math.min(100, typedDiscount)) / 100
+      : typedDiscount * money.rate,
   );
   const setActiveValue = (value: string) => {
     if (activeField === "quantity") setQuantity(value);
@@ -1682,18 +1733,30 @@ function ProductSalePanel({
           }}
         />
       </label>
-      <label className="field">
-        <span className="field-label">
-          {l([
-            `Product Discount (${symbol})`,
-            `បញ្ចុះតម្លៃទំនិញ (${symbol})`,
-          ])}
-        </span>
+      <div className="field">
+        <div className="discount-label">
+          <label className="field-label" htmlFor="pos-product-discount">
+            {l(["Product Discount", "បញ្ចុះតម្លៃទំនិញ"])} (
+            {discountPercent ? "%" : symbol})
+          </label>
+          <DiscountMode
+            symbol={symbol}
+            percent={discountPercent}
+            onChange={(percent) => {
+              // The number means something else now: start again.
+              setDiscountPercent(percent);
+              setProductDiscount("");
+              selectField("productDiscount");
+            }}
+          />
+        </div>
         <input
+          id="pos-product-discount"
           type="number"
           inputMode="decimal"
           className={`form-control pos-sale-input${activeField === "productDiscount" ? " active" : ""}`}
           min="0"
+          max={discountPercent ? "100" : undefined}
           step="any"
           value={productDiscount}
           onFocus={() => selectField("productDiscount")}
@@ -1702,7 +1765,7 @@ function ProductSalePanel({
             setProductDiscount(event.target.value);
           }}
         />
-      </label>
+      </div>
       <div
         className="pos-sale-keypad"
         role="group"
@@ -1761,7 +1824,14 @@ function ProductSalePanel({
         className="pos-btn primary"
         disabled={quantityValue <= 0}
         onClick={() => {
-          if (onAdd(quantityValue, productDiscountValue)) {
+          if (
+            onAdd(
+              quantityValue,
+              discountPercent
+                ? { percent: true, value: Math.min(100, typedDiscount) }
+                : { percent: false, value: productDiscountValue },
+            )
+          ) {
             setQuantity("1");
           }
         }}
