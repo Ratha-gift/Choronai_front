@@ -1472,3 +1472,16 @@
 .header .sync-button {
   position: relative;
 }
+
+/* Currency symbol after an amount box (General Discount, Shipping) */
+.input-group-addon {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid #ced4da;
+  border-left: 0;
+  border-radius: 0 6px 6px 0;
+  background: #f3f6fa;
+  color: #34465f;
+  font-weight: 600;
+}
