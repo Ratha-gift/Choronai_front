@@ -37,6 +37,7 @@ import {
   formatDate,
   formatMoney,
   formatNumber,
+  formatUsd,
   localDateTime,
   nextReference,
   toNumber,
@@ -1796,6 +1797,8 @@ function Receipt({
         | "orderTax"
         | "shipping"
         | "total"
+        | "paymentMethod"
+        | "payments"
       >
     > & { pointsBalance?: number };
   onClose: () => void;
@@ -1809,6 +1812,16 @@ function Receipt({
   autoPrint?: boolean;
 }) {
   const { l, t } = useLanguage();
+  const riel = (value: number) => `${formatNumber(Math.round(value))} ៛`;
+  // How it was paid: every payment method, or the single one of older sales.
+  const paidBy = [
+    ...new Set(
+      (record.payments?.length
+        ? record.payments.map((payment) => payment.method)
+        : [record.paymentMethod]
+      ).filter(Boolean),
+    ),
+  ].join(", ");
   // Once printed (or the print dialog is closed) the receipt closes, so the
   // cashier is back at the POS without a second preview.
   const closeRef = useRef(onClose);
@@ -1972,27 +1985,41 @@ function Receipt({
                 <td className="num">{formatMoney(record.shipping)}</td>
               </tr>
             )}
+            {/* The total in both currencies, so the customer can pay in
+                either (USD at the rate of Settings → Currencies). */}
             <tr className="strong grand">
-              <td>{t.grandTotal}</td>
+              <td>{t.grandTotal} (USD)</td>
               <td className="num">
                 <b className="receipt-grand">
-                  {formatMoney(record.grandTotal)}
+                  {formatUsd(record.grandTotal, rate)}
                 </b>
               </td>
             </tr>
+            <tr className="strong grand">
+              <td>{t.grandTotal} (KHR)</td>
+              <td className="num">
+                <b className="receipt-grand">{riel(record.grandTotal)}</b>
+              </td>
+            </tr>
             {record.paid > 0 && (
-              <>
-                <tr>
-                  <td>{t.paid}</td>
-                  <td className="num">{formatMoney(record.paid)}</td>
-                </tr>
-                {change > 0 && (
-                  <tr>
-                    <td>{l(["Change", "ប្រាក់អាប់"])}</td>
-                    <td className="num">{formatMoney(change)}</td>
-                  </tr>
-                )}
-              </>
+              <tr className="receipt-payment">
+                <td colSpan={2}>
+                  <div>
+                    <span>{l(["Paid by", "បង់តាម"])}</span>
+                    <b>{paidBy || "—"}</b>
+                  </div>
+                  <div>
+                    <span>{l(["Amount", "ចំនួន"])}</span>
+                    <b>{formatUsd(record.paid, rate)}</b>
+                    <small>{riel(record.paid)}</small>
+                  </div>
+                  <div>
+                    <span>{l(["Change", "ប្រាក់អាប់"])}</span>
+                    <b>{formatUsd(Math.max(0, change), rate)}</b>
+                    <small>{riel(Math.max(0, change))}</small>
+                  </div>
+                </td>
+              </tr>
             )}
           </tfoot>
         </table>

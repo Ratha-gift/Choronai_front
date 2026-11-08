@@ -1485,3 +1485,23 @@
   color: #34465f;
   font-weight: 600;
 }
+
+/* Receipt: how it was paid, in three columns (like the paper receipt) */
+.receipt .receipt-payment td {
+  padding-top: 8px;
+}
+.receipt .receipt-payment td {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  text-align: center;
+}
+.receipt .receipt-payment span {
+  display: block;
+  font-size: 11px;
+  color: #556070;
+}
+.receipt .receipt-payment small {
+  display: block;
+  font-size: 11px;
+}
