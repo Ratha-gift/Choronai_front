@@ -1512,7 +1512,6 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 4px;
 }
 .discount-label .field-label {
   margin: 0;
@@ -1524,9 +1523,11 @@
   margin-bottom: 0;
 }
 .segmented.discount-mode button {
-  min-width: 34px;
-  padding: 3px 10px;
+  min-width: 28px;
+  padding: 0 8px;
+  font-size: 12px;
   font-weight: 700;
+  line-height: 20px;
   cursor: pointer;
 }
 .segmented.discount-mode button:first-child {
@@ -1535,4 +1536,15 @@
 }
 .segmented.discount-mode button:last-child {
   border-radius: 0 6px 6px 0;
+}
+
+/* Totals: Order Tax, Shipping and General Discount are links, but as compact
+   as the plain rows next to them, with the amount on the same line. */
+.pos-summary-column > div {
+  align-items: center;
+}
+.pos-summary-column .pos-link {
+  min-height: 0;
+  padding: 0;
+  font-size: inherit;
 }
