@@ -23,6 +23,16 @@ export const formatNumber = (value: unknown, decimals = 0) =>
     maximumFractionDigits: decimals,
   });
 
+/** The smallest riel note in use: cash is rounded to it. */
+const RIEL_NOTE = 100;
+// The small tolerance keeps 5100.0000001 (from dollar sums) at 5100.
+/** Riel to collect from the customer: 5,050 → 5,100. */
+export const rielDue = (riel: number) =>
+  Math.ceil(riel / RIEL_NOTE - 1e-6) * RIEL_NOTE;
+/** Riel to give back: 5,050 → 5,000. */
+export const rielChange = (riel: number) =>
+  Math.floor(riel / RIEL_NOTE + 1e-6) * RIEL_NOTE;
+
 /** Reads a JSON value from localStorage, parsed once per change. */
 const parsed = new Map<string, [string | null, unknown]>();
 function stored(key: string): unknown {

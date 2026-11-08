@@ -40,6 +40,8 @@ import {
   formatUsd,
   localDateTime,
   nextReference,
+  rielChange,
+  rielDue,
   toNumber,
 } from "@/lib/format";
 import { useHydrated, useStored } from "@/lib/store";
@@ -1911,6 +1913,10 @@ export function Receipt({
   }, [autoPrint]);
   const change = record.paid - record.grandTotal;
   const paidInFull = record.paid >= record.grandTotal;
+  // Cash in riel goes by the 100 ៛ note: change is rounded down, and what was
+  // paid in dollars is shown as the nearest riel a customer can hand over.
+  const changeRiel = rielChange(Math.max(0, change));
+  const paidRiel = Math.round(record.paid / 100) * 100;
   const productDiscountAmount = (line: LineItem) => {
     const discount = line.productDiscount;
     if (!discount) return 0;
@@ -2070,7 +2076,9 @@ export function Receipt({
             <tr className="strong grand">
               <td>{t.grandTotal} (KHR)</td>
               <td className="num">
-                <b className="receipt-grand">{riel(record.grandTotal)}</b>
+                <b className="receipt-grand">
+                  {riel(rielDue(record.grandTotal))}
+                </b>
               </td>
             </tr>
             {record.paid > 0 && (
@@ -2083,12 +2091,12 @@ export function Receipt({
                   <div>
                     <span>{l(["Amount", "ចំនួន"])}</span>
                     <b>{formatUsd(record.paid, rate)}</b>
-                    <small>{riel(record.paid)}</small>
+                    <small>{riel(paidRiel)}</small>
                   </div>
                   <div>
                     <span>{l(["Change", "ប្រាក់អាប់"])}</span>
-                    <b>{formatUsd(Math.max(0, change), rate)}</b>
-                    <small>{riel(Math.max(0, change))}</small>
+                    <b>{formatUsd(changeRiel > 0 ? change : 0, rate)}</b>
+                    <small>{riel(changeRiel)}</small>
                   </div>
                 </td>
               </tr>
