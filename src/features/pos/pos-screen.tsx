@@ -113,7 +113,6 @@ function PosScreen() {
   } | null>(null);
   // With the Laravel server the PIN itself never reaches the browser (only
   // hasPin); the PIN dialog then asks the server to check it.
-  const pinRequired = Boolean(pin) || Boolean(pos.hasPin);
   const withPin = (reason: string, run: () => void) =>
     pinRequired ? setPinRequest({ reason, run }) : run();
   const [system] = useSettings("system");
@@ -131,6 +130,9 @@ function PosScreen() {
   const isCashier = ["sale", "cashier"].includes(
     session?.group.trim().toLowerCase() ?? "",
   );
+  // Only the sale (cashier) group is asked for the PIN; managers and admins
+  // remove items without it.
+  const pinRequired = isCashier && (Boolean(pin) || Boolean(pos.hasPin));
   const router = useRouter();
   const hydrated = useHydrated();
   const username = session?.username ?? "";
