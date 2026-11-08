@@ -1537,14 +1537,3 @@
 .segmented.discount-mode button:last-child {
   border-radius: 0 6px 6px 0;
 }
-
-/* Totals: Order Tax, Shipping and General Discount are links, but as compact
-   as the plain rows next to them, with the amount on the same line. */
-.pos-summary-column > div {
-  align-items: center;
-}
-.pos-summary-column .pos-link {
-  min-height: 0;
-  padding: 0;
-  font-size: inherit;
-}
