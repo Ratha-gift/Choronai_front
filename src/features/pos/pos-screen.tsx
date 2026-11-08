@@ -1771,7 +1771,7 @@ function ProductSalePanel({
   );
 }
 
-function Receipt({
+export function Receipt({
   title,
   record,
   onClose,
