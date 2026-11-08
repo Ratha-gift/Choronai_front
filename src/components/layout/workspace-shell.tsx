@@ -19,6 +19,7 @@ import {
 } from "@/config/modules";
 import { ProductDialogs } from "@/features/products/components/product-dialogs";
 import { PaymentDialogs } from "@/features/sales/payments";
+import { SaleReceiptDialog } from "@/features/sales/sale-receipt";
 import { LOGO_KEY, NO_LOGO } from "@/features/settings/change-logo";
 import { useOpenRegister } from "@/features/pos/register";
 import { OpenRegisterModal } from "@/features/pos/register-modals";
@@ -325,6 +326,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
       <div className="mobile-scrim" onClick={() => setMobileOpen(false)} />
       <ProductDialogs />
       <PaymentDialogs />
+      <SaleReceiptDialog />
       <Calculator open={calculator} onClose={() => setCalculator(false)} />
       {openingRegister && session && (
         <OpenRegisterModal

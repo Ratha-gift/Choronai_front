@@ -77,6 +77,8 @@ export type ResourceDef = {
   formColumns?: 1 | 2 | 3;
   canEdit?: boolean;
   canDelete?: (row: Row) => boolean;
+  /** Clicking a row (not its checkbox or buttons) opens it. */
+  onRowClick?: (row: Row) => void;
   /** Per row: false hides Edit and Delete (e.g. users with more rights). */
   canManageRow?: (row: Row) => boolean;
   /** Called after a record is deleted (e.g. to reverse stock). */

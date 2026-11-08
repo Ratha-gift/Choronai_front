@@ -13,6 +13,7 @@ import type { Label } from "@/i18n";
 import type { MenuItem } from "@/components/ui/action-menu";
 import { currentUsername } from "@/lib/auth";
 import { openPaymentDialog } from "@/features/sales/payments";
+import { openSaleReceipt } from "@/features/sales/sale-receipt";
 import { balanceOf, col } from "./helpers";
 import { getRows, setRows } from "@/data/collections";
 import { stockAt, getProducts } from "@/features/products/store";
@@ -199,8 +200,15 @@ export const transactionResources: ResourceDef[] = [
         })),
       );
     },
+    // Click a sale to see its receipt and print it again.
+    onRowClick: (row) => openSaleReceipt(row.id),
     // Same order as WeERP: details, payments, edit, return, delete.
     menuItems: (row, { navigate, l }) => [
+      {
+        icon: "print",
+        label: l(["View / Print Receipt", "មើល / បោះពុម្ពវិក្កយបត្រ"]),
+        onClick: () => openSaleReceipt(row.id),
+      },
       {
         icon: "money",
         label: l(["View Payments", "មើលការទូទាត់"]),

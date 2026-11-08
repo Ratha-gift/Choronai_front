@@ -213,6 +213,7 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
           onSelectedChange={setSelected}
           initialSort={def.initialSort}
           headerGroups={def.headerGroups}
+          onRowClick={def.onRowClick}
         />
       </Box>
       {def.fields && editing && (
