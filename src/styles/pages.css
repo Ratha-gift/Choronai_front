@@ -1702,3 +1702,13 @@ label.btn.disabled {
   width: auto;
   min-width: 160px;
 }
+
+/* Dashboard, Latest Five: a line between the columns as well as the rows */
+.data-table.dashboard-latest {
+  border-collapse: collapse;
+}
+.data-table.dashboard-latest th,
+.data-table.dashboard-latest td,
+.data-table.dashboard-latest tbody tr:last-child td {
+  border: 1px solid #dde4ee;
+}

@@ -162,7 +162,7 @@ export function DashboardView() {
 
   const table = (headers: Label[], rows: ReactNode[][]) => (
     <div className="table-responsive">
-      <table className="data-table">
+      <table className="data-table dashboard-latest">
         <thead>
           <tr>
             <th>#</th>
