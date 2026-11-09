@@ -1712,3 +1712,17 @@ label.btn.disabled {
 .data-table.dashboard-latest tbody tr:last-child td {
   border: 1px solid #dde4ee;
 }
+
+/* Image field in a form (branch logo) */
+.field-image {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.field-image img {
+  width: 96px;
+  height: 48px;
+  object-fit: contain;
+  border: 1px solid #dde4ee;
+  border-radius: 4px;
+}

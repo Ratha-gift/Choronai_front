@@ -1,6 +1,8 @@
 "use client";
 import { RecordHistory } from "@/components/layout/audit-log";
 import { useState } from "react";
+import { uploadImage } from "@/lib/upload";
+import { notify } from "@/lib/toast";
 import { Field, FormGrid, PasswordInput } from "@/components/ui/fields";
 import { Modal } from "@/components/ui/modal";
 import { Select, type SelectOption } from "@/components/ui/select";
@@ -101,6 +103,64 @@ export function initialValues(fields: FieldDef[], rows: Row[], record?: Row) {
   ) as Values;
 }
 
+/** Picks an image, uploads it and keeps its address; shows it, can clear it. */
+function FieldImage({
+  field,
+  value,
+  onChange,
+}: {
+  field: FieldDef;
+  value: string | number;
+  onChange: (value: string) => void;
+}) {
+  const { l } = useLanguage();
+  const [busy, setBusy] = useState(false);
+  const src = String(value ?? "");
+  return (
+    <div className="field-image">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {src && <img src={src} alt="" />}
+      <input
+        type="file"
+        accept="image/*"
+        className="form-control"
+        disabled={busy}
+        aria-label={l(field.label)}
+        onChange={async (event) => {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          setBusy(true);
+          try {
+            onChange(
+              await uploadImage(
+                file,
+                field.imageFolder ?? "business-images",
+              ),
+            );
+          } catch (error) {
+            notify(
+              error instanceof Error ? error.message : String(error),
+              "error",
+            );
+          } finally {
+            setBusy(false);
+            event.target.value = "";
+          }
+        }}
+      />
+      {src && (
+        <button
+          type="button"
+          className="btn btn-default"
+          onClick={() => onChange("")}
+        >
+          {l(["Remove", "ដកចេញ"])}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** Renders one FieldDef as a labelled control. */
 export function FieldControl({
   field,
@@ -121,6 +181,8 @@ export function FieldControl({
     <Field label={l(field.label)} required={field.required} full={field.full}>
       {field.type === "select" ? (
         <FieldSelect field={field} value={value} onChange={onChange} />
+      ) : field.type === "image" ? (
+        <FieldImage field={field} value={value} onChange={onChange} />
       ) : field.type === "password" ? (
         <PasswordInput
           required={field.required}

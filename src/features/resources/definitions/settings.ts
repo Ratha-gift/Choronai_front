@@ -31,6 +31,11 @@ export const settingResources: ResourceDef[] = [
       col("country", "Country", "ប្រទេស", undefined, { filter: "chips" }),
     ],
     fields: [
+      field("logo", "Logo", "ឡូហ្គោ", {
+        type: "image",
+        imageFolder: "business-branch-images",
+        full: true,
+      }),
       required("nameKm", "Name (Khmer)", "ឈ្មោះ (ខ្មែរ)"),
       required("name", "Name", "ឈ្មោះ"),
       // One branch = one warehouse: the POS and stock forms use it.
@@ -41,8 +46,14 @@ export const settingResources: ResourceDef[] = [
       field("vat", "VAT Number", "លេខ VAT"),
       field("phone", "Phone", "ទូរស័ព្ទ", { type: "tel" }),
       field("email", "Email Address", "អ៊ីមែល", { type: "email" }),
+      field("address", "Address", "អាសយដ្ឋាន"),
       field("city", "City", "ទីក្រុង"),
       field("country", "Country", "ប្រទេស", { default: "Cambodia" }),
+      field("prefix", "Invoice Prefix", "បុព្វបទវិក្កយបត្រ"),
+      field("invoiceFooter", "Invoice Footer", "អក្សរខាងក្រោមវិក្កយបត្រ", {
+        type: "textarea",
+        full: true,
+      }),
     ],
     prepare: (values, existing) => {
       const taken = getRows("branches").find(

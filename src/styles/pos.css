@@ -1092,6 +1092,7 @@
   margin-left: 2px;
 }
 .receipt-thanks {
+  white-space: pre-line;
   margin: 12px 0 0;
   color: var(--muted);
   text-align: center;

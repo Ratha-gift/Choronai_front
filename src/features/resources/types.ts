@@ -1,3 +1,4 @@
+import type { ImageFolder } from "@/lib/upload";
 import type { ReactNode } from "react";
 import type { IconName } from "@/components/icons";
 import type { Column, HeaderGroup } from "@/components/ui/data-table";
@@ -18,7 +19,10 @@ export type FieldDef = {
     | "datetime-local"
     | "select"
     | "textarea"
-    | "password";
+    | "password"
+    | "image";
+  /** type "image": the folder it is uploaded to. */
+  imageFolder?: ImageFolder;
   required?: boolean;
   /** Label of the empty choice of a select that is not required (default "Select..."). */
   emptyLabel?: Label;

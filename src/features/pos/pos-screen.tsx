@@ -48,6 +48,7 @@ import { useHydrated, useStored } from "@/lib/store";
 import { notify } from "@/lib/toast";
 import { usePermissions } from "@/features/settings/permissions";
 import { PaymentModal, type Payment } from "./payment-modal";
+import { branchReceipt } from "./branch-receipt";
 import { PinModal } from "./pin-modal";
 import { useOpenRegister } from "./register";
 import { CloseRegisterModal, OpenRegisterModal } from "./register-modals";
@@ -199,11 +200,7 @@ function PosScreen() {
   const branchRow = branches.rows.find(
     (row) => String(row.name) === currentBranch,
   );
-  const branchPhone = String(branchRow?.phone ?? "").trim();
-  const branchAddress = [branchRow?.city, branchRow?.country]
-    .map((part) => String(part ?? "").trim())
-    .filter(Boolean)
-    .join(", ");
+  const branchInfo = branchReceipt(branchRow);
   const cashier = String(session?.name || session?.username || "");
 
   useEffect(() => {
@@ -485,7 +482,12 @@ function PosScreen() {
     const { totals } = cart;
     const date = new Date(payment.date).toISOString();
     const reference = nextReference(
-      String(getSetting("system", "salePrefix") ?? "SALE"),
+      // Each branch can number its invoices with its own prefix (INV8/...).
+      String(
+        branches.rows.find((row) => row.name === payment.branch)?.prefix ||
+          getSetting("system", "salePrefix") ||
+          "SALE",
+      ),
       sales.rows.length,
     );
     const sale: Omit<Transaction, "id"> = {
@@ -1433,10 +1435,12 @@ function PosScreen() {
         <Receipt
           title={l(["Bill", "វិក្កយបត្រ"])}
           onClose={() => setPanel(null)}
-          logo={brandLogo}
-          siteName={String(system.siteName)}
-          address={branchAddress}
-          phone={branchPhone}
+          logo={branchInfo.logo || brandLogo}
+          siteName={branchInfo.name || String(system.siteName)}
+          address={branchInfo.address}
+          phone={branchInfo.phone}
+          vat={branchInfo.vat}
+          footer={branchInfo.footer}
           cashier={cashier}
           record={{
             date: new Date().toISOString(),
@@ -1461,10 +1465,12 @@ function PosScreen() {
           title={l(["Receipt", "បង្កាន់ដៃ"])}
           onClose={() => setReceipt(null)}
           autoPrint={pos.afterSalePage === "print"}
-          logo={brandLogo}
-          siteName={String(system.siteName)}
-          address={branchAddress}
-          phone={branchPhone}
+          logo={branchInfo.logo || brandLogo}
+          siteName={branchInfo.name || String(system.siteName)}
+          address={branchInfo.address}
+          phone={branchInfo.phone}
+          vat={branchInfo.vat}
+          footer={branchInfo.footer}
           cashier={cashier}
           record={receipt}
           rate={rate}
@@ -1856,6 +1862,8 @@ export function Receipt({
   phone,
   cashier,
   autoPrint = false,
+  vat,
+  footer,
 }: {
   title: string;
   record: Pick<
@@ -1884,6 +1892,9 @@ export function Receipt({
   cashier?: string;
   /** Print as soon as it opens (POS Settings → After Sale Page = Print). */
   autoPrint?: boolean;
+  vat?: string;
+  /** The branch's own closing text, instead of the thank-you line. */
+  footer?: string;
 }) {
   const { l, t } = useLanguage();
   const riel = (value: number) => `${formatNumber(Math.round(value))} ៛`;
@@ -1959,7 +1970,8 @@ export function Receipt({
           {logo && <img src={logo} alt={siteName} />}
           <b>{siteName}</b>
           {address && <span>{address}</span>}
-          {phone && <span>{phone}</span>}
+          {phone && <span>Tel: {phone}</span>}
+          {vat && <span>VAT: {vat}</span>}
         </div>
         <div className="receipt-meta">
           <div>
@@ -2104,7 +2116,8 @@ export function Receipt({
           </tfoot>
         </table>
         <p className="receipt-thanks">
-          {l(["Thank you for shopping with us!", "សូមអរគុណសម្រាប់ការទិញ!"])}
+          {footer ||
+            l(["Thank you for shopping with us!", "សូមអរគុណសម្រាប់ការទិញ!"])}
         </p>
       </div>
     </Modal>

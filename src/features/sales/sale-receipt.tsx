@@ -1,6 +1,7 @@
 "use client";
 import { useCollection } from "@/data/collections";
 import type { Transaction } from "@/data/types";
+import { branchReceipt } from "@/features/pos/branch-receipt";
 import { Receipt } from "@/features/pos/pos-screen";
 import { LOGO_KEY, NO_LOGO } from "@/features/settings/change-logo";
 import { useSettings } from "@/features/settings/store";
@@ -33,10 +34,7 @@ export function SaleReceiptDialog() {
   if (!sale) return null;
 
   const branch = branches.find((row) => String(row.name) === sale.branch);
-  const address = [branch?.city, branch?.country]
-    .map((part) => String(part ?? "").trim())
-    .filter(Boolean)
-    .join(", ");
+  const info = branchReceipt(branch);
   const user = users.find((row) => row.username === sale.createdBy);
   const cashier =
     [user?.firstName, user?.lastName]
@@ -50,10 +48,12 @@ export function SaleReceiptDialog() {
     <Receipt
       title={`${l(["Receipt", "បង្កាន់ដៃ"])} ${sale.reference}`}
       onClose={() => openSaleReceipt(null)}
-      logo={logo || DEFAULT_LOGO}
-      siteName={String(system.siteName || "CHORONAI")}
-      address={address}
-      phone={String(branch?.phone ?? "").trim()}
+      logo={info.logo || logo || DEFAULT_LOGO}
+      siteName={info.name || String(system.siteName || "CHORONAI")}
+      address={info.address}
+      phone={info.phone}
+      vat={info.vat}
+      footer={info.footer}
       cashier={cashier}
       record={sale}
       rate={rate}
