@@ -11,7 +11,7 @@ import {
   type Column,
   type HeaderGroup,
 } from "@/components/ui/data-table";
-import type { Row } from "@/data/types";
+import type { Row, Transaction } from "@/data/types";
 import { categoriesOf, categoryLabel } from "@/features/products/labels";
 import {
   isLowStock,
@@ -652,7 +652,41 @@ export function WasteReport() {
   const { adjustments, products } = useReportData();
   const reasonColumn = useReasonColumn();
   const costOf = new Map(products.map((p) => [p.id, productCost(p)]));
-  const rows = adjustments.flatMap((record) =>
+  const { branch } = usePermissions();
+  // Stock Issues with no To Branch: the goods were thrown away. Pending ones
+  // are listed too (useReportData only has those that moved stock).
+  const thrown = useCollection<Transaction>("stockIssues")
+    .rows.filter(
+      (record) =>
+        !record.toBranch &&
+        record.status !== "rejected" &&
+        (!branch || record.branch === branch),
+    )
+    .flatMap((record) =>
+      record.items.map((line, i) => {
+        const cost = costOf.get(line.productId) ?? 0;
+        return {
+          id: `${record.id}-${i}`,
+          date: record.date,
+          reference: record.reference,
+          branch: record.branch ?? "",
+          warehouse: record.warehouse ?? "",
+          code: line.code,
+          name: line.name,
+          reason: "thrown",
+          description: record.note ?? "",
+          quantity: line.quantity,
+          unit: line.unit,
+          cost,
+          value: appliedStock("stock-issue", record)
+            ? Math.round(cost * line.quantity)
+            : 0,
+          status: record.status,
+          createdBy: record.createdBy,
+        };
+      }),
+    );
+  const fromAdjustments = adjustments.flatMap((record) =>
     record.items
       .map((line, i) => ({ line, i }))
       .filter(
@@ -683,6 +717,7 @@ export function WasteReport() {
         };
       }),
   );
+  const rows = [...thrown, ...fromAdjustments];
   return (
     <ReportTable
       icon="trash"
@@ -692,8 +727,8 @@ export function WasteReport() {
         "របាយការណ៍ទំនិញចោល (គ្រប់ឃ្លាំង)",
       ]}
       intro={[
-        "Products thrown away through Stock Adjustment (reason: spoiled, expired or damaged). Value is at product cost; pending adjustments count once approved.",
-        "ទំនិញដែលបានចោលតាម Stock Adjustment (មូលហេតុ៖ ខូច ផុតកំណត់ ឬបែក)។ តម្លៃគិតតាមថ្លៃដើម។ ការកែតម្រូវដែលកំពុងរង់ចាំ គិតពេលអនុម័ត។",
+        "Products thrown away: Stock Issues with no To Branch, and Stock Adjustments with a waste reason. Value is at product cost; pending documents count once approved.",
+        "ទំនិញដែលបានបោះចោល៖ បញ្ចេញស្តុកដែលគ្មាន ទៅសាខា និងកែតម្រូវស្តុកដែលមានមូលហេតុចោល។ តម្លៃគិតតាមថ្លៃដើម។ ឯកសារដែលកំពុងរង់ចាំ គិតពេលអនុម័ត។",
       ]}
       rows={rows}
       initialSort={{ key: "date", desc: true }}

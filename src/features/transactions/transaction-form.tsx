@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Icon } from "@/components/icons";
 import { Box } from "@/components/ui/box";
 import { Field, FormGrid, NumberInput } from "@/components/ui/fields";
+import { confirmAction } from "@/components/ui/confirm";
 import { addRow, getRows, setRows, useCollection } from "@/data/collections";
 import type { LineItem, Transaction } from "@/data/types";
 import {
@@ -621,8 +622,21 @@ export function TransactionForm({
     >
       <form
         className="transaction-form"
-        onSubmit={(event) => {
+        onSubmit={async (event) => {
           event.preventDefault();
+          // A Stock Issue going to no branch means the goods are thrown away.
+          if (
+            kind.toBranch &&
+            !form.toBranch &&
+            items.length > 0 &&
+            !(await confirmAction(
+              l([
+                "No To Branch is selected, so these products count as THROWN AWAY: they leave stock and appear in the Waste Report. Continue?",
+                "មិនបានជ្រើស ទៅសាខា ទេ ដូច្នេះទំនិញទាំងនេះត្រូវ បោះចោល៖ ស្តុកនឹងត្រូវដក ហើយបង្ហាញក្នុង របាយការណ៍ទំនិញចោល។ បន្តទេ?",
+              ]),
+            ))
+          )
+            return;
           save();
         }}
       >
@@ -736,7 +750,9 @@ export function TransactionForm({
                   set({ toBranch: event.target.value, toWarehouse: "" })
                 }
               >
-                <option value="">{t.select}</option>
+                <option value="">
+                  {l(["No branch: thrown away", "គ្មានសាខា៖ ទំនិញបោះចោល"])}
+                </option>
                 {branches.rows
                   .filter((row) => String(row.name) !== form.branch)
                   .map((row) => (
