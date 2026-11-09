@@ -423,23 +423,40 @@
 }
 .product-editor-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
-  gap: 16px;
+  gap: 16px 40px;
 }
 .product-editor-main,
 .product-editor-side {
   display: grid;
-  gap: 16px;
+  gap: 12px;
   min-width: 0;
 }
-/* Keep the right panel in view while scrolling, when the screen is tall
-   enough to show all of it. */
-@media (min-height: 860px) {
-  .product-editor-side {
-    position: sticky;
-    top: 0;
-  }
+.product-editor-details {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+.product-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.product-side-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.file-browse .btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
 }
 
 /* Card per group of fields */
