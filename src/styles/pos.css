@@ -1497,7 +1497,7 @@
 .receipt .receipt-payment td {
   padding-top: 8px;
 }
-.receipt .receipt-payment td {
+.receipt .receipt-payment-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
@@ -1543,4 +1543,15 @@
 }
 .segmented.discount-mode button:last-child {
   border-radius: 0 6px 6px 0;
+}
+
+/* Printing: the receipt in the middle of the paper, whatever its width */
+@media print {
+  .receipt.print-area {
+    left: 0;
+    right: 0;
+    width: 80mm;
+    max-width: 100%;
+    margin: 0 auto;
+  }
 }

@@ -2106,6 +2106,7 @@ export function Receipt({
             {record.paid > 0 && (
               <tr className="receipt-payment">
                 <td colSpan={2}>
+                  <div className="receipt-payment-grid">
                   <div>
                     <span>{l(["Paid by", "បង់តាម"])}</span>
                     <b>{paidBy || "—"}</b>
@@ -2119,6 +2120,7 @@ export function Receipt({
                     <span>{l(["Change", "ប្រាក់អាប់"])}</span>
                     <b>{formatUsd(changeRiel > 0 ? change : 0, rate)}</b>
                     <small>{riel(changeRiel)}</small>
+                  </div>
                   </div>
                 </td>
               </tr>
