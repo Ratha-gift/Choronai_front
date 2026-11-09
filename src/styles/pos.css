@@ -1545,13 +1545,26 @@
   border-radius: 0 6px 6px 0;
 }
 
-/* Printing: the receipt in the middle of the paper, whatever its width */
+/* Printing: fills 72 mm and 80 mm receipt paper; in the middle of wider paper.
+   Its own page has no margin, so the browser adds no address or date. */
+@page receipt {
+  margin: 0;
+}
 @media print {
   .receipt.print-area {
+    page: receipt;
     left: 0;
     right: 0;
-    width: 80mm;
-    max-width: 100%;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 80mm;
     margin: 0 auto;
+    padding: 3mm 2mm;
+  }
+  dialog.modal:has(.receipt) {
+    max-width: none;
+  }
+  .receipt .grand td:first-child {
+    white-space: nowrap;
   }
 }
