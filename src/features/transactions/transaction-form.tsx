@@ -20,11 +20,14 @@ import {
 import { useSettings } from "@/features/settings/store";
 import { useLanguage, type Label } from "@/i18n";
 import {
+  currencySymbol,
   formatMoney,
   formatNumber,
+  fromTyped,
   localDateTime,
   nextReference,
   toNumber,
+  toTyped,
 } from "@/lib/format";
 import { notify } from "@/lib/toast";
 import {
@@ -934,7 +937,11 @@ export function TransactionForm({
                 {isAdjust && <th>{l(["Description", "ពិពណ៌នា"])}</th>}
                 {isAdjust && <th>{l(currentStockLabel)}</th>}
                 {kind.expiry && !isAdjust && <th>{t.expiryDate}</th>}
-                {!isAdjust && <th>{priceLabel}</th>}
+                {!isAdjust && (
+                  <th>
+                    {priceLabel} ({currencySymbol()})
+                  </th>
+                )}
                 <th>
                   {isAdjust
                     ? l(["Quantity (+ add / − remove)", "បរិមាណ (+ បន្ថែម / − ដក)"])
@@ -1003,9 +1010,12 @@ export function TransactionForm({
                       <td className="cell-input">
                         <NumberInput
                           min="0"
+                          step="any"
                           aria-label={priceLabel}
-                          value={line.price}
-                          onChange={(next) => change({ price: next })}
+                          value={toTyped(line.price)}
+                          onChange={(next) =>
+                            change({ price: fromTyped(next) })
+                          }
                         />
                       </td>
                     )}

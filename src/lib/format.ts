@@ -75,6 +75,16 @@ export function displayCurrency(): { code: "KHR" | "USD"; rate: number } {
   return { code: "USD", rate: toNumber(usd?.rate) || 4100 };
 }
 
+/** The default currency's sign, for boxes where an amount is typed. */
+export const currencySymbol = () =>
+  displayCurrency().code === "USD" ? "$" : "៛";
+/** Riel as typed in the default currency: 31,980 ៛ → 7.8 at 4,100. */
+export const toTyped = (riel: unknown) =>
+  Math.round((toNumber(riel) / displayCurrency().rate) * 100) / 100;
+/** An amount typed in the default currency, in whole riel as it is stored. */
+export const fromTyped = (typed: number) =>
+  Math.round(typed * displayCurrency().rate);
+
 /** All amounts are stored in riel (KHR); shown in the default currency. */
 export const formatMoney = (value: unknown) => {
   const { code, rate } = displayCurrency();

@@ -13,7 +13,14 @@ import {
   initialValues,
 } from "@/features/resources/resource-form";
 import { useLanguage, type Label } from "@/i18n";
-import { formatMoney, formatNumber, toNumber } from "@/lib/format";
+import {
+  currencySymbol,
+  formatMoney,
+  formatNumber,
+  fromTyped,
+  toNumber,
+  toTyped,
+} from "@/lib/format";
 import { readImage } from "@/lib/image";
 import { uploadOrKeep } from "@/lib/upload";
 import { usePermissions } from "@/features/settings/permissions";
@@ -91,7 +98,10 @@ function formFrom(product?: Product) {
 }
 type Form = ReturnType<typeof formFrom>;
 
-/** Riel input with a ៛ suffix. */
+/**
+ * An amount typed in the default currency (៛ or $, System Settings) with its
+ * sign. The form keeps riel, as everything is stored.
+ */
 function MoneyInput({
   value,
   onChange,
@@ -105,15 +115,15 @@ function MoneyInput({
 }) {
   return (
     <div className="input-affix">
-      <input
+      <NumberInput
         className="form-control"
-        type="number"
-        min={min}
+        min={min > 0 ? toTyped(min) || 0.01 : 0}
+        step="any"
         required={required}
-        value={value}
-        onChange={(event) => onChange(num(event.target.value))}
+        value={value === "" ? "" : toTyped(value)}
+        onChange={(next) => onChange(fromTyped(next))}
       />
-      <span>៛</span>
+      <span>{currencySymbol()}</span>
     </div>
   );
 }
@@ -931,9 +941,12 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                               <td className="cell-input">
                                 <NumberInput
                                   min="0"
+                                  step="any"
                                   aria-label={t.unitPriceShort}
-                                  value={item.price}
-                                  onChange={(next) => change({ price: next })}
+                                  value={toTyped(item.price)}
+                                  onChange={(next) =>
+                                    change({ price: fromTyped(next) })
+                                  }
                                 />
                               </td>
                               <td className="icon-col">
@@ -1073,16 +1086,19 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                         <NumberInput
                           className="form-control"
                           min="0"
+                          step="any"
                           placeholder={l([
-                            "Supplier Price (៛)",
-                            "តម្លៃអ្នកផ្គត់ផ្គង់ (៛)",
+                            `Supplier Price (${currencySymbol()})`,
+                            `តម្លៃអ្នកផ្គត់ផ្គង់ (${currencySymbol()})`,
                           ])}
                           aria-label={l([
-                            "Supplier Price (៛)",
-                            "តម្លៃអ្នកផ្គត់ផ្គង់ (៛)",
+                            `Supplier Price (${currencySymbol()})`,
+                            `តម្លៃអ្នកផ្គត់ផ្គង់ (${currencySymbol()})`,
                           ])}
-                          value={row.price || ""}
-                          onChange={(next) => change({ price: next })}
+                          value={row.price ? toTyped(row.price) : ""}
+                          onChange={(next) =>
+                            change({ price: fromTyped(next) })
+                          }
                         />
                       </div>
                     </div>
