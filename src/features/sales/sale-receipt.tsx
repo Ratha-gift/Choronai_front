@@ -28,6 +28,8 @@ export function SaleReceiptDialog() {
   const branches = useCollection("branches").rows;
   const users = useCollection("users").rows;
   const currencies = useCollection("currencies").rows;
+  const ledger = useCollection("rewardLedger").rows;
+  const cards = useCollection("memberCards").rows;
   const [system] = useSettings("system");
   const [logo] = useStored(LOGO_KEY, NO_LOGO);
   const sale = id ? sales.find((row) => row.id === id) : undefined;
@@ -43,6 +45,15 @@ export function SaleReceiptDialog() {
       .join(" ") || sale.createdBy;
   const rate =
     toNumber(currencies.find((row) => row.code === "USD")?.rate) || 4100;
+  // A member sale: what it earned, and the points the card holds today.
+  const earned = ledger.find((row) => row.eventId === `sale:${sale.id}`);
+  const card = cards.find((row) => row.id === earned?.cardId);
+  const points = card
+    ? {
+        pointsEarned: toNumber(earned?.points),
+        pointsBalance: toNumber(card.awardPoints),
+      }
+    : {};
 
   return (
     <Receipt
@@ -55,7 +66,7 @@ export function SaleReceiptDialog() {
       vat={info.vat}
       footer={info.footer}
       cashier={cashier}
-      record={sale}
+      record={{ ...sale, ...points }}
       rate={rate}
     />
   );

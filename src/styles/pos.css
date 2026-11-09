@@ -1020,24 +1020,30 @@
   color: var(--muted);
   font-size: var(--text-muted);
 }
+/* Sale details on the left, the member's points on the right */
 .receipt-meta {
-  display: grid;
-  gap: 2px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
   margin-bottom: 10px;
   padding: 8px 0;
   border-top: 1px dashed var(--brand-line);
   border-bottom: 1px dashed var(--brand-line);
 }
-.receipt-meta div {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-}
-.receipt-meta span {
-  color: var(--muted);
+.receipt-meta p {
+  margin: 0 0 2px;
+  font-size: 12px;
 }
 .receipt-meta b {
   font-weight: 600;
+}
+.receipt-meta-info {
+  flex: none;
+  white-space: nowrap;
+}
+.receipt-meta-points {
+  min-width: 0;
   text-align: right;
 }
 .receipt-paid {

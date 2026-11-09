@@ -565,6 +565,7 @@ function PosScreen() {
       : undefined;
     if (pointsBalance !== undefined) {
       record.pointsBalance = pointsBalance;
+      record.pointsEarned = points;
       setRows("sales", (rows) =>
         rows.map((row) =>
           row.id === record.id ? { ...row, pointsBalance } : row,
@@ -1851,6 +1852,9 @@ function ProductSalePanel({
   );
 }
 
+/** Off for now: invoices start with the branch name. Set true to print it. */
+const SHOW_RECEIPT_LOGO = false;
+
 export function Receipt({
   title,
   record,
@@ -1882,7 +1886,7 @@ export function Receipt({
         | "paymentMethod"
         | "payments"
       >
-    > & { pointsBalance?: number };
+    > & { pointsBalance?: number; pointsEarned?: number };
   onClose: () => void;
   logo: string;
   siteName: string;
@@ -1967,37 +1971,43 @@ export function Receipt({
     >
       <div className="receipt print-area">
         <div className="receipt-head">
-          {logo && <img src={logo} alt={siteName} />}
+          {SHOW_RECEIPT_LOGO && logo && <img src={logo} alt={siteName} />}
           <b>{siteName}</b>
           {address && <span>{address}</span>}
           {phone && <span>Tel: {phone}</span>}
           {vat && <span>VAT: {vat}</span>}
         </div>
         <div className="receipt-meta">
-          <div>
-            <span>{t.date}</span>
-            <b>{formatDate(record.date, true)}</b>
+          <div className="receipt-meta-info">
+            <p>
+              {t.date}: <b>{formatDate(record.date, true)}</b>
+            </p>
+            <p>
+              {t.referenceNo}: <b>{record.reference}</b>
+            </p>
+            {cashier && (
+              <p>
+                {l(["Cashier", "អ្នកលក់"])}: <b>{cashier}</b>
+              </p>
+            )}
+            {record.customer && (
+              <p>
+                {t.customer}: <b>{record.customer}</b>
+              </p>
+            )}
           </div>
-          <div>
-            <span>{t.referenceNo}</span>
-            <b>{record.reference}</b>
-          </div>
-          {record.customer && (
-            <div>
-              <span>{t.customer}</span>
-              <b>{record.customer}</b>
-            </div>
-          )}
-          {cashier && (
-            <div>
-              <span>{l(["Cashier", "អ្នកលក់"])}</span>
-              <b>{cashier}</b>
-            </div>
-          )}
           {record.pointsBalance !== undefined && (
-            <div>
-              <span>{l(["Points balance", "ពិន្ទុនៅសល់"])}</span>
-              <b>{formatNumber(record.pointsBalance)}</b>
+            <div className="receipt-meta-points">
+              {record.pointsEarned !== undefined && (
+                <p>
+                  {l(["Point Earned", "ពិន្ទុទទួល"])}:{" "}
+                  <b>{formatNumber(record.pointsEarned)}</b>
+                </p>
+              )}
+              <p>
+                {l(["Total Point", "ពិន្ទុសរុប"])}:{" "}
+                <b>{formatNumber(record.pointsBalance)}</b>
+              </p>
             </div>
           )}
         </div>
