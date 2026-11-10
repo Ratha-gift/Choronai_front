@@ -557,13 +557,13 @@
   font-weight: 700;
   text-align: left;
 }
-.data-table-wrap thead th {
+/* The whole header sticks as one block: with two header rows (In / Out
+   groups) the second row must not be pinned at a fixed offset, or it is
+   pushed below the first one when the header is shorter (reports). */
+.data-table-wrap thead {
   position: sticky;
   top: 0;
   z-index: 2;
-}
-.data-table-wrap thead tr + tr th {
-  top: 41px;
 }
 .data-table th[colspan] {
   text-align: center;
@@ -1367,4 +1367,37 @@
 /* A header toggle that is on (e.g. the filter is shown). */
 .box-actions button[aria-pressed="true"] {
   background: #eee;
+}
+
+/* Filters in use, each with its own × (Branch: … ×, Date: … ×). */
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px 0 10px;
+  border: 1px solid #c9d8f0;
+  border-radius: 14px;
+  background: #eef4fd;
+  color: #23446f;
+  font-size: 12px;
+  cursor: pointer;
+}
+.filter-chip b {
+  font-weight: 600;
+}
+.filter-chip svg {
+  color: var(--flag-red, #c62233);
+}
+.filter-chip:hover {
+  border-color: var(--flag-red, #c62233);
+}
+.table-controls .filter-chips .clear-filters {
+  margin-left: 0;
 }

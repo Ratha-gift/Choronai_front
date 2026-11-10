@@ -265,7 +265,6 @@ export function DataTable<T extends { id: string }>({
   const hasTotals = columns.some((column) => column.total);
 
   const canFilter = footer === "filters";
-  const activeFilters = Object.values(filters).filter(isActive).length;
 
   const jump = () => {
     const target = Math.round(Number(goTo));
@@ -393,6 +392,55 @@ export function DataTable<T extends { id: string }>({
       />
     );
   };
+  // Every filter in use, each with its own ×: the branch, the dates (when
+  // not today) and what is typed under the columns.
+  const resetPeriod = (next: Partial<typeof period>) => {
+    setPeriod({ ...period, ...next });
+    setPeriodDraft({ ...period, ...next });
+  };
+  const chips: {
+    key: string;
+    label: string;
+    value: string;
+    clear: () => void;
+  }[] = [];
+  if (periodFilter && period.branch)
+    chips.push({
+      key: "period-branch",
+      label: l(["Branch", "សាខា"]),
+      value: period.branch,
+      clear: () => resetPeriod({ branch: "" }),
+    });
+  if (periodFilter && (period.from !== today || period.to !== today))
+    chips.push({
+      key: "period-date",
+      label: l(["Date", "កាលបរិច្ឆេទ"]),
+      value: `${period.from ? formatDate(`${period.from}T00:00`) : "…"} – ${period.to ? formatDate(`${period.to}T00:00`) : "…"}`,
+      clear: () => resetPeriod({ from: today, to: today }),
+    });
+  for (const [key, value] of Object.entries(filters)) {
+    if (!isActive(value)) continue;
+    const column = columns.find((item) => item.key === key);
+    chips.push({
+      key: `column-${key}`,
+      label: column ? l(column.label) : key,
+      value:
+        value.text?.trim() ||
+        value.values?.join(", ") ||
+        [value.from || value.min, value.to || value.max]
+          .filter(Boolean)
+          .join(" – "),
+      clear: () => {
+        const next = { ...filters };
+        delete next[key];
+        setFilters(next);
+      },
+    });
+  }
+  const clearAll = () => {
+    setFilters({});
+    if (periodFilter) resetPeriod({ branch: "", from: today, to: today });
+  };
   const pageSizePicker = (
     <NativeSelect
       className="page-size"
@@ -483,14 +531,30 @@ export function DataTable<T extends { id: string }>({
           />
         </label>
         {toolbar}
-        {activeFilters > 0 && (
-          <button
-            type="button"
-            className="clear-filters"
-            onClick={() => setFilters({})}
-          >
-            <Icon name="x" size={12} /> {t.clearFilters}
-          </button>
+        {chips.length > 0 && (
+          <div className="filter-chips">
+            {chips.map((chip) => (
+              <button
+                type="button"
+                key={chip.key}
+                className="filter-chip"
+                title={l(["Remove this filter", "ដកតម្រងនេះ"])}
+                onClick={chip.clear}
+              >
+                <span>{chip.label}:</span> <b>{chip.value}</b>
+                <Icon name="x" size={11} />
+              </button>
+            ))}
+            {chips.length > 1 && (
+              <button
+                type="button"
+                className="clear-filters"
+                onClick={clearAll}
+              >
+                <Icon name="x" size={12} /> {t.clearFilters}
+              </button>
+            )}
+          </div>
         )}
       </div>
       <div className="table-responsive">

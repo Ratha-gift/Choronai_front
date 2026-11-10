@@ -218,8 +218,13 @@
 }
 .pos-order-head {
   display: grid;
-  grid-template-columns: 1.3fr 1fr;
+  /* minmax(0, …): on small screens the two pickers shrink instead of
+     pushing the order panel wider than the screen. */
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
   gap: 10px;
+}
+.pos-order-head > * {
+  min-width: 0;
 }
 .pos-scan {
   display: flex;
@@ -758,7 +763,11 @@
   min-height: 140px;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  /* Always 4 tiles per row, the same layout on every screen size: the
+     tiles grow or shrink with the panel (phones: 2, see responsive.css). */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* Rows as tall as their tiles: the panel scrolls, tiles never squash. */
+  grid-auto-rows: max-content;
   align-content: start;
   gap: 8px;
   padding: 8px;
@@ -782,7 +791,8 @@
   position: relative;
   display: block;
   min-width: 0;
-  aspect-ratio: 4 / 3;
+  /* 4:3 through the ::before spacer, not aspect-ratio: with overflow hidden
+     Chrome sized the grid rows shorter than the tiles, so rows overlapped. */
   padding: 0;
   border: 1px solid var(--brand-line);
   border-radius: 10px;
@@ -793,6 +803,11 @@
     border-color 0.12s,
     box-shadow 0.12s,
     transform 0.12s;
+}
+.pos-card::before {
+  content: "";
+  display: block;
+  padding-top: 75%;
 }
 .pos-card:hover {
   transform: translateY(-2px);

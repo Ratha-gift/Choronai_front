@@ -1743,3 +1743,13 @@ label.btn.disabled {
   border: 1px solid #dde4ee;
   border-radius: 4px;
 }
+
+/* Product Sales Report: the parts of a combo, under it (WeERP). */
+.product-sales-report .combo-part-row td {
+  background: #f4f6f9;
+  color: #4a5870;
+  font-size: 12.5px;
+}
+.product-sales-report .combo-part-row td:nth-child(2) {
+  padding-left: 28px;
+}

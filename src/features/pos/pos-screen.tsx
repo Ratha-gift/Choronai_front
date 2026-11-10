@@ -617,13 +617,18 @@ function PosScreen() {
             <Icon name="dashboard" />
             <span>{t.dashboard}</span>
           </Link>
-          <Link href="/sales/pos-sales" className="pos-nav-btn">
+          <Link
+            href="/sales/pos-sales"
+            className="pos-nav-btn"
+            title={l(["Sales list", "បញ្ជីលក់"])}
+          >
             <Icon name="list" />
             <span>{l(["Sales list", "បញ្ជីលក់"])}</span>
           </Link>
           <button
             type="button"
             className="pos-nav-btn badge-host"
+            title={l(["Suspended", "បានផ្អាក"])}
             onClick={() => setPanel("suspended")}
           >
             <Icon name="pause" />
@@ -636,6 +641,7 @@ function PosScreen() {
             <button
               type="button"
               className="pos-nav-btn close-register"
+              title={l(["Close Register", "បិទបញ្ជរ"])}
               onClick={() => setPanel("close-register")}
             >
               <Icon name="lock" />
