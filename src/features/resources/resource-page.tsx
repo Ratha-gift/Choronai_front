@@ -43,9 +43,10 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
   const [viewing, setViewing] = useState<Row | null>(null);
   // WeERP: the ▼ button at the top right shows or hides the date filter.
   // Remembered per page in this browser (not shared with other devices).
+  // Closed by default; "Show filter" opens it.
   const [filterOpen, setFilterOpen] = useStored(
-    `choronai-filter-open-${def.id}`,
-    true,
+    `choronai-filter-open-v2-${def.id}`,
+    false,
   );
   const canEdit =
     (def.canEdit ?? (!!def.fields || !!def.editHref)) && may(def.id, "edit");
