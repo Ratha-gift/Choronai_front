@@ -396,6 +396,18 @@
   .actions-col {
     display: none !important;
   }
+  /* On screen only the rows scroll; on paper every row is printed. */
+  .page > .box:has(.data-table-wrap) {
+    height: auto;
+  }
+  .data-table-wrap .table-responsive {
+    flex: none;
+    overflow: visible;
+  }
+  .data-table-wrap thead,
+  .data-table-wrap tfoot td {
+    position: static;
+  }
 }
 
 /* ---------- Add / edit product page ---------- */
