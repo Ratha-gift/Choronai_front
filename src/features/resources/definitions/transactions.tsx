@@ -343,6 +343,12 @@ export const transactionResources: ResourceDef[] = [
                     `/inventory/stock-receive/add?issue=${encodeURIComponent(row.id)}`,
                   ),
               },
+              {
+                icon: "alert",
+                label: l(["Report short", "រាយការណ៍ខ្វះ"]),
+                onClick: () =>
+                  navigate(`/transfers?short=${encodeURIComponent(row.id)}`),
+              },
             ]
           : [],
     title: [

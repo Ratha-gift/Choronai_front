@@ -9,6 +9,7 @@ const COLORS: Record<string, string> = {
   accepted: "success",
   dispatched: "primary",
   partial: "primary",
+  short_received: "warning",
   pending: "warning",
   ordered: "warning",
   due: "danger",
@@ -23,7 +24,7 @@ export function StatusLabel({ status }: { status: unknown }) {
   if (!text) return null;
   return (
     <span className={`label label-${COLORS[text.toLowerCase()] ?? "default"}`}>
-      {text.charAt(0).toUpperCase() + text.slice(1)}
+      {text.charAt(0).toUpperCase() + text.slice(1).replace(/_/g, " ")}
     </span>
   );
 }

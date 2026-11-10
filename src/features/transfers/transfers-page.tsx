@@ -1,5 +1,7 @@
 "use client";
 import Link from "next/link";
+import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Box } from "@/components/ui/box";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { StatusLabel } from "@/components/ui/status-label";
@@ -9,6 +11,7 @@ import type { Transaction } from "@/data/types";
 import { usePermissions } from "@/features/settings/permissions";
 import { canReceiveTransfer } from "@/features/transactions/kinds";
 import { useLanguage, type Label } from "@/i18n";
+import { ReportShortDialog } from "./report-short";
 
 type TransferRow = {
   id: string;
@@ -21,6 +24,8 @@ type TransferRow = {
   items: number;
   sent: number;
   received: number;
+  /** Reported short: went back to the sending warehouse. */
+  returned: number;
   outstanding: number;
   status: string;
   receipts: string;
@@ -36,6 +41,7 @@ const STATUS: Record<string, Label> = {
   dispatched: ["In transit", "កំពុងដឹកជញ្ជូន"],
   partial: ["Partly received", "ទទួលបានខ្លះ"],
   received: ["Received", "បានទទួល"],
+  short_received: ["Received short", "ទទួលបានខ្វះ"],
   rejected: ["Rejected", "បានបដិសេធ"],
 };
 
@@ -49,6 +55,10 @@ export function TransfersPage() {
   const { branch, can } = usePermissions();
   const issues = useCollection<Transaction>("stockIssues").rows;
   const receives = useCollection<Transaction>("stockReceives").rows;
+  // "Report short": from this page, or Stock Issue → Actions (?short=id).
+  const params = useSearchParams();
+  const [shortId, setShortId] = useState(() => params.get("short") ?? "");
+  const shortIssue = issues.find((issue) => issue.id === shortId) ?? null;
 
   const rows: TransferRow[] = issues
     .filter((issue) => issue.toBranch)
@@ -65,7 +75,11 @@ export function TransfersPage() {
       const received = linked
         .flatMap((receive) => receive.items)
         .reduce((sum, line) => sum + line.quantity, 0);
-      const outstanding = round(Math.max(0, sent - received));
+      const returned = receives
+        .filter((receive) => receive.shortOf === issue.id)
+        .flatMap((receive) => receive.items)
+        .reduce((sum, line) => sum + line.quantity, 0);
+      const outstanding = round(Math.max(0, sent - received - returned));
       return {
         id: issue.id,
         date: issue.date,
@@ -77,6 +91,7 @@ export function TransfersPage() {
         items: issue.items.length,
         sent: round(sent),
         received: round(received),
+        returned: round(returned),
         outstanding,
         status: String(issue.status ?? ""),
         receipts: linked.map((receive) => receive.reference).join(", "),
@@ -124,6 +139,12 @@ export function TransfersPage() {
       total: true,
     },
     {
+      key: "returned",
+      label: ["Sent back", "ត្រឡប់ទៅវិញ"],
+      type: "qty",
+      total: true,
+    },
+    {
       key: "outstanding",
       label: ["Outstanding", "នៅខ្វះ"],
       type: "qty",
@@ -163,6 +184,20 @@ export function TransfersPage() {
               <Icon name="download" size={12} /> {l(["Receive", "ទទួល"])}
             </Link>
           )}
+          {row.receivable && (
+            <button
+              type="button"
+              className="btn btn-warning btn-xs"
+              title={l([
+                "Less arrived than was sent: send the rest back and close",
+                "មកដល់តិចជាងបានផ្ញើ៖ ត្រឡប់ចំនួនខ្វះទៅវិញ ហើយបិទ",
+              ])}
+              onClick={() => setShortId(row.id)}
+            >
+              <Icon name="alert" size={12} />{" "}
+              {l(["Report short", "រាយការណ៍ខ្វះ"])}
+            </button>
+          )}
         </span>
       ),
     },
@@ -198,6 +233,14 @@ export function TransfersPage() {
           ])}
         </p>
       )}
+      <ReportShortDialog
+        issue={
+          shortIssue && rows.find((row) => row.id === shortIssue.id)?.receivable
+            ? shortIssue
+            : null
+        }
+        onClose={() => setShortId("")}
+      />
       <DataTable
         columns={columns}
         rows={rows}
