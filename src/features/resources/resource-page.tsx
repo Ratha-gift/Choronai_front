@@ -11,6 +11,7 @@ import type { Row } from "@/data/types";
 import { useLanguage } from "@/i18n";
 import { downloadText, toCsv } from "@/lib/csv";
 import { formatDate } from "@/lib/format";
+import { useStored } from "@/lib/store";
 import { notify } from "@/lib/toast";
 import { ResourceForm, initialValues } from "./resource-form";
 import { usePermissions } from "@/features/settings/permissions";
@@ -41,7 +42,11 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
   const [editing, setEditing] = useState<Row | "new" | null>(null);
   const [viewing, setViewing] = useState<Row | null>(null);
   // WeERP: the ▼ button at the top right shows or hides the date filter.
-  const [filterOpen, setFilterOpen] = useState(true);
+  // Remembered per page in this browser (not shared with other devices).
+  const [filterOpen, setFilterOpen] = useStored(
+    `choronai-filter-open-${def.id}`,
+    true,
+  );
   const canEdit =
     (def.canEdit ?? (!!def.fields || !!def.editHref)) && may(def.id, "edit");
   const edit = (row: Row) =>
