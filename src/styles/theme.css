@@ -739,6 +739,27 @@
   margin-left: 0;
 }
 
+/* POS Sales footer: search under each column (WeERP) */
+.column-search {
+  width: 100%;
+  min-width: 70px;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid #d3dce8;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 400;
+}
+.column-search:focus {
+  border-color: var(--brand);
+  outline: 0;
+}
+.column-search-label {
+  color: #8796aa;
+  font-weight: 400;
+}
+
 /* The rows-per-page picker draws its own border (.select-button). */
 .page-size .select-button {
   height: 32px;

@@ -212,13 +212,17 @@ export function DataTable<T extends { id: string }>({
           ? column.filterValue(row)
           : cellValue(column, row);
         if (value.text?.trim()) {
+          const shown =
+            column.type === "date" || column.type === "datetime"
+              ? `${localDay(new Date(String(raw ?? "")))} ${formatDate(raw, true)}`
+              : raw;
           const normalize = (input: unknown) => {
             const text = searchable(input).trim();
             return column.filter === "phone"
               ? text.replace(/[\s().-]/g, "")
               : text;
           };
-          if (!normalize(raw).includes(normalize(value.text))) return false;
+          if (!normalize(shown).includes(normalize(value.text))) return false;
         }
         if (value.values?.length && !value.values.includes(String(raw ?? "")))
           return false;
@@ -376,6 +380,63 @@ export function DataTable<T extends { id: string }>({
         ),
       ].sort()
     : [];
+  // WeERP footer: type under a column to search only that column.
+  const columnSearch = (column: Column<T>) => {
+    if (column.filter === false || column.type === "image") return null;
+    const label = l(column.label);
+    const value = filters[column.key];
+    if (column.type === "status") {
+      const options = [
+        ...new Set(
+          rows
+            .map((row) =>
+              String(
+                (column.filterValue
+                  ? column.filterValue(row)
+                  : cellValue(column, row)) ?? "",
+              ),
+            )
+            .filter(Boolean),
+        ),
+      ].sort();
+      return (
+        <select
+          className="column-search"
+          aria-label={label}
+          value={value?.values?.[0] ?? ""}
+          onChange={(event) =>
+            setFilters({
+              ...filters,
+              [column.key]: event.target.value
+                ? { values: [event.target.value] }
+                : {},
+            })
+          }
+        >
+          <option value="">[{label}]</option>
+          {options.map((option) => (
+            <option key={option} value={option}>
+              {option.charAt(0).toUpperCase() +
+                option.slice(1).replace(/_/g, " ")}
+            </option>
+          ))}
+        </select>
+      );
+    }
+    const isDate = column.type === "date" || column.type === "datetime";
+    return (
+      <input
+        type="search"
+        className="column-search"
+        aria-label={label}
+        placeholder={`[${label}${isDate ? " (yyyy-mm-dd)" : ""}]`}
+        value={value?.text ?? ""}
+        onChange={(event) =>
+          setFilters({ ...filters, [column.key]: { text: event.target.value } })
+        }
+      />
+    );
+  };
   const pageSizePicker = (
     <NativeSelect
       className="page-size"
@@ -599,13 +660,16 @@ export function DataTable<T extends { id: string }>({
             )}
           </tbody>
           {/* With a single row the total would just repeat it. */}
-          {hasTotals && footer !== "none" && total > 1 && (
+          {(periodFilter || (hasTotals && footer !== "none" && total > 1)) && (
             <tfoot>
               <tr className="totals-row">
                 {selectable && <td className="check-col" />}
                 {columns.map((column, index) => (
                   <td key={column.key} className={`align-${align(column)}`}>
-                    {index === 0 && !column.total && <b>{t.total}</b>}
+                    {periodFilter && !column.total && columnSearch(column)}
+                    {!periodFilter && index === 0 && !column.total && (
+                      <b>{t.total}</b>
+                    )}
                     {column.total && (
                       <b>
                         {column.type === "money"
@@ -628,7 +692,13 @@ export function DataTable<T extends { id: string }>({
                     )}
                   </td>
                 ))}
-                {actions && <td className="actions-col" />}
+                {actions && (
+                  <td className="actions-col">
+                    {periodFilter && (
+                      <span className="column-search-label">{t.actions}</span>
+                    )}
+                  </td>
+                )}
               </tr>
             </tfoot>
           )}
