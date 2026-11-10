@@ -22,8 +22,6 @@ import { useLanguage } from "@/i18n";
 
 type Flyout = { id: string; top: number } | null;
 const FLYOUT_ROW = 38;
-/** Hidden from the menu; the owner can still open /server-status directly. */
-const SHOW_SERVER_STATUS = false;
 
 export function Navigation({
   current,
@@ -273,12 +271,12 @@ export function Navigation({
         })}
         {canOpen(SHOP_SETTINGS.id) && single(SHOP_SETTINGS)}
 
-        {!collapsed && SHOW_SERVER_STATUS && canOpen("server-status") && (
+        {!collapsed && canOpen("server-status") && (
           <div className="nav-system-label">
             {language === "en" ? "System" : "ប្រព័ន្ធ"}
           </div>
         )}
-        {SHOW_SERVER_STATUS && canOpen("server-status") && (
+        {canOpen("server-status") && (
           <Link
             href="/server-status"
             className={`nav-item nav-server ${pathname === "/server-status" ? "active" : ""}`}

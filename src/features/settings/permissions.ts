@@ -193,6 +193,8 @@ export function usePermissions() {
   const ticked = (group && saved[group.id]) ?? {};
   const can = (key: string) => isOwner || !!ticked[key];
   const canOpen = (pageId: string) => {
+    // Server Status is for the owner only, whatever a group has ticked.
+    if (/^server-status/.test(pageId)) return isOwner;
     const key = pagePermission(pageId);
     return !key || can(key);
   };
