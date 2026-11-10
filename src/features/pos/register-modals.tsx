@@ -185,26 +185,8 @@ export function CloseRegisterModal({
       `$${toNumber(countedUsd).toFixed(2)}`,
     ],
     [["Total Count Money", "ប្រាក់រាប់បានសរុប"], dollars(counted), true],
-    [
-      ["Difference", "ខុសគ្នា"],
-      <span
-        key="difference"
-        className={
-          Math.abs(difference) < 1
-            ? "text-success"
-            : difference < 0
-              ? "text-danger"
-              : "text-warning"
-        }
-      >
-        {difference > 0
-          ? `+${dollars(difference)}`
-          : difference < 0
-            ? `-${dollars(-difference)}`
-            : dollars(0)}
-      </span>,
-      true,
-    ],
+    // No "Difference" line here: it is still saved with the register and
+    // shown in Sale → Registers.
     [
       ["Total Sales", "ការលក់សរុប"],
       <>
