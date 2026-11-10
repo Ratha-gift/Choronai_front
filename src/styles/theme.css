@@ -696,7 +696,10 @@
   padding: 0 4px;
   color: #8796aa;
 }
-.page-size,
+/* The rows-per-page picker draws its own border (.select-button). */
+.page-size .select-button {
+  height: 32px;
+}
 .go-to input {
   height: 32px;
   padding: 0 8px;
@@ -714,7 +717,6 @@
   width: 64px;
   text-align: center;
 }
-.page-size:focus,
 .go-to input:focus {
   border-color: var(--brand);
   outline: 0;
