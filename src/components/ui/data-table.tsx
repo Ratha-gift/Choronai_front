@@ -11,12 +11,7 @@ const localDay = (date = new Date()) =>
     : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 import { Icon } from "@/components/icons";
 import { StatusLabel } from "./status-label";
-import {
-  FilterDrawer,
-  isActive,
-  type FilterSection,
-  type Filters,
-} from "./filter-drawer";
+import { isActive, type FilterSection, type Filters } from "./filter-drawer";
 
 export type ColumnType =
   | "text"
@@ -166,7 +161,6 @@ export function DataTable<T extends { id: string }>({
 }) {
   const { l, t } = useLanguage();
   const [pageSize, setPageSize] = useState(footer === "filters" ? 10 : 25);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [goTo, setGoTo] = useState("");
   const [page, setPage] = useState(1);
   const [query, setQuery] = useState("");
@@ -272,47 +266,6 @@ export function DataTable<T extends { id: string }>({
 
   const canFilter = footer === "filters";
   const activeFilters = Object.values(filters).filter(isActive).length;
-
-  // One panel section per filterable column, picked from its type and data.
-  const sections = useMemo<FilterSection[]>(() => {
-    if (!canFilter) return [];
-    return columns.flatMap((column): FilterSection[] => {
-      if (column.filter === false || column.type === "image") return [];
-      const base = {
-        key: column.key,
-        label: column.filterLabel ?? column.label,
-      };
-      const kind =
-        column.filter ??
-        (column.type === "date" || column.type === "datetime"
-          ? "date"
-          : column.type === "money" ||
-              column.type === "number" ||
-              column.type === "qty"
-            ? "range"
-            : "chips");
-      if (kind !== "chips" && kind !== "select") return [{ ...base, kind }];
-      const options = [
-        ...new Set(
-          [
-            ...(column.filterOptions ?? []),
-            ...rows.map((row) => String(cellValue(column, row) ?? "")),
-          ]
-            .map((option) => option.trim())
-            .filter(Boolean),
-        ),
-      ].sort((x, y) => x.localeCompare(y, undefined, { numeric: true }));
-      if (kind === "select") return [{ ...base, kind, options }];
-      // Chips only help for short lists (status, category, warehouse …);
-      // free text like names is covered by the search box.
-      const useful =
-        column.filter === "chips" ||
-        (options.length >= 2 &&
-          (column.type === "status" ||
-            options.length <= Math.min(12, rows.length / 1.5)));
-      return useful ? [{ ...base, kind: "chips", options }] : [];
-    });
-  }, [canFilter, columns, rows]);
 
   const jump = () => {
     const target = Math.round(Number(goTo));
@@ -539,19 +492,6 @@ export function DataTable<T extends { id: string }>({
             <Icon name="x" size={12} /> {t.clearFilters}
           </button>
         )}
-        {sections.length > 0 && (
-          <button
-            type="button"
-            className={`btn-filter ${activeFilters ? "active" : ""}`}
-            aria-haspopup="dialog"
-            onClick={() => setDrawerOpen(true)}
-          >
-            <Icon name="filter" size={14} /> {t.filter}
-            {activeFilters > 0 && (
-              <span className="filter-count">{activeFilters}</span>
-            )}
-          </button>
-        )}
       </div>
       <div className="table-responsive">
         <table className="data-table">
@@ -771,16 +711,6 @@ export function DataTable<T extends { id: string }>({
           )}
         </div>
       </div>
-      <FilterDrawer
-        open={drawerOpen}
-        sections={sections}
-        value={filters}
-        onClose={() => setDrawerOpen(false)}
-        onApply={(next) => {
-          setFilters(next);
-          setDrawerOpen(false);
-        }}
-      />
     </div>
   );
 }
