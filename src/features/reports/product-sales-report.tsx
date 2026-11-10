@@ -154,6 +154,23 @@ export function ProductSalesReport({ type }: { type?: "simple" | "combo" }) {
   ].sort();
   const columns = 7 + (showCost ? 2 : 0);
   const qty = (line: Line) => `${formatNumber(line.sold, 3)}`;
+  // A combo's contents, like WeERP: each part and how much of it went out
+  // (part quantity per set × sets sold), from the combo as it is set up now.
+  const partsOf = (line: Line) =>
+    line.type !== "combo"
+      ? []
+      : (byId.get(line.productId)?.comboItems ?? []).map((item) => {
+          const part = byId.get(item.productId);
+          return {
+            key: item.productId,
+            name: part?.name ?? item.productId,
+            code: part?.sku ?? "",
+            type: part?.type ?? "standard",
+            subCategory: part?.subCategory ?? "",
+            unit: part ? productUnit(part) : "",
+            sold: toNumber(item.quantity) * line.sold,
+          };
+        });
   const toggle = (category: string) =>
     setClosed((old) => {
       const next = new Set(old);
@@ -188,19 +205,30 @@ export function ProductSalesReport({ type }: { type?: "simple" | "combo" }) {
           l(["Total Price", "តម្លៃលក់សរុប"]),
           ...(showCost ? [l(["Net Profit", "ប្រាក់ចំណេញសុទ្ធ"])] : []),
         ],
-        ...allRows.map((line) => [
-          categoryLabel(line.category, language),
-          line.name,
-          line.code,
-          line.type,
-          line.subCategory,
-          line.sold,
-          line.unit,
-          line.sold ? Math.round(line.gross / line.sold) : 0,
-          Math.round(line.discount),
-          ...(showCost ? [Math.round(line.cost)] : []),
-          Math.round(net(line)),
-          ...(showCost ? [Math.round(profit(line))] : []),
+        ...allRows.flatMap((line) => [
+          [
+            categoryLabel(line.category, language),
+            line.name,
+            line.code,
+            line.type,
+            line.subCategory,
+            line.sold,
+            line.unit,
+            line.sold ? Math.round(line.gross / line.sold) : 0,
+            Math.round(line.discount),
+            ...(showCost ? [Math.round(line.cost)] : []),
+            Math.round(net(line)),
+            ...(showCost ? [Math.round(profit(line))] : []),
+          ],
+          ...partsOf(line).map((part) => [
+            categoryLabel(line.category, language),
+            `  ${part.name}`,
+            part.code,
+            part.type,
+            part.subCategory,
+            part.sold,
+            part.unit,
+          ]),
         ]),
       ]),
     );
@@ -416,21 +444,40 @@ export function ProductSalesReport({ type }: { type?: "simple" | "combo" }) {
                   </tr>
                   {open &&
                     group.rows.map((line, index) => (
-                      <tr key={line.productId}>
-                        <td className="align-center">{index + 1}</td>
-                        <td>
-                          {line.name} - {line.code}
-                        </td>
-                        <td className="align-center">{line.type}</td>
-                        <td>{line.subCategory}</td>
-                        <td className="align-right">
-                          {qty(line)} <span className="unit">{line.unit}</span>
-                        </td>
-                        <td className="align-right">
-                          {formatMoney(unitPrice(line))}
-                        </td>
-                        {amounts([line])}
-                      </tr>
+                      <Fragment key={line.productId}>
+                        <tr>
+                          <td className="align-center">{index + 1}</td>
+                          <td>
+                            {line.name} - {line.code}
+                          </td>
+                          <td className="align-center">{line.type}</td>
+                          <td>{line.subCategory}</td>
+                          <td className="align-right">
+                            {qty(line)}{" "}
+                            <span className="unit">{line.unit}</span>
+                          </td>
+                          <td className="align-right">
+                            {formatMoney(unitPrice(line))}
+                          </td>
+                          {amounts([line])}
+                        </tr>
+                        {partsOf(line).map((part) => (
+                          <tr key={part.key} className="combo-part-row">
+                            <td />
+                            <td>
+                              {part.name}
+                              {part.code && ` - ${part.code}`}
+                            </td>
+                            <td className="align-center">{part.type}</td>
+                            <td>{part.subCategory}</td>
+                            <td className="align-right">
+                              {formatNumber(part.sold, 3)}{" "}
+                              <span className="unit">{part.unit}</span>
+                            </td>
+                            <td colSpan={columns - 4} />
+                          </tr>
+                        ))}
+                      </Fragment>
                     ))}
                   {open && (
                     <tr className="subtotal-row">
