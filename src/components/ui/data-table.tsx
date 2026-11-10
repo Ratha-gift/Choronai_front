@@ -3,6 +3,12 @@ import { NativeSelect } from "./select";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLanguage, type Label } from "@/i18n";
 import { formatDate, formatMoney, formatNumber, toNumber } from "@/lib/format";
+
+/** A date as yyyy-mm-dd in local time (what <input type="date"> holds). */
+const localDay = (date = new Date()) =>
+  Number.isNaN(date.getTime())
+    ? ""
+    : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 import { Icon } from "@/components/icons";
 import { StatusLabel } from "./status-label";
 import {
@@ -132,6 +138,7 @@ export function DataTable<T extends { id: string }>({
   emptyText,
   rowClassName,
   onRowClick,
+  periodFilter,
 }: {
   columns: Column<T>[];
   rows: T[];
@@ -148,27 +155,49 @@ export function DataTable<T extends { id: string }>({
   rowClassName?: (row: T) => string;
   /** Clicking a row (not its checkbox, buttons or links) opens it. */
   onRowClick?: (row: T) => void;
+  /**
+   * WeERP-style bar above the table: Branch, Start Date, End Date, Submit
+   * (today by default), then "Show N" on the left and Search on the right.
+   */
+  periodFilter?: { branchKey: string; dateKey: string };
 }) {
   const { l, t } = useLanguage();
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize, setPageSize] = useState(periodFilter ? 10 : 25);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [goTo, setGoTo] = useState("");
   const [page, setPage] = useState(1);
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<Filters>({});
   const [sort, setSort] = useState(initialSort);
+  const today = localDay();
+  const [period, setPeriod] = useState({ branch: "", from: today, to: today });
+  const [periodDraft, setPeriodDraft] = useState(period);
   const [ownSelection, setOwnSelection] = useState<string[]>([]);
   const selection = selected ?? ownSelection;
   const setSelection = onSelectedChange ?? setOwnSelection;
 
-  useEffect(() => setPage(1), [query, filters, pageSize]);
+  useEffect(() => setPage(1), [query, filters, pageSize, period]);
 
   const filtered = useMemo(() => {
     const term = query.toLowerCase().trim();
     const active = Object.entries(filters).filter(([, value]) =>
       isActive(value),
     );
+    const inPeriod = (row: T) => {
+      if (!periodFilter) return true;
+      const record = row as Record<string, unknown>;
+      if (
+        period.branch &&
+        String(record[periodFilter.branchKey] ?? "") !== period.branch
+      )
+        return false;
+      const day = localDay(new Date(String(record[periodFilter.dateKey])));
+      return (
+        (!period.from || day >= period.from) && (!period.to || day <= period.to)
+      );
+    };
     let result = rows.filter((row) => {
+      if (!inPeriod(row)) return false;
       if (
         term &&
         !columns.some((column) =>
@@ -221,7 +250,7 @@ export function DataTable<T extends { id: string }>({
       });
     }
     return result;
-  }, [rows, columns, query, filters, sort]);
+  }, [rows, columns, query, filters, sort, periodFilter, period]);
 
   const total = filtered.length;
   const pages = Math.max(1, Math.ceil(total / pageSize));
@@ -334,9 +363,96 @@ export function DataTable<T extends { id: string }>({
     );
   };
 
+  const branchOptions = periodFilter
+    ? [
+        ...new Set(
+          rows
+            .map((row) =>
+              String(
+                (row as Record<string, unknown>)[periodFilter.branchKey] ?? "",
+              ),
+            )
+            .filter(Boolean),
+        ),
+      ].sort()
+    : [];
+  const pageSizePicker = (
+    <NativeSelect
+      className="page-size"
+      aria-label={t.rowsPerPage}
+      value={pageSize}
+      onChange={(event) => setPageSize(Number(event.target.value))}
+    >
+      {PAGE_SIZES.map((size) => (
+        <option key={size} value={size}>
+          {periodFilter ? String(size) : `${size} ${t.perPage}`}
+        </option>
+      ))}
+    </NativeSelect>
+  );
+
   return (
     <div className="data-table-wrap">
-      <div className="table-controls">
+      {periodFilter && (
+        <form
+          className="period-filter"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setPeriod(periodDraft);
+          }}
+        >
+          <label>
+            <span>{l(["Branch", "សាខា"])}</span>
+            <NativeSelect
+              className="form-control"
+              value={periodDraft.branch}
+              onChange={(event) =>
+                setPeriodDraft({ ...periodDraft, branch: event.target.value })
+              }
+            >
+              <option value="">{l(["All branches", "គ្រប់សាខា"])}</option>
+              {branchOptions.map((name) => (
+                <option key={name}>{name}</option>
+              ))}
+            </NativeSelect>
+          </label>
+          <label>
+            <span>{l(["Start Date", "ថ្ងៃចាប់ផ្តើម"])}</span>
+            <input
+              type="date"
+              className="form-control"
+              value={periodDraft.from}
+              max={periodDraft.to || undefined}
+              onChange={(event) =>
+                setPeriodDraft({ ...periodDraft, from: event.target.value })
+              }
+            />
+          </label>
+          <label>
+            <span>{l(["End Date", "ថ្ងៃបញ្ចប់"])}</span>
+            <input
+              type="date"
+              className="form-control"
+              value={periodDraft.to}
+              min={periodDraft.from || undefined}
+              onChange={(event) =>
+                setPeriodDraft({ ...periodDraft, to: event.target.value })
+              }
+            />
+          </label>
+          <div>
+            <button type="submit" className="btn btn-primary">
+              {l(["Submit", "បញ្ជូន"])}
+            </button>
+          </div>
+        </form>
+      )}
+      <div className={`table-controls${periodFilter ? " with-period" : ""}`}>
+        {periodFilter && (
+          <label className="table-show">
+            {l(["Show", "បង្ហាញ"])} {pageSizePicker}
+          </label>
+        )}
         <label className="table-search">
           <Icon name="search" size={15} />
           <input
@@ -560,18 +676,7 @@ export function DataTable<T extends { id: string }>({
               <Icon name="chevronRight" size={14} />
             </button>
           </nav>
-          <NativeSelect
-            className="page-size"
-            aria-label={t.rowsPerPage}
-            value={pageSize}
-            onChange={(event) => setPageSize(Number(event.target.value))}
-          >
-            {PAGE_SIZES.map((size) => (
-              <option key={size} value={size}>
-                {size} {t.perPage}
-              </option>
-            ))}
-          </NativeSelect>
+          {!periodFilter && pageSizePicker}
           {pages > 1 && (
             <label className="go-to">
               {t.goTo}

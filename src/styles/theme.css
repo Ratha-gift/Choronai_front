@@ -696,6 +696,49 @@
   padding: 0 4px;
   color: #8796aa;
 }
+/* POS Sales: Branch / Start Date / End Date / Submit above the table (WeERP) */
+.period-filter {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 20px;
+  margin-bottom: 14px;
+}
+.period-filter label {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+.period-filter label > span {
+  font-weight: 700;
+  color: #23344d;
+}
+.period-filter > div {
+  grid-column: 1 / -1;
+}
+@media (max-width: 700px) {
+  .period-filter {
+    grid-template-columns: 1fr;
+  }
+}
+/* Then "Show N" on the left, Filter and Search on the right */
+.table-show {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #5b6b80;
+}
+.table-controls.with-period .table-search {
+  order: 9;
+}
+.table-controls.with-period .table-show {
+  margin-right: auto;
+}
+.table-controls.with-period .btn-filter,
+.table-controls.with-period .clear-filters {
+  margin-left: 0;
+}
+
 /* The rows-per-page picker draws its own border (.select-button). */
 .page-size .select-button {
   height: 32px;

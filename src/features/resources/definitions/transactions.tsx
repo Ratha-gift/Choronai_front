@@ -188,6 +188,7 @@ export const transactionResources: ResourceDef[] = [
     icon: "heart",
     addHref: "/pos",
     initialSort: sortByDate,
+    periodFilter: { branchKey: "branch", dateKey: "date" },
     details,
     canEdit: false,
     onDelete: (row) => {

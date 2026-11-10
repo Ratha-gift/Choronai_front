@@ -77,6 +77,8 @@ export type ResourceDef = {
     context: { navigate: (href: string) => void; l: (label: Label) => string },
   ) => MenuItem[];
   initialSort?: { key: string; desc?: boolean };
+  /** Branch + Start/End Date bar above the table (POS Sales, like WeERP). */
+  periodFilter?: { branchKey: string; dateKey: string };
   headerGroups?: HeaderGroup[];
   formColumns?: 1 | 2 | 3;
   canEdit?: boolean;
