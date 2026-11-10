@@ -1363,3 +1363,8 @@
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
+
+/* A header toggle that is on (e.g. the filter is shown). */
+.box-actions button[aria-pressed="true"] {
+  background: #eee;
+}

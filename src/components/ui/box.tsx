@@ -7,6 +7,8 @@ export type BoxAction = {
   onClick?: () => void;
   href?: string;
   disabled?: boolean;
+  /** A toggle that is on (shown pressed). */
+  active?: boolean;
 };
 
 /** White panel with an icon, blue title and optional named header buttons. */
@@ -53,6 +55,7 @@ export function Box({
                   aria-label={action.label}
                   onClick={action.onClick}
                   disabled={action.disabled}
+                  aria-pressed={action.active}
                 >
                   <Icon name={action.icon} size={15} />
                   <span>{action.label}</span>
