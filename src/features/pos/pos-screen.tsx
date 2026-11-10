@@ -2017,18 +2017,29 @@ export function Receipt({
           </p>
         )}
         <table>
+          {/* Item columns like the old system's slip: Nº, Description,
+              Qty (unit below), Price, Total. */}
+          <thead>
+            <tr className="receipt-cols">
+              <th>Nº</th>
+              <th>{l(["Description", "ការពិពណ៌នា"])}</th>
+              <th className="num">{l(["Qty", "ចំនួន"])}</th>
+              <th className="num">{l(["Price", "តម្លៃ"])}</th>
+              <th className="num">{l(["Total", "សរុប"])}</th>
+            </tr>
+          </thead>
           <tbody>
             {record.items.map((line, i) => {
               const lineDiscount = productDiscountAmount(line);
               return (
                 <tr key={i}>
-                  <td>
-                    {line.name}
-                    <small>
-                      {formatNumber(line.quantity, 3)} {line.unit} ×{" "}
-                      {formatMoney(line.price)}
-                    </small>
+                  <td>{i + 1}</td>
+                  <td>{line.name}</td>
+                  <td className="num">
+                    {formatNumber(line.quantity, 3)}
+                    {line.unit && <small>{line.unit}</small>}
                   </td>
+                  <td className="num">{formatMoney(line.price)}</td>
                   <td className="num">
                     {formatMoney(line.quantity * line.price)}
                     {lineDiscount > 0 && (
@@ -2047,12 +2058,12 @@ export function Receipt({
           <tfoot>
             {record.total != null && (
               <tr>
-                <td>{t.subtotal}</td>
+                <td colSpan={4}>{t.subtotal}</td>
                 <td className="num">{formatMoney(record.total)}</td>
               </tr>
             )}
             <tr>
-              <td>
+              <td colSpan={4}>
                 {l(["Product Discount", "បញ្ចុះតម្លៃទំនិញ"])}
                 {productDiscountTotal > 0 &&
                   ` (${formatNumber(productDiscountPercent, 2)}%)`}
@@ -2063,7 +2074,7 @@ export function Receipt({
               </td>
             </tr>
             <tr>
-              <td>
+              <td colSpan={4}>
                 {l(["General Discount", "បញ្ចុះតម្លៃទូទៅ"])}
                 {record.generalDiscountPercent != null &&
                   ` (${formatNumber(record.generalDiscountPercent, 2)}%)`}
@@ -2075,20 +2086,20 @@ export function Receipt({
             </tr>
             {!!record.orderTax && (
               <tr>
-                <td>{t.orderTax}</td>
+                <td colSpan={4}>{t.orderTax}</td>
                 <td className="num">{formatMoney(record.orderTax)}</td>
               </tr>
             )}
             {!!record.shipping && (
               <tr>
-                <td>{t.shipping}</td>
+                <td colSpan={4}>{t.shipping}</td>
                 <td className="num">{formatMoney(record.shipping)}</td>
               </tr>
             )}
             {/* The total in both currencies, so the customer can pay in
                 either (USD at the rate of Settings → Currencies). */}
             <tr className="strong grand">
-              <td>{t.grandTotal} (USD)</td>
+              <td colSpan={4}>{t.grandTotal} (USD)</td>
               <td className="num">
                 <b className="receipt-grand">
                   {formatUsd(record.grandTotal, rate)}
@@ -2096,7 +2107,7 @@ export function Receipt({
               </td>
             </tr>
             <tr className="strong grand">
-              <td>{t.grandTotal} (KHR)</td>
+              <td colSpan={4}>{t.grandTotal} (KHR)</td>
               <td className="num">
                 <b className="receipt-grand">
                   {riel(rielDue(record.grandTotal))}
@@ -2105,7 +2116,7 @@ export function Receipt({
             </tr>
             {record.paid > 0 && (
               <tr className="receipt-payment">
-                <td colSpan={2}>
+                <td colSpan={5}>
                   <div className="receipt-payment-grid">
                   <div>
                     <span>{l(["Paid by", "បង់តាម"])}</span>
