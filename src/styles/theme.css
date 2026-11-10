@@ -1364,16 +1364,7 @@
   border-bottom-right-radius: 0;
 }
 
-/* WeERP header buttons: icons only, the label is the tooltip. */
-.box-actions.icon-only button,
-.box-actions.icon-only a {
-  width: 38px;
-  padding: 0;
-  justify-content: center;
-}
-.box-actions.icon-only span {
-  display: none;
-}
+/* A header toggle that is on (e.g. the filter is shown). */
 .box-actions button[aria-pressed="true"] {
   background: #eee;
 }

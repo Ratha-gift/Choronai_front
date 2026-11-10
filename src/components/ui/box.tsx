@@ -19,7 +19,6 @@ export function Box({
   actions,
   children,
   flush,
-  iconOnly,
 }: {
   icon: IconName;
   title: ReactNode;
@@ -28,8 +27,6 @@ export function Box({
   children?: ReactNode;
   /** Drop the content padding (for edge-to-edge content). */
   flush?: boolean;
-  /** Header buttons as icons only (label in the tooltip), like WeERP. */
-  iconOnly?: boolean;
 }) {
   return (
     <section className="box">
@@ -39,7 +36,7 @@ export function Box({
         </span>
         <h2>{title}</h2>
         {actions && actions.length > 0 && (
-          <div className={iconOnly ? "box-actions icon-only" : "box-actions"}>
+          <div className="box-actions">
             {actions.map((action) =>
               action.href ? (
                 <a

@@ -100,7 +100,9 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
             icon: filterOpen
               ? ("chevronUp" as const)
               : ("chevronDown" as const),
-            label: l(["Show / hide filter", "បង្ហាញ / លាក់តម្រង"]),
+            label: filterOpen
+              ? l(["Hide filter", "លាក់តម្រង"])
+              : l(["Show filter", "បង្ហាញតម្រង"]),
             onClick: () => setFilterOpen(!filterOpen),
             active: filterOpen,
           },
@@ -217,7 +219,6 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
         }
         intro={t.tableIntro}
         actions={actions}
-        iconOnly={!!def.periodFilter}
       >
         <DataTable
           columns={columns}
