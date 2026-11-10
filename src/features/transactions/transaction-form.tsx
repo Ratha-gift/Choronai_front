@@ -774,7 +774,9 @@ export function TransactionForm({
               >
                 <option value="">{t.select}</option>
                 {warehouses.rows
-                  .filter((row) => (row.branch || "Central") === form.toBranch)
+                  // Only warehouses linked to that branch: one with no branch
+                  // cannot receive (Laravel finds no destination branch).
+                  .filter((row) => row.branch === form.toBranch)
                   .map((row) => (
                     <option key={row.id}>{String(row.name)}</option>
                   ))}
