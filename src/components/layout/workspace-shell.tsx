@@ -171,9 +171,11 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
           <Icon name="menu" size={18} />
         </button>
         <Link href="/" className="brand" title={siteName}>
+          {/* Logo hidden for now; uncomment to show it again.
           <span className="brand-logo">
             <img src={logo || DEFAULT_LOGO} alt={siteName} />
           </span>
+          */}
           {!rail && (
             <span className="brand-text">
               <b>{siteName}</b>

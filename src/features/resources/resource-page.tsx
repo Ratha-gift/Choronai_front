@@ -214,6 +214,7 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
           initialSort={def.initialSort}
           headerGroups={def.headerGroups}
           onRowClick={def.onRowClick}
+          periodFilter={def.periodFilter}
         />
       </Box>
       {def.fields && editing && (

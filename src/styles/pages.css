@@ -423,23 +423,40 @@
 }
 .product-editor-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
-  gap: 16px;
+  gap: 16px 40px;
 }
 .product-editor-main,
 .product-editor-side {
   display: grid;
-  gap: 16px;
+  gap: 12px;
   min-width: 0;
 }
-/* Keep the right panel in view while scrolling, when the screen is tall
-   enough to show all of it. */
-@media (min-height: 860px) {
-  .product-editor-side {
-    position: sticky;
-    top: 0;
-  }
+.product-editor-details {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+.product-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.product-side-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.file-browse .btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
 }
 
 /* Card per group of fields */
@@ -1701,4 +1718,28 @@ label.btn.disabled {
 .report-toolbar-select {
   width: auto;
   min-width: 160px;
+}
+
+/* Dashboard, Latest Five: a line between the columns as well as the rows */
+.data-table.dashboard-latest {
+  border-collapse: collapse;
+}
+.data-table.dashboard-latest th,
+.data-table.dashboard-latest td,
+.data-table.dashboard-latest tbody tr:last-child td {
+  border: 1px solid #dde4ee;
+}
+
+/* Image field in a form (branch logo) */
+.field-image {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.field-image img {
+  width: 96px;
+  height: 48px;
+  object-fit: contain;
+  border: 1px solid #dde4ee;
+  border-radius: 4px;
 }

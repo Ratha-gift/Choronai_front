@@ -23,6 +23,16 @@ export const formatNumber = (value: unknown, decimals = 0) =>
     maximumFractionDigits: decimals,
   });
 
+/** The smallest riel note in use: cash is rounded to it. */
+const RIEL_NOTE = 100;
+// The small tolerance keeps 5100.0000001 (from dollar sums) at 5100.
+/** Riel to collect from the customer: 5,050 → 5,100. */
+export const rielDue = (riel: number) =>
+  Math.ceil(riel / RIEL_NOTE - 1e-6) * RIEL_NOTE;
+/** Riel to give back: 5,050 → 5,000. */
+export const rielChange = (riel: number) =>
+  Math.floor(riel / RIEL_NOTE + 1e-6) * RIEL_NOTE;
+
 /** Reads a JSON value from localStorage, parsed once per change. */
 const parsed = new Map<string, [string | null, unknown]>();
 function stored(key: string): unknown {
@@ -64,6 +74,16 @@ export function displayCurrency(): { code: "KHR" | "USD"; rate: number } {
     : undefined;
   return { code: "USD", rate: toNumber(usd?.rate) || 4100 };
 }
+
+/** The default currency's sign, for boxes where an amount is typed. */
+export const currencySymbol = () =>
+  displayCurrency().code === "USD" ? "$" : "៛";
+/** Riel as typed in the default currency: 31,980 ៛ → 7.8 at 4,100. */
+export const toTyped = (riel: unknown) =>
+  Math.round((toNumber(riel) / displayCurrency().rate) * 100) / 100;
+/** An amount typed in the default currency, in whole riel as it is stored. */
+export const fromTyped = (typed: number) =>
+  Math.round(typed * displayCurrency().rate);
 
 /** All amounts are stored in riel (KHR); shown in the default currency. */
 export const formatMoney = (value: unknown) => {

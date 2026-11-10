@@ -57,6 +57,12 @@ export const groups: NavGroup[] = [
     icon: "barcode",
     items: [
       m("inventory/products", "Products", "មុខទំនិញ", "barcode"),
+      m(
+        "inventory/import-products",
+        "Import Products",
+        "នាំចូលមុខទំនិញ",
+        "file",
+      ),
       {
         id: "inventory/stock",
         label: ["Stock Management", "គ្រប់គ្រងស្តុក"],

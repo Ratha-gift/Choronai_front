@@ -8,10 +8,11 @@ import { usePermissions } from "@/features/settings/permissions";
 import { useCollection } from "@/data/collections";
 import { useLanguage } from "@/i18n";
 import {
-  formatMoney,
   formatUsd,
   formatNumber,
   localDateTime,
+  rielChange,
+  rielDue,
   toNumber,
 } from "@/lib/format";
 
@@ -123,11 +124,13 @@ export function PaymentModal({
     setRows((old) =>
       old.map((row, i) => (i === index ? { ...row, ...patch } : row)),
     );
+  // What is still owed goes up to the 100 ៛ note, change goes down to it.
+  const balanceRiel = balance >= 0 ? rielChange(balance) : -rielDue(-balance);
   // `up`: the total in dollars is rounded up to the cent, as pre-filled.
-  const both = (riel: number, up = false) => (
+  const both = (riel: number, shownRiel: number, up = false) => (
     <>
       {up ? `$${formatNumber(toUsd(riel, rate), 2)}` : formatUsd(riel, rate)}{" "}
-      <small>({formatMoney(riel)})</small>
+      <small>({formatNumber(shownRiel)} ៛)</small>
     </>
   );
   const methodOptions = (index: number) =>
@@ -227,7 +230,7 @@ export function PaymentModal({
               <tr>
                 <th>{t.totalPayable}</th>
                 <td>{formatNumber(toUsd(payable, rate), 2)}</td>
-                <td>{formatNumber(payable)}</td>
+                <td>{formatNumber(rielDue(payable))}</td>
               </tr>
               {rows.map((row, index) => (
                 <tr key={index} className="pay-row">
@@ -293,7 +296,7 @@ export function PaymentModal({
                   {formatNumber(balance / rate, 2)}
                 </td>
                 <td className={balance < 0 ? "text-danger" : ""}>
-                  {formatNumber(balance)}
+                  {formatNumber(balanceRiel)}
                 </td>
               </tr>
             </tbody>
@@ -327,15 +330,23 @@ export function PaymentModal({
                 <th>{t.totalItems}</th>
                 <td>{itemCount}</td>
                 <th>{t.totalPayable}</th>
-                <td>{both(payable, true)}</td>
+                <td>{both(payable, rielDue(payable), true)}</td>
               </tr>
               <tr>
                 <th>{l(["Total Paying", "ទឹកប្រាក់បង់"])}</th>
-                <td>{both(payable + balance, balance === 0)}</td>
+                <td>
+                  {both(
+                    payable + balance,
+                    balance === 0
+                      ? rielDue(payable)
+                      : Math.round((payable + balance) / 100) * 100,
+                    balance === 0,
+                  )}
+                </td>
                 <th>
                   {balance >= 0 ? l(["Change", "ប្រាក់អាប់"]) : t.balance}
                 </th>
-                <td>{both(Math.abs(balance))}</td>
+                <td>{both(Math.abs(balance), Math.abs(balanceRiel))}</td>
               </tr>
             </tbody>
           </table>

@@ -76,6 +76,7 @@ export const DEFAULT_PERMISSIONS: GroupPermissionMap = {
  */
 const PAGE_PERMISSIONS: [RegExp, string][] = [
   [/^inventory\/products\/add/, "products.add"],
+  [/^inventory\/import-products/, "products.add"],
   [/^inventory\/products\/edit/, "products.edit"],
   [/^inventory\/(products|product-rewards)/, "products.view"],
   [/^inventory\/stock-receive\/add/, "stock.receive"],
@@ -193,6 +194,8 @@ export function usePermissions() {
   const ticked = (group && saved[group.id]) ?? {};
   const can = (key: string) => isOwner || !!ticked[key];
   const canOpen = (pageId: string) => {
+    // Server Status is for the owner only, whatever a group has ticked.
+    if (/^server-status/.test(pageId)) return isOwner;
     const key = pagePermission(pageId);
     return !key || can(key);
   };

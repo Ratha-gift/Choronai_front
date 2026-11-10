@@ -3,7 +3,8 @@ import { RecordHistory } from "@/components/layout/audit-log";
 import { NativeSelect } from "@/components/ui/select";
 import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Icon, type IconName } from "@/components/icons";
+import { Icon } from "@/components/icons";
+import { Box } from "@/components/ui/box";
 import { Field, NumberInput } from "@/components/ui/fields";
 import { useCollection, type CollectionName } from "@/data/collections";
 import { resources } from "@/features/resources";
@@ -12,7 +13,14 @@ import {
   initialValues,
 } from "@/features/resources/resource-form";
 import { useLanguage, type Label } from "@/i18n";
-import { formatMoney, formatNumber, toNumber } from "@/lib/format";
+import {
+  currencySymbol,
+  formatMoney,
+  formatNumber,
+  fromTyped,
+  toNumber,
+  toTyped,
+} from "@/lib/format";
 import { readImage } from "@/lib/image";
 import { uploadOrKeep } from "@/lib/upload";
 import { usePermissions } from "@/features/settings/permissions";
@@ -90,57 +98,10 @@ function formFrom(product?: Product) {
 }
 type Form = ReturnType<typeof formFrom>;
 
-/** Titled card used for each group of fields. */
-function Section({
-  icon,
-  title,
-  hint,
-  action,
-  children,
-}: {
-  icon: IconName;
-  title: string;
-  hint?: string;
-  action?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section className="form-card">
-      <header>
-        <span className="form-card-icon">
-          <Icon name={icon} size={15} />
-        </span>
-        <div>
-          <h3>{title}</h3>
-          {hint && <p>{hint}</p>}
-        </div>
-        {action && <div className="form-card-action">{action}</div>}
-      </header>
-      <div className="form-card-body">{children}</div>
-    </section>
-  );
-}
-
-/** On/off switch with a label, used for optional groups. */
-function Toggle({
-  checked,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  onChange: () => void;
-  label: string;
-}) {
-  return (
-    <label className="toggle">
-      <input type="checkbox" checked={checked} onChange={onChange} />
-      <span aria-hidden="true" />
-      {label}
-    </label>
-  );
-}
-
-/** Riel input with a ៛ suffix. */
+/**
+ * An amount typed in the default currency (៛ or $, System Settings) with its
+ * sign. The form keeps riel, as everything is stored.
+ */
 function MoneyInput({
   value,
   onChange,
@@ -154,15 +115,15 @@ function MoneyInput({
 }) {
   return (
     <div className="input-affix">
-      <input
+      <NumberInput
         className="form-control"
-        type="number"
-        min={min}
+        min={min > 0 ? toTyped(min) || 0.01 : 0}
+        step="any"
         required={required}
-        value={value}
-        onChange={(event) => onChange(num(event.target.value))}
+        value={value === "" ? "" : toTyped(value)}
+        onChange={(next) => onChange(fromTyped(next))}
       />
-      <span>៛</span>
+      <span>{currencySymbol()}</span>
     </div>
   );
 }
@@ -224,7 +185,6 @@ export function ProductFormPage({ productId }: { productId?: string }) {
 
   const price = toNumber(form.price);
   const cost = isCombo ? comboCost : toNumber(form.cost);
-  const margin = price > 0 ? ((price - cost) / price) * 100 : 0;
 
   if (productId && !existing)
     return (
@@ -396,21 +356,36 @@ export function ProductFormPage({ productId }: { productId?: string }) {
   const title = existing
     ? l(["Edit Product", "កែមុខទំនិញ"])
     : l(["Add Product", "បន្ថែមមុខទំនិញ"]);
-  const types: [ProductType, IconName, Label, Label][] = [
-    [
-      "standard",
-      "barcode",
-      ["Standard", "ស្តង់ដារ"],
-      ["Stocked item", "ទំនិញមានស្តុក"],
-    ],
-    [
-      "service",
-      "wrench",
-      ["Service", "សេវា"],
-      ["No stock kept", "មិនរក្សាស្តុក"],
-    ],
-    ["combo", "layers", ["Combo", "កញ្ចប់"], ["Set of products", "សំណុំទំនិញ"]],
+  const types: [ProductType, Label][] = [
+    ["standard", ["Standard", "ស្តង់ដារ"]],
+    ["service", ["Service", "សេវា"]],
+    ["combo", ["Combo", "កញ្ចប់"]],
   ];
+  const browse = (
+    name: string,
+    onPick: (files: FileList | null) => void,
+    multiple = false,
+  ) => (
+    <div className="input-group file-browse">
+      <input
+        className="form-control"
+        readOnly
+        tabIndex={-1}
+        aria-hidden="true"
+        value={name}
+      />
+      <label className="btn btn-primary">
+        <Icon name="folder" size={14} /> {l(["Browse ...", "ជ្រើសឯកសារ ..."])}
+        <input
+          type="file"
+          accept="image/*"
+          multiple={multiple}
+          hidden
+          onChange={(event) => onPick(event.target.files)}
+        />
+      </label>
+    </div>
+  );
 
   return (
     <form
@@ -420,185 +395,140 @@ export function ProductFormPage({ productId }: { productId?: string }) {
         submit();
       }}
     >
-      <div className="product-editor-head">
-        <div>
-          <h1>{existing ? `${title}: ${existing.name}` : title}</h1>
-          <p>{t.formIntro}</p>
-        </div>
-        <div className="button-row">
-          <button
-            className="btn btn-default"
-            type="button"
-            onClick={() => router.push("/inventory/products")}
-          >
-            {t.cancel}
-          </button>
-          <button className="btn btn-primary" type="submit">
-            <Icon name="check" size={14} /> {title}
-          </button>
-        </div>
-      </div>
-
-      <div className="product-editor-grid">
-        {/* Left panel: product information */}
-        <div className="product-editor-main">
-          <Section
-            icon="tag"
-            title={l(["Basic information", "ព័ត៌មានមូលដ្ឋាន"])}
-          >
-            <div
-              className="type-picker"
-              role="radiogroup"
-              aria-label={l(["Product Type", "ប្រភេទទំនិញ"])}
-            >
-              {types.map(([id, icon, label, hint]) => (
-                <label key={id} className={form.type === id ? "active" : ""}>
-                  <input
-                    type="radio"
-                    name="product-type"
-                    value={id}
-                    checked={form.type === id}
-                    onChange={() => set({ type: id })}
-                  />
-                  <Icon name={icon} size={18} />
-                  <span>
-                    <b>{l(label)}</b>
-                    <small>{l(hint)}</small>
-                  </span>
-                </label>
-              ))}
-            </div>
-            <div className="form-grid cols-2">
-              <Field
-                label={l(["Product Code", "កូដមុខទំនិញ"])}
+      <Box
+        icon="plus"
+        title={existing ? `${title}: ${existing.name}` : title}
+        intro={t.formIntro}
+      >
+        <div className="product-editor-grid">
+          {/* Left: the product's fields, one under the other */}
+          <div className="product-editor-main">
+            <Field label={l(["Product Type", "ប្រភេទទំនិញ"])} required>
+              <NativeSelect
+                className="form-control"
                 required
-                hint={l([
-                  "Scan a barcode into this field, or generate a code.",
-                  "ស្កេនបារកូដចូលប្រអប់នេះ ឬបង្កើតកូដ។",
-                ])}
+                value={form.type}
+                onChange={(event) =>
+                  set({ type: event.target.value as ProductType })
+                }
               >
-                <div className="input-group">
-                  <input
-                    className="form-control"
-                    required
-                    value={form.sku}
-                    onChange={(event) => set({ sku: event.target.value })}
-                  />
-                  <button
-                    type="button"
-                    className="addon"
-                    title={l(["Generate code", "បង្កើតកូដ"])}
-                    aria-label={l(["Generate code", "បង្កើតកូដ"])}
-                    onClick={() =>
-                      set({
-                        sku: form.category
-                          ? nextSku(form.category)
-                          : String(
-                              Math.floor(
-                                10_000_000 + Math.random() * 89_999_999,
-                              ),
-                            ),
-                      })
-                    }
-                  >
-                    <Icon name="refresh" size={15} />
-                  </button>
-                </div>
-              </Field>
-              <Field label={l(["Product Name", "ឈ្មោះមុខទំនិញ"])} required>
+                {types.map(([id, label]) => (
+                  <option key={id} value={id}>
+                    {l(label)}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+            <Field
+              label={l(["Product Code", "កូដមុខទំនិញ"])}
+              required
+              hint={l([
+                "You can scan your barcode into this box, or generate a code.",
+                "អ្នកអាចស្កេនបារកូដចូលប្រអប់នេះ ឬបង្កើតកូដ។",
+              ])}
+            >
+              <div className="input-group">
                 <input
                   className="form-control"
                   required
-                  value={form.name}
-                  placeholder={t.namePlaceholder}
-                  onChange={(event) => set({ name: event.target.value })}
+                  value={form.sku}
+                  onChange={(event) => set({ sku: event.target.value })}
                 />
-              </Field>
-            </div>
-          </Section>
-
-          <Section
-            icon="folder"
-            title={l(["Category & brand", "ប្រភេទ និងម៉ាក"])}
-          >
-            <div className="form-grid cols-3">
-              <Field label={l(["Category", "ប្រភេទ"])} required>
-                {withAdd(
-                  <NativeSelect
-                    className="form-control"
-                    required
-                    value={form.category}
-                    onChange={(event) =>
-                      set({ category: event.target.value, subCategory: "" })
-                    }
-                  >
-                    <option value="">
-                      {l(["Select Category", "ជ្រើសប្រភេទ"])}
-                    </option>
-                    {categories.rows
-                      .filter((row) => !row.parent)
-                      .map((row) => (
-                        <option key={row.id} value={String(row.code)}>
-                          {String(row.name)}
-                        </option>
-                      ))}
-                  </NativeSelect>,
-                  "category",
-                  ["Add Category", "បន្ថែមប្រភេទ"],
-                )}
-              </Field>
-              <Field label={l(["Sub Category", "ប្រភេទរង"])}>
+                <button
+                  type="button"
+                  className="addon"
+                  title={l(["Generate code", "បង្កើតកូដ"])}
+                  aria-label={l(["Generate code", "បង្កើតកូដ"])}
+                  onClick={() =>
+                    set({
+                      sku: form.category
+                        ? nextSku(form.category)
+                        : String(
+                            Math.floor(10_000_000 + Math.random() * 89_999_999),
+                          ),
+                    })
+                  }
+                >
+                  <Icon name="refresh" size={15} />
+                </button>
+              </div>
+            </Field>
+            <Field label={l(["Product Name", "ឈ្មោះមុខទំនិញ"])} required>
+              <input
+                className="form-control"
+                required
+                value={form.name}
+                placeholder={t.namePlaceholder}
+                onChange={(event) => set({ name: event.target.value })}
+              />
+            </Field>
+            <Field label={l(["Brand", "ម៉ាក"])}>
+              {withAdd(
                 <NativeSelect
                   className="form-control"
-                  value={form.subCategory}
-                  disabled={!subCategories.length}
-                  onChange={(event) => set({ subCategory: event.target.value })}
+                  value={form.brand}
+                  onChange={(event) => set({ brand: event.target.value })}
                 >
-                  <option value="">
-                    {!form.category
-                      ? l(["Select category first", "សូមជ្រើសប្រភេទជាមុន"])
-                      : subCategories.length
-                        ? l(["Select Sub Category", "ជ្រើសប្រភេទរង"])
-                        : l(["No sub categories", "គ្មានប្រភេទរង"])}
-                  </option>
-                  {subCategories.map((row) => (
-                    <option key={row.id} value={String(row.code)}>
+                  <option value="">{l(["Select Brand", "ជ្រើសម៉ាក"])}</option>
+                  {brands.rows.map((row) => (
+                    <option key={row.id} value={String(row.name)}>
                       {String(row.name)}
                     </option>
                   ))}
-                </NativeSelect>
-              </Field>
-              <Field label={l(["Brand", "ម៉ាក"])}>
-                {withAdd(
-                  <NativeSelect
-                    className="form-control"
-                    value={form.brand}
-                    onChange={(event) => set({ brand: event.target.value })}
-                  >
-                    <option value="">{l(["No brand", "គ្មានម៉ាក"])}</option>
-                    {brands.rows.map((row) => (
-                      <option key={row.id} value={String(row.name)}>
+                </NativeSelect>,
+                "brand",
+                ["Add Brand", "បន្ថែមម៉ាក"],
+              )}
+            </Field>
+            <Field label={l(["Category", "ប្រភេទ"])} required>
+              {withAdd(
+                <NativeSelect
+                  className="form-control"
+                  required
+                  value={form.category}
+                  onChange={(event) =>
+                    set({ category: event.target.value, subCategory: "" })
+                  }
+                >
+                  <option value="">
+                    {l(["Select Category", "ជ្រើសប្រភេទ"])}
+                  </option>
+                  {categories.rows
+                    .filter((row) => !row.parent)
+                    .map((row) => (
+                      <option key={row.id} value={String(row.code)}>
                         {String(row.name)}
                       </option>
                     ))}
-                  </NativeSelect>,
-                  "brand",
-                  ["Add Brand", "បន្ថែមម៉ាក"],
-                )}
-              </Field>
-            </div>
-          </Section>
+                </NativeSelect>,
+                "category",
+                ["Add Category", "បន្ថែមប្រភេទ"],
+              )}
+            </Field>
+            <Field label={l(["Sub Category", "ប្រភេទរង"])}>
+              <NativeSelect
+                className="form-control"
+                value={form.subCategory}
+                disabled={!subCategories.length}
+                onChange={(event) => set({ subCategory: event.target.value })}
+              >
+                <option value="">
+                  {!form.category
+                    ? l(["Please select category to load", "សូមជ្រើសប្រភេទជាមុន"])
+                    : subCategories.length
+                      ? l(["Select Sub Category", "ជ្រើសប្រភេទរង"])
+                      : l(["No sub categories", "គ្មានប្រភេទរង"])}
+                </option>
+                {subCategories.map((row) => (
+                  <option key={row.id} value={String(row.code)}>
+                    {String(row.name)}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
 
-          {!isCombo && (
-            <Section
-              icon="wrench"
-              title={l(["Units", "ឯកតា"])}
-              hint={l([
-                "Sale and purchase units default to the product unit.",
-                "ឯកតាលក់ និងទិញ លំនាំដើមស្មើឯកតាមុខទំនិញ។",
-              ])}
-            >
-              <div className="form-grid cols-3">
+            {!isCombo && (
+              <>
                 <Field label={l(["Product Unit", "ឯកតាមុខទំនិញ"])} required>
                   {withAdd(
                     <NativeSelect
@@ -645,7 +575,7 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                     >
                       <option value="">
                         {form.unit ||
-                          l(["Select unit first", "ជ្រើសឯកតាជាមុន"])}
+                          l(["Please select unit first", "សូមជ្រើសឯកតាជាមុន"])}
                       </option>
                       {unitOptions.map((row) => (
                         <option key={row.id} value={String(row.code)}>
@@ -655,70 +585,58 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                     </NativeSelect>
                   </Field>
                 ))}
-              </div>
-            </Section>
-          )}
-
-          <Section
-            icon="dollar"
-            title={l(["Pricing", "តម្លៃ"])}
-            hint={
-              existing && price !== existing.price
-                ? t.notice
-                : l(["All amounts in riel (៛).", "ទឹកប្រាក់ទាំងអស់ជារៀល (៛)។"])
-            }
-          >
-            <div className="form-grid cols-3">
-              {isCombo ? (
-                <Field label={l(["Combo cost", "ថ្លៃដើមកញ្ចប់"])}>
-                  <div className="readonly-value">{formatMoney(comboCost)}</div>
-                </Field>
-              ) : (
-                showCost && (
+                {showCost && (
                   <Field label={l(["Product Cost", "ថ្លៃដើម"])}>
                     <MoneyInput
                       value={form.cost}
                       onChange={(value) => set({ cost: value })}
                     />
                   </Field>
-                )
-              )}
-              <Field label={l(["Product Price", "តម្លៃលក់"])} required>
-                {existing && !can("products.price") ? (
-                  <div
-                    className="readonly-value"
-                    title={l([
-                      "Your group cannot change prices (Group Permissions → Product Price).",
-                      "ក្រុមរបស់អ្នកមិនអាចប្តូរតម្លៃបានទេ។",
-                    ])}
-                  >
-                    {formatMoney(price)}
-                  </div>
-                ) : (
-                  <MoneyInput
-                    value={form.price}
-                    min={1}
-                    required
-                    onChange={(value) => set({ price: value })}
-                  />
                 )}
-              </Field>
-              {!isCombo && (
+              </>
+            )}
+
+            <Field
+              label={l(["Product Price", "តម្លៃលក់"])}
+              required
+              hint={existing && price !== existing.price ? t.notice : undefined}
+            >
+              {existing && !can("products.price") ? (
+                <div
+                  className="readonly-value"
+                  title={l([
+                    "Your group cannot change prices (Group Permissions → Product Price).",
+                    "ក្រុមរបស់អ្នកមិនអាចប្តូរតម្លៃបានទេ។",
+                  ])}
+                >
+                  {formatMoney(price)}
+                </div>
+              ) : (
+                <MoneyInput
+                  value={form.price}
+                  min={1}
+                  required
+                  onChange={(value) => set({ price: value })}
+                />
+              )}
+            </Field>
+
+            {!isCombo && (
+              <>
                 <Field label={l(["Product Additional", "ថ្លៃបន្ថែម"])}>
                   <MoneyInput
                     value={form.additional}
                     onChange={(value) => set({ additional: toNumber(value) })}
                   />
                 </Field>
-              )}
-            </div>
-            {!isCombo && (
-              <>
-                <Toggle
-                  checked={form.promotion}
-                  onChange={() => set({ promotion: !form.promotion })}
-                  label={l(["Promotion", "ប្រូម៉ូសិន"])}
-                />
+                <label className="product-check">
+                  <input
+                    type="checkbox"
+                    checked={form.promotion}
+                    onChange={() => set({ promotion: !form.promotion })}
+                  />
+                  {l(["Promotion", "ប្រូម៉ូសិន"])}
+                </label>
                 {form.promotion && (
                   <div className="sub-fields form-grid cols-3">
                     <Field
@@ -759,18 +677,13 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                 )}
               </>
             )}
-          </Section>
 
-          {stocked && (
-            <Section icon="layers" title={l(["Stock", "ស្តុក"])}>
-              <div className="form-grid cols-2">
-                <Field
-                  label={l(["Alert Quantity", "បរិមាណព្រមាន"])}
-                  hint={l([
-                    "Tick, then warn when stock falls to this level.",
-                    "ធីក រួចព្រមានពេលស្តុកធ្លាក់ដល់កម្រិតនេះ។",
-                  ])}
-                >
+            {stocked && (
+              <>
+                <div className="field">
+                  <span className="field-label">
+                    {l(["Alert Quantity", "បរិមាណព្រមាន"])}
+                  </span>
                   <div className="input-group">
                     <input
                       className="form-control"
@@ -778,6 +691,7 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                       min="0"
                       step="any"
                       disabled={!form.trackAlert}
+                      aria-label={l(["Alert Quantity", "បរិមាណព្រមាន"])}
                       value={form.alertQuantity}
                       onChange={(event) =>
                         set({ alertQuantity: num(event.target.value) })
@@ -798,7 +712,7 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                       />
                     </label>
                   </div>
-                </Field>
+                </div>
                 {existing ? (
                   <Field label={l(["Current stock", "ស្តុកបច្ចុប្បន្ន"])}>
                     <div className="readonly-value">
@@ -826,41 +740,74 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                     />
                   </Field>
                 )}
-              </div>
-            </Section>
-          )}
+              </>
+            )}
 
-          <Section icon="file" title={l(["Description", "ការពិពណ៌នា"])}>
-            <div className="form-grid cols-2">
-              <Field label={l(["Product Details", "ព័ត៌មានលម្អិតមុខទំនិញ"])}>
-                <textarea
-                  className="form-control"
-                  rows={5}
-                  value={form.details}
-                  onChange={(event) => set({ details: event.target.value })}
-                />
-              </Field>
-              <Field
-                label={l([
-                  "Product details for invoice",
-                  "ព័ត៌មានលម្អិតលើវិក្កយបត្រ",
-                ])}
-              >
-                <textarea
-                  className="form-control"
-                  rows={5}
-                  value={form.invoiceDetails}
-                  onChange={(event) =>
-                    set({ invoiceDetails: event.target.value })
-                  }
-                />
-              </Field>
+            <div className="field">
+              <span className="field-label">
+                {l(["Product Image", "រូបភាពមុខទំនិញ"])}
+              </span>
+              {browse(form.image ? l(["1 image", "រូប 1"]) : "", (files) =>
+                pickImage(files),
+              )}
+              <small className="field-hint">{t.fileHint}</small>
+              {form.image && (
+                <div className="gallery-grid">
+                  <figure>
+                    <img src={form.image} alt="" />
+                    <button
+                      type="button"
+                      aria-label={t.remove}
+                      onClick={() => set({ image: "" })}
+                    >
+                      ×
+                    </button>
+                  </figure>
+                </div>
+              )}
             </div>
-            <Toggle
-              checked={form.showCustom}
-              onChange={() => set({ showCustom: !form.showCustom })}
-              label={l(["Custom Fields", "វាលបន្ថែម"])}
-            />
+            <div className="field">
+              <span className="field-label">
+                {l(["Product Gallery Images", "រូបភាពវិចិត្រសាល"])}
+              </span>
+              {browse(
+                form.gallery.length
+                  ? `${form.gallery.length} / ${MAX_GALLERY}`
+                  : "",
+                (files) => pickImage(files, true),
+                true,
+              )}
+              {form.gallery.length > 0 && (
+                <div className="gallery-grid">
+                  {form.gallery.map((src, i) => (
+                    <figure key={i}>
+                      <img src={src} alt="" />
+                      <button
+                        type="button"
+                        aria-label={t.remove}
+                        onClick={() =>
+                          set({
+                            gallery: form.gallery.filter(
+                              (_, index) => index !== i,
+                            ),
+                          })
+                        }
+                      >
+                        ×
+                      </button>
+                    </figure>
+                  ))}
+                </div>
+              )}
+            </div>
+            <label className="product-check">
+              <input
+                type="checkbox"
+                checked={form.showCustom}
+                onChange={() => set({ showCustom: !form.showCustom })}
+              />
+              {l(["Custom Fields", "វាលបន្ថែម"])}
+            </label>
             {form.showCustom && (
               <div className="sub-fields form-grid cols-3">
                 {form.customFields.map((value, i) => (
@@ -883,336 +830,322 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                 ))}
               </div>
             )}
-          </Section>
-        </div>
+          </div>
 
-        {/* Right panel: media, sourcing and summary */}
-        <aside className="product-editor-side">
-          <Section
-            icon="image"
-            title={l(["Images", "រូបភាព"])}
-            hint={t.fileHint}
-          >
-            <label className={`image-drop ${form.image ? "has-image" : ""}`}>
-              {form.image ? (
-                <img src={form.image} alt="" />
-              ) : (
-                <span>
-                  <Icon name="upload" size={26} />
-                  {l([
-                    "Click to upload the main image",
-                    "ចុចដើម្បីបញ្ចូលរូបភាពចម្បង",
-                  ])}
-                </span>
-              )}
-              <input
-                type="file"
-                accept="image/*"
-                hidden
-                onChange={(event) => pickImage(event.target.files)}
-              />
-            </label>
-            {form.image && (
-              <button
-                type="button"
-                className="btn btn-default btn-xs"
-                onClick={() => set({ image: "" })}
-              >
-                {l(["Remove image", "លុបរូបភាព"])}
-              </button>
-            )}
-            <div className="gallery-grid">
-              {form.gallery.map((src, i) => (
-                <figure key={i}>
-                  <img src={src} alt="" />
+          {/* Right: where it comes from, or what the combo is made of */}
+          <div className="product-editor-side">
+            {isCombo ? (
+              <>
+                <div className="field">
+                  <span className="field-label">
+                    {l(["Add Product", "បន្ថែមមុខទំនិញ"])}{" "}
+                    <small>
+                      {l([
+                        "(Standard products only)",
+                        "(តែទំនិញស្តង់ដារ)",
+                      ])}
+                    </small>
+                  </span>
+                  <div className="autocomplete">
+                    <input
+                      className="form-control"
+                      placeholder={l(["Add Item", "បន្ថែមទំនិញ"])}
+                      aria-label={l(["Add Item", "បន្ថែមទំនិញ"])}
+                      value={comboSearch}
+                      onChange={(event) => setComboSearch(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          if (comboSearch && comboChoices[0])
+                            addComboItem(comboChoices[0]);
+                        }
+                      }}
+                    />
+                    {comboSearch && (
+                      <ul className="autocomplete-list">
+                        {comboChoices.length ? (
+                          comboChoices.slice(0, 8).map((product) => (
+                            <li key={product.id}>
+                              <button
+                                type="button"
+                                onClick={() => addComboItem(product)}
+                              >
+                                {product.sku} - {product.name}{" "}
+                                <b>{formatMoney(product.price)}</b>
+                              </button>
+                            </li>
+                          ))
+                        ) : (
+                          <li className="no-match">{t.noMatch}</li>
+                        )}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+                <div className="field">
+                  <span className="field-label">
+                    {l(["Combo Products", "មុខទំនិញក្នុងកញ្ចប់"])}
+                  </span>
+                  <div className="table-responsive">
+                    <table className="data-table compact">
+                      <thead>
+                        <tr>
+                          <th>{t.productCodeName}</th>
+                          <th>{t.quantity}</th>
+                          <th>{t.unitPriceShort}</th>
+                          <th className="icon-col">
+                            <button
+                              type="button"
+                              className="th-button"
+                              title={t.removeAll}
+                              aria-label={t.removeAll}
+                              onClick={() => set({ comboItems: [] })}
+                            >
+                              <Icon name="trash" size={14} />
+                            </button>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {form.comboItems.map((item, i) => {
+                          const product = products.find(
+                            (row) => row.id === item.productId,
+                          );
+                          const change = (patch: Partial<ComboItem>) =>
+                            set({
+                              comboItems: form.comboItems.map((old, index) =>
+                                index === i ? { ...old, ...patch } : old,
+                              ),
+                            });
+                          return (
+                            <tr key={item.productId}>
+                              <td>
+                                {product
+                                  ? `${product.sku} - ${product.name}`
+                                  : l([
+                                      "Deleted product",
+                                      "មុខទំនិញត្រូវបានលុប",
+                                    ])}
+                              </td>
+                              <td className="cell-input">
+                                <NumberInput
+                                  min="0.001"
+                                  step="any"
+                                  aria-label={t.quantity}
+                                  value={item.quantity}
+                                  onChange={(next) =>
+                                    change({ quantity: next })
+                                  }
+                                />
+                              </td>
+                              <td className="cell-input">
+                                <NumberInput
+                                  min="0"
+                                  step="any"
+                                  aria-label={t.unitPriceShort}
+                                  value={toTyped(item.price)}
+                                  onChange={(next) =>
+                                    change({ price: fromTyped(next) })
+                                  }
+                                />
+                              </td>
+                              <td className="icon-col">
+                                <button
+                                  type="button"
+                                  className="link-danger"
+                                  aria-label={t.remove}
+                                  onClick={() =>
+                                    set({
+                                      comboItems: form.comboItems.filter(
+                                        (_, index) => index !== i,
+                                      ),
+                                    })
+                                  }
+                                >
+                                  ×
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {form.comboItems.length === 0 && (
+                          <tr>
+                            <td colSpan={4} className="no-data">
+                              {t.noItemsYet}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                {form.comboItems.length > 0 && (
+                  <div className="combo-total">
+                    <span>
+                      {t.total}: <b>{formatMoney(comboTotal)}</b>
+                      {showCost && (
+                        <>
+                          {" · "}
+                          {l(["Cost", "ថ្លៃដើម"])}:{" "}
+                          <b>{formatMoney(comboCost)}</b>
+                        </>
+                      )}
+                    </span>
+                    {price !== comboTotal && (
+                      <button
+                        type="button"
+                        className="btn btn-default btn-xs"
+                        onClick={() => set({ price: comboTotal })}
+                      >
+                        {l(["Use as price", "ប្រើជាតម្លៃ"])}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="product-side-title">
+                  <span className="field-label">
+                    {l(["Supplier", "អ្នកផ្គត់ផ្គង់"])}
+                  </span>
                   <button
                     type="button"
-                    aria-label={t.remove}
+                    className="btn btn-primary btn-xs"
+                    title={t.addVerb}
+                    aria-label={t.addVerb}
+                    disabled={form.suppliers.length >= 5}
                     onClick={() =>
-                      set({
-                        gallery: form.gallery.filter((_, index) => index !== i),
-                      })
+                      set({ suppliers: [...form.suppliers, NO_SUPPLIER] })
                     }
                   >
-                    ×
+                    <Icon name="plusSmall" size={12} />
                   </button>
-                </figure>
-              ))}
-              {form.gallery.length < MAX_GALLERY && (
-                <label
-                  className="gallery-add"
-                  title={l(["Add gallery images", "បន្ថែមរូបភាពវិចិត្រសាល"])}
-                >
-                  <Icon name="plusSmall" size={18} />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    hidden
-                    onChange={(event) => pickImage(event.target.files, true)}
-                  />
-                </label>
-              )}
-            </div>
-            <small className="field-hint">
-              {l([
-                `Gallery: ${form.gallery.length} of ${MAX_GALLERY}`,
-                `វិចិត្រសាល៖ ${form.gallery.length} នៃ ${MAX_GALLERY}`,
-              ])}
-            </small>
-          </Section>
-
-          {isCombo ? (
-            <Section
-              icon="layers"
-              title={l(["Combo Products", "មុខទំនិញក្នុងកញ្ចប់"])}
-              hint={l([
-                "Selling the combo takes these products out of stock.",
-                "ការលក់កញ្ចប់នឹងដកមុខទំនិញទាំងនេះចេញពីស្តុក។",
-              ])}
-            >
-              <div className="autocomplete">
-                <input
-                  className="form-control"
-                  placeholder={l([
-                    "Add Item (standard products)",
-                    "បន្ថែមទំនិញ (ស្តង់ដារ)",
-                  ])}
-                  aria-label={l(["Add Item", "បន្ថែមទំនិញ"])}
-                  value={comboSearch}
-                  onChange={(event) => setComboSearch(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      if (comboSearch && comboChoices[0])
-                        addComboItem(comboChoices[0]);
-                    }
-                  }}
-                />
-                {comboSearch && (
-                  <ul className="autocomplete-list">
-                    {comboChoices.length ? (
-                      comboChoices.slice(0, 8).map((product) => (
-                        <li key={product.id}>
-                          <button
-                            type="button"
-                            onClick={() => addComboItem(product)}
-                          >
-                            {product.sku} - {product.name}{" "}
-                            <b>{formatMoney(product.price)}</b>
-                          </button>
-                        </li>
-                      ))
-                    ) : (
-                      <li className="no-match">{t.noMatch}</li>
-                    )}
-                  </ul>
-                )}
-              </div>
-              <ul className="combo-list">
-                {form.comboItems.map((item, i) => {
-                  const product = products.find(
-                    (row) => row.id === item.productId,
-                  );
-                  const change = (patch: Partial<ComboItem>) =>
+                </div>
+                {form.suppliers.map((row, i) => {
+                  const change = (patch: Partial<ProductSupplier>) =>
                     set({
-                      comboItems: form.comboItems.map((old, index) =>
+                      suppliers: form.suppliers.map((old, index) =>
                         index === i ? { ...old, ...patch } : old,
                       ),
                     });
                   return (
-                    <li key={item.productId}>
-                      <div className="combo-name">
-                        <b>
-                          {product?.name ??
-                            l(["Deleted product", "មុខទំនិញត្រូវបានលុប"])}
-                        </b>
-                        <small>{product?.sku}</small>
-                      </div>
-                      <NumberInput
-                        min="0.001"
-                        step="any"
-                        aria-label={t.quantity}
-                        title={t.quantity}
-                        value={item.quantity}
-                        onChange={(next) => change({ quantity: next })}
-                      />
-                      <span className="times">×</span>
-                      <NumberInput
-                        min="0"
-                        aria-label={t.unitPriceShort}
-                        title={t.unitPriceShort}
-                        value={item.price}
-                        onChange={(next) => change({ price: next })}
-                      />
-                      <button
-                        type="button"
-                        className="link-danger"
-                        aria-label={t.remove}
-                        onClick={() =>
-                          set({
-                            comboItems: form.comboItems.filter(
-                              (_, index) => index !== i,
-                            ),
-                          })
-                        }
-                      >
-                        ×
-                      </button>
-                    </li>
-                  );
-                })}
-                {form.comboItems.length === 0 && (
-                  <li className="combo-empty">{t.noItemsYet}</li>
-                )}
-              </ul>
-              {form.comboItems.length > 0 && (
-                <div className="combo-total">
-                  <span>
-                    {t.total}: <b>{formatMoney(comboTotal)}</b>
-                  </span>
-                  {price !== comboTotal && (
-                    <button
-                      type="button"
-                      className="btn btn-default btn-xs"
-                      onClick={() => set({ price: comboTotal })}
-                    >
-                      {l(["Use as price", "ប្រើជាតម្លៃ"])}
-                    </button>
-                  )}
-                </div>
-              )}
-            </Section>
-          ) : (
-            <Section
-              icon="truck"
-              title={l(["Suppliers", "អ្នកផ្គត់ផ្គង់"])}
-              action={
-                <button
-                  type="button"
-                  className="btn btn-primary btn-xs"
-                  disabled={form.suppliers.length >= 5}
-                  onClick={() =>
-                    set({ suppliers: [...form.suppliers, NO_SUPPLIER] })
-                  }
-                >
-                  <Icon name="plusSmall" size={12} /> {t.addVerb}
-                </button>
-              }
-            >
-              {form.suppliers.map((row, i) => {
-                const change = (patch: Partial<ProductSupplier>) =>
-                  set({
-                    suppliers: form.suppliers.map((old, index) =>
-                      index === i ? { ...old, ...patch } : old,
-                    ),
-                  });
-                return (
-                  <div key={i} className="supplier-row">
-                    <div className="input-group">
-                      <NativeSelect
-                        className="form-control"
-                        aria-label={l(["Supplier", "អ្នកផ្គត់ផ្គង់"])}
-                        value={row.supplier}
-                        onChange={(event) =>
-                          change({ supplier: event.target.value })
-                        }
-                      >
-                        <option value="">{t.selectSupplier}</option>
-                        {suppliers.rows.map((supplier) => (
-                          <option
-                            key={supplier.id}
-                            value={String(supplier.name)}
-                          >
-                            {String(supplier.company || supplier.name)}
-                          </option>
-                        ))}
-                      </NativeSelect>
-                      {form.suppliers.length > 1 && (
-                        <button
-                          type="button"
-                          className="addon"
-                          aria-label={t.remove}
-                          onClick={() =>
-                            set({
-                              suppliers: form.suppliers.filter(
-                                (_, index) => index !== i,
-                              ),
-                            })
+                    <div key={i} className="supplier-row">
+                      <div className="input-group">
+                        <NativeSelect
+                          className="form-control"
+                          aria-label={l(["Supplier", "អ្នកផ្គត់ផ្គង់"])}
+                          value={row.supplier}
+                          onChange={(event) =>
+                            change({ supplier: event.target.value })
                           }
                         >
-                          <Icon name="x" size={13} />
-                        </button>
-                      )}
+                          <option value="">{t.selectSupplier}</option>
+                          {suppliers.rows.map((supplier) => (
+                            <option
+                              key={supplier.id}
+                              value={String(supplier.name)}
+                            >
+                              {String(supplier.company || supplier.name)}
+                            </option>
+                          ))}
+                        </NativeSelect>
+                        {form.suppliers.length > 1 && (
+                          <button
+                            type="button"
+                            className="addon"
+                            aria-label={t.remove}
+                            onClick={() =>
+                              set({
+                                suppliers: form.suppliers.filter(
+                                  (_, index) => index !== i,
+                                ),
+                              })
+                            }
+                          >
+                            <Icon name="x" size={13} />
+                          </button>
+                        )}
+                      </div>
+                      <div className="form-grid cols-2">
+                        <input
+                          className="form-control"
+                          placeholder={l([
+                            "Supplier Part Number",
+                            "លេខផ្នែកអ្នកផ្គត់ផ្គង់",
+                          ])}
+                          aria-label={l([
+                            "Supplier Part Number",
+                            "លេខផ្នែកអ្នកផ្គត់ផ្គង់",
+                          ])}
+                          value={row.partNumber}
+                          onChange={(event) =>
+                            change({ partNumber: event.target.value })
+                          }
+                        />
+                        <NumberInput
+                          className="form-control"
+                          min="0"
+                          step="any"
+                          placeholder={l([
+                            `Supplier Price (${currencySymbol()})`,
+                            `តម្លៃអ្នកផ្គត់ផ្គង់ (${currencySymbol()})`,
+                          ])}
+                          aria-label={l([
+                            `Supplier Price (${currencySymbol()})`,
+                            `តម្លៃអ្នកផ្គត់ផ្គង់ (${currencySymbol()})`,
+                          ])}
+                          value={row.price ? toTyped(row.price) : ""}
+                          onChange={(next) =>
+                            change({ price: fromTyped(next) })
+                          }
+                        />
+                      </div>
                     </div>
-                    <div className="form-grid cols-2">
-                      <input
-                        className="form-control"
-                        placeholder={l(["Part number", "លេខផ្នែក"])}
-                        aria-label={l([
-                          "Supplier Part Number",
-                          "លេខផ្នែកអ្នកផ្គត់ផ្គង់",
-                        ])}
-                        value={row.partNumber}
-                        onChange={(event) =>
-                          change({ partNumber: event.target.value })
-                        }
-                      />
-                      <NumberInput
-                        className="form-control"
-                        min="0"
-                        placeholder={l(["Price (៛)", "តម្លៃ (៛)"])}
-                        aria-label={l([
-                          "Supplier Price (៛)",
-                          "តម្លៃអ្នកផ្គត់ផ្គង់ (៛)",
-                        ])}
-                        value={row.price || ""}
-                        onChange={(next) => change({ price: next })}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </Section>
-          )}
+                  );
+                })}
+              </>
+            )}
+          </div>
+        </div>
 
-          <Section icon="chart" title={l(["Summary", "សង្ខេប"])}>
-            <dl className="summary-list">
-              <div>
-                <dt>{l(["Selling price", "តម្លៃលក់"])}</dt>
-                <dd>{formatMoney(price)}</dd>
-              </div>
-              {showCost && (
-                <>
-                  <div>
-                    <dt>{l(["Cost", "ថ្លៃដើម"])}</dt>
-                    <dd>{formatMoney(cost)}</dd>
-                  </div>
-                  <div>
-                    <dt>{l(["Profit per unit", "ចំណេញក្នុងមួយឯកតា"])}</dt>
-                    <dd className={price - cost < 0 ? "text-danger" : ""}>
-                      {formatMoney(price - cost)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>{l(["Margin", "អត្រាចំណេញ"])}</dt>
-                    <dd>
-                      <span
-                        className={`label ${margin < 0 ? "label-danger" : margin < 10 ? "label-warning" : "label-success"}`}
-                      >
-                        {price > 0 ? `${formatNumber(margin, 1)}%` : "—"}
-                      </span>
-                    </dd>
-                  </div>
-                </>
-              )}
-            </dl>
-            <button className="btn btn-primary btn-block" type="submit">
-              <Icon name="check" size={14} /> {title}
+        {/* Full width under both columns */}
+        <div className="product-editor-details">
+          <Field label={l(["Product Details", "ព័ត៌មានលម្អិតមុខទំនិញ"])}>
+            <textarea
+              className="form-control"
+              rows={4}
+              value={form.details}
+              onChange={(event) => set({ details: event.target.value })}
+            />
+          </Field>
+          <Field
+            label={l([
+              "Product details for invoice",
+              "ព័ត៌មានលម្អិតលើវិក្កយបត្រ",
+            ])}
+          >
+            <textarea
+              className="form-control"
+              rows={4}
+              value={form.invoiceDetails}
+              onChange={(event) => set({ invoiceDetails: event.target.value })}
+            />
+          </Field>
+          <div className="button-row">
+            <button className="btn btn-primary" type="submit">
+              {title}
             </button>
-          </Section>
-        </aside>
-      </div>
+            <button
+              className="btn btn-default"
+              type="button"
+              onClick={() => router.push("/inventory/products")}
+            >
+              {t.cancel}
+            </button>
+          </div>
+        </div>
+      </Box>
 
       {existing && <RecordHistory id={existing.id} />}
 

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Icon } from "@/components/icons";
 import { Box } from "@/components/ui/box";
 import { Field, FormGrid, NumberInput } from "@/components/ui/fields";
+import { confirmAction } from "@/components/ui/confirm";
 import { addRow, getRows, setRows, useCollection } from "@/data/collections";
 import type { LineItem, Transaction } from "@/data/types";
 import {
@@ -19,11 +20,14 @@ import {
 import { useSettings } from "@/features/settings/store";
 import { useLanguage, type Label } from "@/i18n";
 import {
+  currencySymbol,
   formatMoney,
   formatNumber,
+  fromTyped,
   localDateTime,
   nextReference,
   toNumber,
+  toTyped,
 } from "@/lib/format";
 import { notify } from "@/lib/toast";
 import {
@@ -621,8 +625,21 @@ export function TransactionForm({
     >
       <form
         className="transaction-form"
-        onSubmit={(event) => {
+        onSubmit={async (event) => {
           event.preventDefault();
+          // A Stock Issue going to no branch means the goods are thrown away.
+          if (
+            kind.toBranch &&
+            !form.toBranch &&
+            items.length > 0 &&
+            !(await confirmAction(
+              l([
+                "No To Branch is selected, so these products count as THROWN AWAY: they leave stock and appear in the Waste Report. Continue?",
+                "មិនបានជ្រើស ទៅសាខា ទេ ដូច្នេះទំនិញទាំងនេះត្រូវ បោះចោល៖ ស្តុកនឹងត្រូវដក ហើយបង្ហាញក្នុង របាយការណ៍ទំនិញចោល។ បន្តទេ?",
+              ]),
+            ))
+          )
+            return;
           save();
         }}
       >
@@ -736,7 +753,9 @@ export function TransactionForm({
                   set({ toBranch: event.target.value, toWarehouse: "" })
                 }
               >
-                <option value="">{t.select}</option>
+                <option value="">
+                  {l(["No branch: thrown away", "គ្មានសាខា៖ ទំនិញបោះចោល"])}
+                </option>
                 {branches.rows
                   .filter((row) => String(row.name) !== form.branch)
                   .map((row) => (
@@ -755,7 +774,9 @@ export function TransactionForm({
               >
                 <option value="">{t.select}</option>
                 {warehouses.rows
-                  .filter((row) => (row.branch || "Central") === form.toBranch)
+                  // Only warehouses linked to that branch: one with no branch
+                  // cannot receive (Laravel finds no destination branch).
+                  .filter((row) => row.branch === form.toBranch)
                   .map((row) => (
                     <option key={row.id}>{String(row.name)}</option>
                   ))}
@@ -918,7 +939,11 @@ export function TransactionForm({
                 {isAdjust && <th>{l(["Description", "ពិពណ៌នា"])}</th>}
                 {isAdjust && <th>{l(currentStockLabel)}</th>}
                 {kind.expiry && !isAdjust && <th>{t.expiryDate}</th>}
-                {!isAdjust && <th>{priceLabel}</th>}
+                {!isAdjust && (
+                  <th>
+                    {priceLabel} ({currencySymbol()})
+                  </th>
+                )}
                 <th>
                   {isAdjust
                     ? l(["Quantity (+ add / − remove)", "បរិមាណ (+ បន្ថែម / − ដក)"])
@@ -987,9 +1012,12 @@ export function TransactionForm({
                       <td className="cell-input">
                         <NumberInput
                           min="0"
+                          step="any"
                           aria-label={priceLabel}
-                          value={line.price}
-                          onChange={(next) => change({ price: next })}
+                          value={toTyped(line.price)}
+                          onChange={(next) =>
+                            change({ price: fromTyped(next) })
+                          }
                         />
                       </td>
                     )}

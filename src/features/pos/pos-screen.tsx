@@ -40,12 +40,15 @@ import {
   formatUsd,
   localDateTime,
   nextReference,
+  rielChange,
+  rielDue,
   toNumber,
 } from "@/lib/format";
 import { useHydrated, useStored } from "@/lib/store";
 import { notify } from "@/lib/toast";
 import { usePermissions } from "@/features/settings/permissions";
 import { PaymentModal, type Payment } from "./payment-modal";
+import { branchReceipt } from "./branch-receipt";
 import { PinModal } from "./pin-modal";
 import { useOpenRegister } from "./register";
 import { CloseRegisterModal, OpenRegisterModal } from "./register-modals";
@@ -197,11 +200,7 @@ function PosScreen() {
   const branchRow = branches.rows.find(
     (row) => String(row.name) === currentBranch,
   );
-  const branchPhone = String(branchRow?.phone ?? "").trim();
-  const branchAddress = [branchRow?.city, branchRow?.country]
-    .map((part) => String(part ?? "").trim())
-    .filter(Boolean)
-    .join(", ");
+  const branchInfo = branchReceipt(branchRow);
   const cashier = String(session?.name || session?.username || "");
 
   useEffect(() => {
@@ -483,7 +482,12 @@ function PosScreen() {
     const { totals } = cart;
     const date = new Date(payment.date).toISOString();
     const reference = nextReference(
-      String(getSetting("system", "salePrefix") ?? "SALE"),
+      // Each branch can number its invoices with its own prefix (INV8/...).
+      String(
+        branches.rows.find((row) => row.name === payment.branch)?.prefix ||
+          getSetting("system", "salePrefix") ||
+          "SALE",
+      ),
       sales.rows.length,
     );
     const sale: Omit<Transaction, "id"> = {
@@ -561,6 +565,7 @@ function PosScreen() {
       : undefined;
     if (pointsBalance !== undefined) {
       record.pointsBalance = pointsBalance;
+      record.pointsEarned = points;
       setRows("sales", (rows) =>
         rows.map((row) =>
           row.id === record.id ? { ...row, pointsBalance } : row,
@@ -1254,11 +1259,7 @@ function PosScreen() {
             rate={rate}
             onAdd={(quantity, productDiscount) => {
               if (!addLine(selectedProduct, quantity)) return false;
-              // An amount in riel for the whole line (not a percentage).
-              cart.setProductDiscount(selectedProduct.id, {
-                percent: false,
-                value: Math.max(0, productDiscount),
-              });
+              cart.setProductDiscount(selectedProduct.id, productDiscount);
               setSelectedProduct(null);
               setSearch("");
               return true;
@@ -1317,7 +1318,6 @@ function PosScreen() {
             key={key}
             kind={key}
             value={cart.adjustments}
-            discountAmount={cart.totals.orderDiscount}
             onClose={() => setPanel(null)}
             onSave={(value) => {
               cart.setAdjustments(value);
@@ -1436,10 +1436,12 @@ function PosScreen() {
         <Receipt
           title={l(["Bill", "វិក្កយបត្រ"])}
           onClose={() => setPanel(null)}
-          logo={brandLogo}
-          siteName={String(system.siteName)}
-          address={branchAddress}
-          phone={branchPhone}
+          logo={branchInfo.logo || brandLogo}
+          siteName={branchInfo.name || String(system.siteName)}
+          address={branchInfo.address}
+          phone={branchInfo.phone}
+          vat={branchInfo.vat}
+          footer={branchInfo.footer}
           cashier={cashier}
           record={{
             date: new Date().toISOString(),
@@ -1464,10 +1466,12 @@ function PosScreen() {
           title={l(["Receipt", "បង្កាន់ដៃ"])}
           onClose={() => setReceipt(null)}
           autoPrint={pos.afterSalePage === "print"}
-          logo={brandLogo}
-          siteName={String(system.siteName)}
-          address={branchAddress}
-          phone={branchPhone}
+          logo={branchInfo.logo || brandLogo}
+          siteName={branchInfo.name || String(system.siteName)}
+          address={branchInfo.address}
+          phone={branchInfo.phone}
+          vat={branchInfo.vat}
+          footer={branchInfo.footer}
           cashier={cashier}
           record={receipt}
           rate={rate}
@@ -1480,14 +1484,11 @@ function PosScreen() {
 function AdjustModal({
   kind,
   value,
-  discountAmount,
   onClose,
   onSave,
 }: {
   kind: "tax" | "shipping" | "discount";
   value: CartAdjustments;
-  /** The general discount now, in riel (also when it was a percentage). */
-  discountAmount: number;
   onClose: () => void;
   onSave: (value: CartAdjustments) => void;
 }) {
@@ -1496,11 +1497,7 @@ function AdjustModal({
   // Amounts are typed in the shop's display currency and stored in riel.
   const money = displayCurrency();
   const symbol = money.code === "USD" ? "$" : "៛";
-  const [draft, setDraft] = useState(
-    kind === "discount"
-      ? { ...value, discount: discountAmount, discountPercent: false }
-      : value,
-  );
+  const [draft, setDraft] = useState(value);
   const title =
     kind === "tax"
       ? t.orderTax
@@ -1548,7 +1545,7 @@ function AdjustModal({
             </option>
           ))}
         </NativeSelect>
-      ) : (
+      ) : kind === "shipping" ? (
         <div className="input-group">
           <NumberInput
             className="form-control"
@@ -1556,26 +1553,89 @@ function AdjustModal({
             step="any"
             autoFocus
             aria-label={`${title} (${symbol})`}
-            value={
-              (kind === "shipping" ? draft.shipping : draft.discount) /
-              money.rate
-            }
+            value={draft.shipping / money.rate}
             onChange={(next) =>
-              setDraft(
-                kind === "shipping"
-                  ? { ...draft, shipping: next * money.rate }
-                  : {
-                      ...draft,
-                      discount: Math.max(0, next * money.rate),
-                      discountPercent: false,
-                    },
-              )
+              setDraft({ ...draft, shipping: next * money.rate })
             }
           />
           <span className="input-group-addon">{symbol}</span>
         </div>
+      ) : (
+        <>
+          <DiscountMode
+            symbol={symbol}
+            percent={draft.discountPercent}
+            onChange={(percent) =>
+              // The number means something else now: start again.
+              setDraft({ ...draft, discountPercent: percent, discount: 0 })
+            }
+          />
+          <div className="input-group">
+            <NumberInput
+              className="form-control"
+              min="0"
+              max={draft.discountPercent ? "100" : undefined}
+              step="any"
+              autoFocus
+              aria-label={`${title} (${draft.discountPercent ? "%" : symbol})`}
+              value={
+                draft.discountPercent
+                  ? draft.discount
+                  : draft.discount / money.rate
+              }
+              onChange={(next) =>
+                setDraft({
+                  ...draft,
+                  discount: draft.discountPercent
+                    ? Math.min(100, Math.max(0, next))
+                    : Math.max(0, next * money.rate),
+                })
+              }
+            />
+            <span className="input-group-addon">
+              {draft.discountPercent ? "%" : symbol}
+            </span>
+          </div>
+        </>
       )}
     </Modal>
+  );
+}
+
+/** Whether a discount is typed as money (៛ or $) or as a percentage. */
+function DiscountMode({
+  symbol,
+  percent,
+  onChange,
+}: {
+  symbol: string;
+  percent: boolean;
+  onChange: (percent: boolean) => void;
+}) {
+  const { l } = useLanguage();
+  return (
+    <div
+      className="segmented discount-mode"
+      role="group"
+      aria-label={l(["Discount type", "ប្រភេទបញ្ចុះតម្លៃ"])}
+    >
+      <button
+        type="button"
+        className={percent ? "" : "active"}
+        aria-pressed={!percent}
+        onClick={() => onChange(false)}
+      >
+        {symbol}
+      </button>
+      <button
+        type="button"
+        className={percent ? "active" : ""}
+        aria-pressed={percent}
+        onClick={() => onChange(true)}
+      >
+        %
+      </button>
+    </div>
   );
 }
 
@@ -1589,31 +1649,28 @@ function ProductSalePanel({
   product: Product | null;
   cart: ReturnType<typeof useCart>;
   rate: number;
-  /** productDiscount: riel off this line. */
-  onAdd: (quantity: number, productDiscount: number) => boolean;
+  /** productDiscount: a percentage, or riel off this line. */
+  onAdd: (
+    quantity: number,
+    productDiscount: { percent: boolean; value: number },
+  ) => boolean;
 }) {
   const { l } = useLanguage();
-  // The discount is typed in the display currency (៛ or $), kept in riel.
+  // Money is typed in the display currency (៛ or $) and kept in riel.
   const money = displayCurrency();
   const symbol = money.code === "USD" ? "$" : "៛";
   const [quantity, setQuantity] = useState("1");
-  const existingLine = cart.items.find(
-    (line) => line.productId === product?.id,
-  );
   const existingProductDiscount = product
     ? cart.discountFor(product.id)
-    : { percent: true, value: 0 };
-  const existingProductSubtotal = existingLine
-    ? existingLine.price * existingLine.quantity
-    : 0;
+    : { percent: false, value: 0 };
+  // The way the line's discount was entered; money for a new line.
+  const [discountPercent, setDiscountPercent] = useState(
+    existingProductDiscount.percent && existingProductDiscount.value > 0,
+  );
   const [productDiscount, setProductDiscount] = useState(() => {
-    const riel =
-      existingLine && existingProductSubtotal > 0
-        ? cart.productDiscountAmount(existingLine.productId)
-        : existingProductDiscount.percent
-          ? 0
-          : existingProductDiscount.value;
-    const value = Math.round((riel / money.rate) * 100) / 100;
+    const value = existingProductDiscount.percent
+      ? existingProductDiscount.value
+      : Math.round((existingProductDiscount.value / money.rate) * 100) / 100;
     return value ? String(value) : "";
   });
   const [activeField, setActiveField] = useState<
@@ -1623,10 +1680,13 @@ function ProductSalePanel({
   const unit = product ? productUnit(product) : "";
   const quantityValue = toNumber(quantity);
   const lineTotal = (product?.price ?? 0) * Math.max(0, quantityValue);
+  const typedDiscount = Math.max(0, toNumber(productDiscount));
   // Riel off the line, never more than the line itself.
   const productDiscountValue = Math.min(
     lineTotal,
-    Math.max(0, toNumber(productDiscount) * money.rate),
+    discountPercent
+      ? (lineTotal * Math.min(100, typedDiscount)) / 100
+      : typedDiscount * money.rate,
   );
   const setActiveValue = (value: string) => {
     if (activeField === "quantity") setQuantity(value);
@@ -1682,18 +1742,30 @@ function ProductSalePanel({
           }}
         />
       </label>
-      <label className="field">
-        <span className="field-label">
-          {l([
-            `Product Discount (${symbol})`,
-            `បញ្ចុះតម្លៃទំនិញ (${symbol})`,
-          ])}
-        </span>
+      <div className="field">
+        <div className="discount-label">
+          <label className="field-label" htmlFor="pos-product-discount">
+            {l(["Product Discount", "បញ្ចុះតម្លៃទំនិញ"])} (
+            {discountPercent ? "%" : symbol})
+          </label>
+          <DiscountMode
+            symbol={symbol}
+            percent={discountPercent}
+            onChange={(percent) => {
+              // The number means something else now: start again.
+              setDiscountPercent(percent);
+              setProductDiscount("");
+              selectField("productDiscount");
+            }}
+          />
+        </div>
         <input
+          id="pos-product-discount"
           type="number"
           inputMode="decimal"
           className={`form-control pos-sale-input${activeField === "productDiscount" ? " active" : ""}`}
           min="0"
+          max={discountPercent ? "100" : undefined}
           step="any"
           value={productDiscount}
           onFocus={() => selectField("productDiscount")}
@@ -1702,7 +1774,7 @@ function ProductSalePanel({
             setProductDiscount(event.target.value);
           }}
         />
-      </label>
+      </div>
       <div
         className="pos-sale-keypad"
         role="group"
@@ -1761,7 +1833,14 @@ function ProductSalePanel({
         className="pos-btn primary"
         disabled={quantityValue <= 0}
         onClick={() => {
-          if (onAdd(quantityValue, productDiscountValue)) {
+          if (
+            onAdd(
+              quantityValue,
+              discountPercent
+                ? { percent: true, value: Math.min(100, typedDiscount) }
+                : { percent: false, value: productDiscountValue },
+            )
+          ) {
             setQuantity("1");
           }
         }}
@@ -1772,6 +1851,9 @@ function ProductSalePanel({
     </div>
   );
 }
+
+/** Off for now: invoices start with the branch name. Set true to print it. */
+const SHOW_RECEIPT_LOGO = false;
 
 export function Receipt({
   title,
@@ -1784,6 +1866,8 @@ export function Receipt({
   phone,
   cashier,
   autoPrint = false,
+  vat,
+  footer,
 }: {
   title: string;
   record: Pick<
@@ -1802,7 +1886,7 @@ export function Receipt({
         | "paymentMethod"
         | "payments"
       >
-    > & { pointsBalance?: number };
+    > & { pointsBalance?: number; pointsEarned?: number };
   onClose: () => void;
   logo: string;
   siteName: string;
@@ -1812,6 +1896,9 @@ export function Receipt({
   cashier?: string;
   /** Print as soon as it opens (POS Settings → After Sale Page = Print). */
   autoPrint?: boolean;
+  vat?: string;
+  /** The branch's own closing text, instead of the thank-you line. */
+  footer?: string;
 }) {
   const { l, t } = useLanguage();
   const riel = (value: number) => `${formatNumber(Math.round(value))} ៛`;
@@ -1841,6 +1928,10 @@ export function Receipt({
   }, [autoPrint]);
   const change = record.paid - record.grandTotal;
   const paidInFull = record.paid >= record.grandTotal;
+  // Cash in riel goes by the 100 ៛ note: change is rounded down, and what was
+  // paid in dollars is shown as the nearest riel a customer can hand over.
+  const changeRiel = rielChange(Math.max(0, change));
+  const paidRiel = Math.round(record.paid / 100) * 100;
   const productDiscountAmount = (line: LineItem) => {
     const discount = line.productDiscount;
     if (!discount) return 0;
@@ -1880,36 +1971,43 @@ export function Receipt({
     >
       <div className="receipt print-area">
         <div className="receipt-head">
-          {logo && <img src={logo} alt={siteName} />}
+          {SHOW_RECEIPT_LOGO && logo && <img src={logo} alt={siteName} />}
           <b>{siteName}</b>
           {address && <span>{address}</span>}
-          {phone && <span>{phone}</span>}
+          {phone && <span>Tel: {phone}</span>}
+          {vat && <span>VAT: {vat}</span>}
         </div>
         <div className="receipt-meta">
-          <div>
-            <span>{t.date}</span>
-            <b>{formatDate(record.date, true)}</b>
+          <div className="receipt-meta-info">
+            <p>
+              {t.date}: <b>{formatDate(record.date, true)}</b>
+            </p>
+            <p>
+              {t.referenceNo}: <b>{record.reference}</b>
+            </p>
+            {cashier && (
+              <p>
+                {l(["Cashier", "អ្នកលក់"])}: <b>{cashier}</b>
+              </p>
+            )}
+            {record.customer && (
+              <p>
+                {t.customer}: <b>{record.customer}</b>
+              </p>
+            )}
           </div>
-          <div>
-            <span>{t.referenceNo}</span>
-            <b>{record.reference}</b>
-          </div>
-          {record.customer && (
-            <div>
-              <span>{t.customer}</span>
-              <b>{record.customer}</b>
-            </div>
-          )}
-          {cashier && (
-            <div>
-              <span>{l(["Cashier", "អ្នកលក់"])}</span>
-              <b>{cashier}</b>
-            </div>
-          )}
           {record.pointsBalance !== undefined && (
-            <div>
-              <span>{l(["Points balance", "ពិន្ទុនៅសល់"])}</span>
-              <b>{formatNumber(record.pointsBalance)}</b>
+            <div className="receipt-meta-points">
+              {record.pointsEarned !== undefined && (
+                <p>
+                  {l(["Point Earned", "ពិន្ទុទទួល"])}:{" "}
+                  <b>{formatNumber(record.pointsEarned)}</b>
+                </p>
+              )}
+              <p>
+                {l(["Total Point", "ពិន្ទុសរុប"])}:{" "}
+                <b>{formatNumber(record.pointsBalance)}</b>
+              </p>
             </div>
           )}
         </div>
@@ -1919,18 +2017,29 @@ export function Receipt({
           </p>
         )}
         <table>
+          {/* Item columns like the old system's slip: Nº, Description,
+              Qty (unit below), Price, Total. */}
+          <thead>
+            <tr className="receipt-cols">
+              <th>Nº</th>
+              <th>{l(["Description", "ការពិពណ៌នា"])}</th>
+              <th className="num">{l(["Qty", "ចំនួន"])}</th>
+              <th className="num">{l(["Price", "តម្លៃ"])}</th>
+              <th className="num">{l(["Total", "សរុប"])}</th>
+            </tr>
+          </thead>
           <tbody>
             {record.items.map((line, i) => {
               const lineDiscount = productDiscountAmount(line);
               return (
                 <tr key={i}>
-                  <td>
-                    {line.name}
-                    <small>
-                      {formatNumber(line.quantity, 3)} {line.unit} ×{" "}
-                      {formatMoney(line.price)}
-                    </small>
+                  <td>{i + 1}</td>
+                  <td>{line.name}</td>
+                  <td className="num">
+                    {formatNumber(line.quantity, 3)}
+                    {line.unit && <small>{line.unit}</small>}
                   </td>
+                  <td className="num">{formatMoney(line.price)}</td>
                   <td className="num">
                     {formatMoney(line.quantity * line.price)}
                     {lineDiscount > 0 && (
@@ -1949,12 +2058,12 @@ export function Receipt({
           <tfoot>
             {record.total != null && (
               <tr>
-                <td>{t.subtotal}</td>
+                <td colSpan={4}>{t.subtotal}</td>
                 <td className="num">{formatMoney(record.total)}</td>
               </tr>
             )}
             <tr>
-              <td>
+              <td colSpan={4}>
                 {l(["Product Discount", "បញ្ចុះតម្លៃទំនិញ"])}
                 {productDiscountTotal > 0 &&
                   ` (${formatNumber(productDiscountPercent, 2)}%)`}
@@ -1965,7 +2074,7 @@ export function Receipt({
               </td>
             </tr>
             <tr>
-              <td>
+              <td colSpan={4}>
                 {l(["General Discount", "បញ្ចុះតម្លៃទូទៅ"])}
                 {record.generalDiscountPercent != null &&
                   ` (${formatNumber(record.generalDiscountPercent, 2)}%)`}
@@ -1977,20 +2086,20 @@ export function Receipt({
             </tr>
             {!!record.orderTax && (
               <tr>
-                <td>{t.orderTax}</td>
+                <td colSpan={4}>{t.orderTax}</td>
                 <td className="num">{formatMoney(record.orderTax)}</td>
               </tr>
             )}
             {!!record.shipping && (
               <tr>
-                <td>{t.shipping}</td>
+                <td colSpan={4}>{t.shipping}</td>
                 <td className="num">{formatMoney(record.shipping)}</td>
               </tr>
             )}
             {/* The total in both currencies, so the customer can pay in
                 either (USD at the rate of Settings → Currencies). */}
             <tr className="strong grand">
-              <td>{t.grandTotal} (USD)</td>
+              <td colSpan={4}>{t.grandTotal} (USD)</td>
               <td className="num">
                 <b className="receipt-grand">
                   {formatUsd(record.grandTotal, rate)}
@@ -1998,14 +2107,17 @@ export function Receipt({
               </td>
             </tr>
             <tr className="strong grand">
-              <td>{t.grandTotal} (KHR)</td>
+              <td colSpan={4}>{t.grandTotal} (KHR)</td>
               <td className="num">
-                <b className="receipt-grand">{riel(record.grandTotal)}</b>
+                <b className="receipt-grand">
+                  {riel(rielDue(record.grandTotal))}
+                </b>
               </td>
             </tr>
             {record.paid > 0 && (
               <tr className="receipt-payment">
-                <td colSpan={2}>
+                <td colSpan={5}>
+                  <div className="receipt-payment-grid">
                   <div>
                     <span>{l(["Paid by", "បង់តាម"])}</span>
                     <b>{paidBy || "—"}</b>
@@ -2013,12 +2125,13 @@ export function Receipt({
                   <div>
                     <span>{l(["Amount", "ចំនួន"])}</span>
                     <b>{formatUsd(record.paid, rate)}</b>
-                    <small>{riel(record.paid)}</small>
+                    <small>{riel(paidRiel)}</small>
                   </div>
                   <div>
                     <span>{l(["Change", "ប្រាក់អាប់"])}</span>
-                    <b>{formatUsd(Math.max(0, change), rate)}</b>
-                    <small>{riel(Math.max(0, change))}</small>
+                    <b>{formatUsd(changeRiel > 0 ? change : 0, rate)}</b>
+                    <small>{riel(changeRiel)}</small>
+                  </div>
                   </div>
                 </td>
               </tr>
@@ -2026,7 +2139,8 @@ export function Receipt({
           </tfoot>
         </table>
         <p className="receipt-thanks">
-          {l(["Thank you for shopping with us!", "សូមអរគុណសម្រាប់ការទិញ!"])}
+          {footer ||
+            l(["Thank you for shopping with us!", "សូមអរគុណសម្រាប់ការទិញ!"])}
         </p>
       </div>
     </Modal>
