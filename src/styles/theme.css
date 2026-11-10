@@ -557,13 +557,13 @@
   font-weight: 700;
   text-align: left;
 }
-.data-table-wrap thead th {
+/* The whole header sticks as one block: with two header rows (In / Out
+   groups) the second row must not be pinned at a fixed offset, or it is
+   pushed below the first one when the header is shorter (reports). */
+.data-table-wrap thead {
   position: sticky;
   top: 0;
   z-index: 2;
-}
-.data-table-wrap thead tr + tr th {
-  top: 41px;
 }
 .data-table th[colspan] {
   text-align: center;
