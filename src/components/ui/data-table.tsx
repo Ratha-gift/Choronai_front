@@ -159,10 +159,10 @@ export function DataTable<T extends { id: string }>({
    * WeERP-style bar above the table: Branch, Start Date, End Date, Submit
    * (today by default), then "Show N" on the left and Search on the right.
    */
-  periodFilter?: { branchKey: string; dateKey: string };
+  periodFilter?: { branchKey?: string; dateKey: string };
 }) {
   const { l, t } = useLanguage();
-  const [pageSize, setPageSize] = useState(periodFilter ? 10 : 25);
+  const [pageSize, setPageSize] = useState(footer === "filters" ? 10 : 25);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [goTo, setGoTo] = useState("");
   const [page, setPage] = useState(1);
@@ -188,6 +188,7 @@ export function DataTable<T extends { id: string }>({
       const record = row as Record<string, unknown>;
       if (
         period.branch &&
+        periodFilter.branchKey &&
         String(record[periodFilter.branchKey] ?? "") !== period.branch
       )
         return false;
@@ -367,14 +368,13 @@ export function DataTable<T extends { id: string }>({
     );
   };
 
-  const branchOptions = periodFilter
+  const branchKey = periodFilter?.branchKey;
+  const branchOptions = branchKey
     ? [
         ...new Set(
           rows
             .map((row) =>
-              String(
-                (row as Record<string, unknown>)[periodFilter.branchKey] ?? "",
-              ),
+              String((row as Record<string, unknown>)[branchKey] ?? ""),
             )
             .filter(Boolean),
         ),
@@ -446,7 +446,7 @@ export function DataTable<T extends { id: string }>({
     >
       {PAGE_SIZES.map((size) => (
         <option key={size} value={size}>
-          {periodFilter ? String(size) : `${size} ${t.perPage}`}
+          {canFilter ? String(size) : `${size} ${t.perPage}`}
         </option>
       ))}
     </NativeSelect>
@@ -462,21 +462,23 @@ export function DataTable<T extends { id: string }>({
             setPeriod(periodDraft);
           }}
         >
-          <label>
-            <span>{l(["Branch", "សាខា"])}</span>
-            <NativeSelect
-              className="form-control"
-              value={periodDraft.branch}
-              onChange={(event) =>
-                setPeriodDraft({ ...periodDraft, branch: event.target.value })
-              }
-            >
-              <option value="">{l(["All branches", "គ្រប់សាខា"])}</option>
-              {branchOptions.map((name) => (
-                <option key={name}>{name}</option>
-              ))}
-            </NativeSelect>
-          </label>
+          {branchKey && (
+            <label>
+              <span>{l(["Branch", "សាខា"])}</span>
+              <NativeSelect
+                className="form-control"
+                value={periodDraft.branch}
+                onChange={(event) =>
+                  setPeriodDraft({ ...periodDraft, branch: event.target.value })
+                }
+              >
+                <option value="">{l(["All branches", "គ្រប់សាខា"])}</option>
+                {branchOptions.map((name) => (
+                  <option key={name}>{name}</option>
+                ))}
+              </NativeSelect>
+            </label>
+          )}
           <label>
             <span>{l(["Start Date", "ថ្ងៃចាប់ផ្តើម"])}</span>
             <input
@@ -508,8 +510,8 @@ export function DataTable<T extends { id: string }>({
           </div>
         </form>
       )}
-      <div className={`table-controls${periodFilter ? " with-period" : ""}`}>
-        {periodFilter && (
+      <div className={`table-controls${canFilter ? " with-period" : ""}`}>
+        {canFilter && (
           <label className="table-show">
             {l(["Show", "បង្ហាញ"])} {pageSizePicker}
           </label>
@@ -660,14 +662,14 @@ export function DataTable<T extends { id: string }>({
             )}
           </tbody>
           {/* With a single row the total would just repeat it. */}
-          {(periodFilter || (hasTotals && footer !== "none" && total > 1)) && (
+          {(canFilter || (hasTotals && footer !== "none" && total > 1)) && (
             <tfoot>
               <tr className="totals-row">
                 {selectable && <td className="check-col" />}
                 {columns.map((column, index) => (
                   <td key={column.key} className={`align-${align(column)}`}>
-                    {periodFilter && !column.total && columnSearch(column)}
-                    {!periodFilter && index === 0 && !column.total && (
+                    {canFilter && !column.total && columnSearch(column)}
+                    {!canFilter && index === 0 && !column.total && (
                       <b>{t.total}</b>
                     )}
                     {column.total && (
@@ -694,7 +696,7 @@ export function DataTable<T extends { id: string }>({
                 ))}
                 {actions && (
                   <td className="actions-col">
-                    {periodFilter && (
+                    {canFilter && (
                       <span className="column-search-label">{t.actions}</span>
                     )}
                   </td>
@@ -746,7 +748,7 @@ export function DataTable<T extends { id: string }>({
               <Icon name="chevronRight" size={14} />
             </button>
           </nav>
-          {!periodFilter && pageSizePicker}
+          {!canFilter && pageSizePicker}
           {pages > 1 && (
             <label className="go-to">
               {t.goTo}
