@@ -139,6 +139,7 @@ export function DataTable<T extends { id: string }>({
   rowClassName,
   onRowClick,
   periodFilter,
+  periodOpen = true,
 }: {
   columns: Column<T>[];
   rows: T[];
@@ -160,6 +161,8 @@ export function DataTable<T extends { id: string }>({
    * (today by default), then "Show N" on the left and Search on the right.
    */
   periodFilter?: { branchKey?: string; dateKey: string };
+  /** False hides the period form (its dates still apply). */
+  periodOpen?: boolean;
 }) {
   const { l, t } = useLanguage();
   const [pageSize, setPageSize] = useState(footer === "filters" ? 10 : 25);
@@ -454,7 +457,7 @@ export function DataTable<T extends { id: string }>({
 
   return (
     <div className="data-table-wrap">
-      {periodFilter && (
+      {periodFilter && periodOpen && (
         <form
           className="period-filter"
           onSubmit={(event) => {

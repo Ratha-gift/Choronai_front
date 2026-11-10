@@ -7,6 +7,8 @@ export type BoxAction = {
   onClick?: () => void;
   href?: string;
   disabled?: boolean;
+  /** A toggle that is on (shown pressed). */
+  active?: boolean;
 };
 
 /** White panel with an icon, blue title and optional named header buttons. */
@@ -17,6 +19,7 @@ export function Box({
   actions,
   children,
   flush,
+  iconOnly,
 }: {
   icon: IconName;
   title: ReactNode;
@@ -25,6 +28,8 @@ export function Box({
   children?: ReactNode;
   /** Drop the content padding (for edge-to-edge content). */
   flush?: boolean;
+  /** Header buttons as icons only (label in the tooltip), like WeERP. */
+  iconOnly?: boolean;
 }) {
   return (
     <section className="box">
@@ -34,7 +39,7 @@ export function Box({
         </span>
         <h2>{title}</h2>
         {actions && actions.length > 0 && (
-          <div className="box-actions">
+          <div className={iconOnly ? "box-actions icon-only" : "box-actions"}>
             {actions.map((action) =>
               action.href ? (
                 <a
@@ -53,6 +58,7 @@ export function Box({
                   aria-label={action.label}
                   onClick={action.onClick}
                   disabled={action.disabled}
+                  aria-pressed={action.active}
                 >
                   <Icon name={action.icon} size={15} />
                   <span>{action.label}</span>

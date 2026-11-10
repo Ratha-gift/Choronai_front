@@ -40,6 +40,8 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [editing, setEditing] = useState<Row | "new" | null>(null);
   const [viewing, setViewing] = useState<Row | null>(null);
+  // WeERP: the ▼ button at the top right shows or hides the date filter.
+  const [filterOpen, setFilterOpen] = useState(true);
   const canEdit =
     (def.canEdit ?? (!!def.fields || !!def.editHref)) && may(def.id, "edit");
   const edit = (row: Row) =>
@@ -92,6 +94,18 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
   }
 
   const actions: BoxAction[] = [
+    ...(def.periodFilter
+      ? [
+          {
+            icon: filterOpen
+              ? ("chevronUp" as const)
+              : ("chevronDown" as const),
+            label: l(["Show / hide filter", "បង្ហាញ / លាក់តម្រង"]),
+            onClick: () => setFilterOpen(!filterOpen),
+            active: filterOpen,
+          },
+        ]
+      : []),
     { icon: "fileExcel", label: t.exportCsv, onClick: exportCsv },
   ];
   if (!mayAdd) {
@@ -203,6 +217,7 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
         }
         intro={t.tableIntro}
         actions={actions}
+        iconOnly={!!def.periodFilter}
       >
         <DataTable
           columns={columns}
@@ -215,6 +230,7 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
           headerGroups={def.headerGroups}
           onRowClick={def.onRowClick}
           periodFilter={def.periodFilter}
+          periodOpen={filterOpen}
         />
       </Box>
       {def.fields && editing && (
