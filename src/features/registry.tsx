@@ -5,6 +5,7 @@ import { PlannedModule } from "@/components/layout/planned-module";
 import { resolvePath } from "@/config/modules";
 import { DashboardView } from "./dashboard/components/dashboard-view";
 import { ProductFormPage } from "./products/components/product-form-page";
+import { ImportProductsPage } from "./products/components/import-products";
 import { ProductsView } from "./products/components/products-view";
 import {
   BestSellers,
@@ -52,6 +53,7 @@ const PAGES: Record<string, (params: string[]) => ReactNode> = {
   "shop-settings": () => <ShopSettingsPage />,
   "inventory/products": () => <ProductsView />,
   "inventory/products/add": () => <ProductFormPage />,
+  "inventory/import-products": () => <ImportProductsPage />,
   "inventory/products/edit": ([id]) => (
     <ProductFormPage key={id} productId={id} />
   ),
