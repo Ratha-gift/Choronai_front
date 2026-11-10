@@ -196,3 +196,10 @@
     position: static;
   }
 }
+/* POS tablets (portrait): header buttons as icons so the header fits. */
+@media (max-width: 900px) {
+  .pos-clock,
+  .pos-nav-btn span {
+    display: none;
+  }
+}
