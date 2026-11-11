@@ -373,145 +373,155 @@ export function ProductSalesReport({ type }: { type?: "simple" | "combo" }) {
         </form>
       )}
 
-      <div className="print-area table-responsive">
-        <table className="data-table product-sales-report">
-          <thead>
-            <tr>
-              <th className="group-toggle">
-                <button
-                  type="button"
-                  className="group-dot"
-                  aria-label={l(["Open or close all", "បើក ឬបិទទាំងអស់"])}
-                  onClick={() =>
-                    setClosed(
-                      allClosed
-                        ? new Set()
-                        : new Set(groups.map((group) => group.category)),
-                    )
-                  }
-                >
-                  {allClosed ? "+" : "−"}
-                </button>
-              </th>
-              <th>{l(["Category » Product", "ប្រភេទ » មុខទំនិញ"])}</th>
-              <th>{l(["Product Type", "ប្រភេទទំនិញ"])}</th>
-              <th>{l(["Subcategory", "ប្រភេទរង"])}</th>
-              <th className="align-right">{l(["Sold", "បានលក់"])}</th>
-              <th className="align-right">{l(["Unit Price", "តម្លៃឯកតា"])}</th>
-              <th className="align-right">{l(["Discount", "បញ្ចុះតម្លៃ"])}</th>
-              {showCost && (
-                <th className="align-right">
-                  {l(["Total Cost", "ថ្លៃដើមសរុប"])}
-                </th>
-              )}
-              <th className="align-right">
-                {l(["Total Price", "តម្លៃលក់សរុប"])}
-              </th>
-              {showCost && (
-                <th className="align-right">
-                  {l(["Net Profit", "ប្រាក់ចំណេញសុទ្ធ"])}
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {groups.length === 0 && (
-              <tr>
-                <td colSpan={columns + 1} className="no-data">
-                  {l(["No sales found.", "រកមិនឃើញការលក់ទេ។"])}
-                </td>
-              </tr>
-            )}
-            {groups.map((group) => {
-              const open = !closed.has(group.category);
-              return (
-                <Fragment key={group.category}>
-                  <tr
-                    className="category-row"
-                    onClick={() => toggle(group.category)}
-                  >
-                    <td colSpan={columns + 1}>
-                      <span className="group-dot">{open ? "−" : "+"}</span>{" "}
-                      <b>{categoryLabel(group.category, language)}</b>
-                      {!open && (
-                        <span className="muted">
-                          {" "}
-                          ({group.rows.length} ·{" "}
-                          {formatMoney(sum(group.rows, net))})
-                        </span>
-                      )}
+      {/* Same frame as the other lists: the card fills the screen, only the
+          rows scroll, and the header and total stay in place. */}
+      <div className="print-area">
+        <div className="data-table-wrap">
+          <div className="table-responsive">
+            <table className="data-table product-sales-report">
+              <thead>
+                <tr>
+                  <th className="group-toggle">
+                    <button
+                      type="button"
+                      className="group-dot"
+                      aria-label={l(["Open or close all", "បើក ឬបិទទាំងអស់"])}
+                      onClick={() =>
+                        setClosed(
+                          allClosed
+                            ? new Set()
+                            : new Set(groups.map((group) => group.category)),
+                        )
+                      }
+                    >
+                      {allClosed ? "+" : "−"}
+                    </button>
+                  </th>
+                  <th>{l(["Category » Product", "ប្រភេទ » មុខទំនិញ"])}</th>
+                  <th>{l(["Product Type", "ប្រភេទទំនិញ"])}</th>
+                  <th>{l(["Subcategory", "ប្រភេទរង"])}</th>
+                  <th className="align-right">{l(["Sold", "បានលក់"])}</th>
+                  <th className="align-right">
+                    {l(["Unit Price", "តម្លៃឯកតា"])}
+                  </th>
+                  <th className="align-right">
+                    {l(["Discount", "បញ្ចុះតម្លៃ"])}
+                  </th>
+                  {showCost && (
+                    <th className="align-right">
+                      {l(["Total Cost", "ថ្លៃដើមសរុប"])}
+                    </th>
+                  )}
+                  <th className="align-right">
+                    {l(["Total Price", "តម្លៃលក់សរុប"])}
+                  </th>
+                  {showCost && (
+                    <th className="align-right">
+                      {l(["Net Profit", "ប្រាក់ចំណេញសុទ្ធ"])}
+                    </th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {groups.length === 0 && (
+                  <tr>
+                    <td colSpan={columns + 1} className="no-data">
+                      {l(["No sales found.", "រកមិនឃើញការលក់ទេ។"])}
                     </td>
                   </tr>
-                  {open &&
-                    group.rows.map((line, index) => (
-                      <Fragment key={line.productId}>
-                        <tr>
-                          <td className="align-center">{index + 1}</td>
-                          <td>
-                            {line.name} - {line.code}
-                          </td>
-                          <td className="align-center">{line.type}</td>
-                          <td>{line.subCategory}</td>
-                          <td className="align-right">
-                            {qty(line)}{" "}
-                            <span className="unit">{line.unit}</span>
-                          </td>
-                          <td className="align-right">
-                            {formatMoney(unitPrice(line))}
-                          </td>
-                          {amounts([line])}
-                        </tr>
-                        {partsOf(line).map((part) => (
-                          <tr key={part.key} className="combo-part-row">
-                            <td />
-                            <td>
-                              {part.name}
-                              {part.code && ` - ${part.code}`}
-                            </td>
-                            <td className="align-center">{part.type}</td>
-                            <td>{part.subCategory}</td>
-                            <td className="align-right">
-                              {formatNumber(part.sold, 3)}{" "}
-                              <span className="unit">{part.unit}</span>
-                            </td>
-                            <td colSpan={columns - 4} />
-                          </tr>
+                )}
+                {groups.map((group) => {
+                  const open = !closed.has(group.category);
+                  return (
+                    <Fragment key={group.category}>
+                      <tr
+                        className="category-row"
+                        onClick={() => toggle(group.category)}
+                      >
+                        <td colSpan={columns + 1}>
+                          <span className="group-dot">{open ? "−" : "+"}</span>{" "}
+                          <b>{categoryLabel(group.category, language)}</b>
+                          {!open && (
+                            <span className="muted">
+                              {" "}
+                              ({group.rows.length} ·{" "}
+                              {formatMoney(sum(group.rows, net))})
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                      {open &&
+                        group.rows.map((line, index) => (
+                          <Fragment key={line.productId}>
+                            <tr>
+                              <td className="align-center">{index + 1}</td>
+                              <td>
+                                {line.name} - {line.code}
+                              </td>
+                              <td className="align-center">{line.type}</td>
+                              <td>{line.subCategory}</td>
+                              <td className="align-right">
+                                {qty(line)}{" "}
+                                <span className="unit">{line.unit}</span>
+                              </td>
+                              <td className="align-right">
+                                {formatMoney(unitPrice(line))}
+                              </td>
+                              {amounts([line])}
+                            </tr>
+                            {partsOf(line).map((part) => (
+                              <tr key={part.key} className="combo-part-row">
+                                <td />
+                                <td>
+                                  {part.name}
+                                  {part.code && ` - ${part.code}`}
+                                </td>
+                                <td className="align-center">{part.type}</td>
+                                <td>{part.subCategory}</td>
+                                <td className="align-right">
+                                  {formatNumber(part.sold, 3)}{" "}
+                                  <span className="unit">{part.unit}</span>
+                                </td>
+                                <td colSpan={columns - 4} />
+                              </tr>
+                            ))}
+                          </Fragment>
                         ))}
-                      </Fragment>
-                    ))}
-                  {open && (
-                    <tr className="subtotal-row">
-                      <td colSpan={5} />
-                      <td className="align-right">
-                        {formatMoney(sum(group.rows, unitPrice))}
-                      </td>
-                      {amounts(group.rows)}
-                    </tr>
-                  )}
-                </Fragment>
-              );
-            })}
-          </tbody>
-          {groups.length > 0 && (
-            <tfoot>
-              <tr className="totals-row">
-                <td colSpan={4} className="align-center">
-                  {t.total}
-                </td>
-                <td className="align-right">
-                  {formatNumber(
-                    sum(allRows, (x) => x.sold),
-                    3,
-                  )}
-                </td>
-                <td className="align-right">
-                  {formatMoney(sum(allRows, unitPrice))}
-                </td>
-                {amounts(allRows)}
-              </tr>
-            </tfoot>
-          )}
-        </table>
+                      {open && (
+                        <tr className="subtotal-row">
+                          <td colSpan={5} />
+                          <td className="align-right">
+                            {formatMoney(sum(group.rows, unitPrice))}
+                          </td>
+                          {amounts(group.rows)}
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+              {groups.length > 0 && (
+                <tfoot>
+                  <tr className="totals-row">
+                    <td colSpan={4} className="align-center">
+                      {t.total}
+                    </td>
+                    <td className="align-right">
+                      {formatNumber(
+                        sum(allRows, (x) => x.sold),
+                        3,
+                      )}
+                    </td>
+                    <td className="align-right">
+                      {formatMoney(sum(allRows, unitPrice))}
+                    </td>
+                    {amounts(allRows)}
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </div>
       </div>
     </Box>
   );
