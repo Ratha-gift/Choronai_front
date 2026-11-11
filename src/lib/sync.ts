@@ -385,14 +385,18 @@ export async function refreshWorkspace() {
     return;
   }
   try {
-    const response = await fetch("/api/workspace", { cache: "no-store" });
+    // With the revision we already have, the server answers { unchanged }
+    // without sending every collection again when nothing was saved since.
+    const response = await fetch(`/api/workspace?revision=${revision}`, {
+      cache: "no-store",
+    });
     if (response.status === 401) {
       emit("error", "Server session expired. Sign in again.");
       return;
     }
     if (!response.ok) return;
     const remote = await response.json();
-    if (remote.revision !== revision) {
+    if (!remote.unchanged && remote.revision !== revision) {
       revision = remote.revision;
       applyRemote(remote.data);
       persist();

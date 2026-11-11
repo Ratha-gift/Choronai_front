@@ -42,7 +42,13 @@ const unreachable = () =>
 export async function GET(request: Request) {
   if (useLocal()) return localGet(request);
   try {
-    return await relay(await apiRequest("frontend/workspace"));
+    // Pass the browser's ?revision= on: Laravel answers { unchanged } when
+    // nothing was saved since.
+    const revision = new URL(request.url).searchParams.get("revision");
+    const path = /^\d+$/.test(revision ?? "")
+      ? `frontend/workspace?revision=${revision}`
+      : "frontend/workspace";
+    return await relay(await apiRequest(path));
   } catch {
     return unreachable();
   }
