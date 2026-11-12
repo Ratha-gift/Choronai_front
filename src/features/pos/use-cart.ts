@@ -1,6 +1,7 @@
 "use client";
 import { useMemo } from "react";
 import type { LineItem } from "@/data/types";
+import { activePrice } from "@/features/products/promotion";
 import { productUnit } from "@/features/products/store";
 import type { Product } from "@/features/products/types";
 import { toNumber } from "@/lib/format";
@@ -71,7 +72,7 @@ export function useCart(cashier: string) {
               name: product.name,
               unit: productUnit(product),
               quantity,
-              price: product.price,
+              price: activePrice(product),
             },
           ],
     );
