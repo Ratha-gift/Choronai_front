@@ -180,10 +180,16 @@ export const transactionResources: ResourceDef[] = [
   {
     id: "sales/pos-sales",
     collection: "sales",
+
+  
+    // Sales with a return are tinted pink, like open registers in Users.
+    rowClassName: (row) => (Number(row.returned) > 0 ? "row-returned" : ""),
+
     // A posted sale can be deleted only while nothing was paid or returned;
     // paid sales must be corrected with a return (see onDelete for restock).
     canDelete: (row) =>
       Number(row.paid) <= 0 && Number(row.returned ?? 0) <= 0,
+ 
     title: [
       "POS Sales (All Branches) (All Warehouses)",
       "ការលក់ POS (គ្រប់សាខា) (គ្រប់ឃ្លាំង)",
