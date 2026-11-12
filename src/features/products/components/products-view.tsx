@@ -9,9 +9,11 @@ import { Select } from "@/components/ui/select";
 import { useCollection } from "@/data/collections";
 import { useLanguage, type Label } from "@/i18n";
 import { downloadText, toCsv } from "@/lib/csv";
+import { formatMoney } from "@/lib/format";
 import { notify } from "@/lib/toast";
 import { CSV_COLUMNS, deleteProduct, openProductDialog } from "../actions";
 import { categoryLabel } from "../labels";
+import { activePrice, promotionActive } from "../promotion";
 import {
   isLowStock,
   productCost,
@@ -69,7 +71,22 @@ export function ProductsView() {
           },
         ]
       : []),
-    { key: "price", label: ["Price", "តម្លៃ"], type: "money" },
+    {
+      key: "price",
+      label: ["Price", "តម្លៃ"],
+      type: "money",
+      // While a promotion is live, show the promo price with the normal
+      // price struck through, matching the POS screen.
+      render: (product) =>
+        promotionActive(product) ? (
+          <>
+            <s className="muted">{formatMoney(product.price)}</s>{" "}
+            {formatMoney(activePrice(product))}
+          </>
+        ) : (
+          formatMoney(product.price)
+        ),
+    },
     {
       key: "quantity",
       label: ["Quantity", "បរិមាណ"],
