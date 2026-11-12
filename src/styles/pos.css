@@ -1133,6 +1133,16 @@
   font-size: 1em;
   margin-left: 2px;
 }
+/* Returned items on a sale's slip, like the old system: a header band and
+   the returned lines in red. */
+.receipt tr.receipt-returned-head td {
+  background: #fff7e6;
+  font-weight: 700;
+  padding-top: 4px;
+}
+.receipt tr.receipt-returned td {
+  color: #c43d35;
+}
 .receipt-thanks {
   white-space: pre-line;
   margin: 12px 0 0;

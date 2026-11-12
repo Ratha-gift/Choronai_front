@@ -1888,6 +1888,8 @@ export function Receipt({
   autoPrint = false,
   vat,
   footer,
+  returnedItems,
+  returnReferences,
 }: {
   title: string;
   record: Pick<
@@ -1919,6 +1921,10 @@ export function Receipt({
   vat?: string;
   /** The branch's own closing text, instead of the thank-you line. */
   footer?: string;
+  /** Lines returned against this sale, shown as a "Returned Items" block. */
+  returnedItems?: LineItem[];
+  /** The sale-return references, shown in the header like the old slip. */
+  returnReferences?: string[];
 }) {
   const { l, t } = useLanguage();
   const riel = (value: number) => `${formatNumber(Math.round(value))} ៛`;
@@ -1972,6 +1978,11 @@ export function Receipt({
     0,
     toNumber(record.discount) - productDiscountTotal,
   );
+  const returns = returnedItems ?? [];
+  const returnedTotal = returns.reduce(
+    (sum, line) => sum + line.quantity * line.price,
+    0,
+  );
   return (
     <Modal
       open
@@ -2013,6 +2024,12 @@ export function Receipt({
             {record.customer && (
               <p>
                 {t.customer}: <b>{record.customer}</b>
+              </p>
+            )}
+            {returnReferences && returnReferences.length > 0 && (
+              <p>
+                {l(["Return Reference", "លេខយោងត្រឡប់"])}:{" "}
+                <b>{returnReferences.join(", ")}</b>
               </p>
             )}
           </div>
@@ -2074,6 +2091,29 @@ export function Receipt({
                 </tr>
               );
             })}
+            {returns.length > 0 && (
+              <>
+                <tr className="receipt-returned-head">
+                  <td colSpan={5}>
+                    {l(["Returned Items", "ទំនិញបានត្រឡប់"])}
+                  </td>
+                </tr>
+                {returns.map((line, i) => (
+                  <tr key={`r${i}`} className="receipt-returned">
+                    <td>{record.items.length + i + 1}</td>
+                    <td>{line.name}</td>
+                    <td className="num">
+                      -{formatNumber(line.quantity, 3)}
+                      {line.unit && <small>{line.unit}</small>}
+                    </td>
+                    <td className="num">{formatMoney(line.price)}</td>
+                    <td className="num">
+                      -{formatMoney(line.quantity * line.price)}
+                    </td>
+                  </tr>
+                ))}
+              </>
+            )}
           </tbody>
           <tfoot>
             {record.total != null && (
@@ -2134,6 +2174,25 @@ export function Receipt({
                 </b>
               </td>
             </tr>
+            {returnedTotal > 0 && (
+              <>
+                <tr className="receipt-returned">
+                  <td colSpan={4}>{l(["Returned", "បានត្រឡប់"])}</td>
+                  <td className="num">-{formatMoney(returnedTotal)}</td>
+                </tr>
+                <tr className="strong grand">
+                  <td colSpan={4}>{l(["Net Total", "សរុបសុទ្ធ"])} (USD)</td>
+                  <td className="num">
+                    <b className="receipt-grand">
+                      {formatUsd(
+                        Math.max(0, record.grandTotal - returnedTotal),
+                        rate,
+                      )}
+                    </b>
+                  </td>
+                </tr>
+              </>
+            )}
             {record.paid > 0 && (
               <tr className="receipt-payment">
                 <td colSpan={5}>
