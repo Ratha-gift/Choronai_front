@@ -32,8 +32,14 @@ export function SaleReceiptDialog() {
   const cards = useCollection("memberCards").rows;
   const [system] = useSettings("system");
   const [logo] = useStored(LOGO_KEY, NO_LOGO);
+  const saleReturns = useCollection<Transaction>("saleReturns").rows;
   const sale = id ? sales.find((row) => row.id === id) : undefined;
   if (!sale) return null;
+
+  // The returns raised against this sale, shown as a "Returned Items" block.
+  const returns = saleReturns.filter((row) => row.referenceTo === sale.reference);
+  const returnedItems = returns.flatMap((row) => row.items ?? []);
+  const returnReferences = returns.map((row) => String(row.reference));
 
   const branch = branches.find((row) => String(row.name) === sale.branch);
   const info = branchReceipt(branch);
@@ -68,6 +74,8 @@ export function SaleReceiptDialog() {
       cashier={cashier}
       record={{ ...sale, ...points }}
       rate={rate}
+      returnedItems={returnedItems}
+      returnReferences={returnReferences}
     />
   );
 }
