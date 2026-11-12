@@ -422,21 +422,21 @@ input[type="checkbox"] {
 .data-table tbody tr:hover {
   background: #eef5fb;
 }
-.data-table tbody tr.register-open {
+/* The :nth-child(odd) variants beat the zebra striping above, so highlighted
+   rows stay pink on both odd and even rows. */
+.data-table tbody tr.register-open,
+.data-table tbody tr.register-open:nth-child(odd),
+.data-table tbody tr.row-returned,
+.data-table tbody tr.row-returned:nth-child(odd) {
   background: #fff1f0;
 }
-.data-table tbody tr.register-open:hover {
+.data-table tbody tr.register-open:hover,
+.data-table tbody tr.register-open:nth-child(odd):hover,
+.data-table tbody tr.row-returned:hover,
+.data-table tbody tr.row-returned:nth-child(odd):hover {
   background: #ffe0dd;
 }
-.data-table tbody tr.register-open td:first-child {
-  box-shadow: inset 4px 0 #c43d35;
-}
-.data-table tbody tr.row-returned {
-  background: #fff1f0;
-}
-.data-table tbody tr.row-returned:hover {
-  background: #ffe0dd;
-}
+.data-table tbody tr.register-open td:first-child,
 .data-table tbody tr.row-returned td:first-child {
   box-shadow: inset 4px 0 #c43d35;
 }
