@@ -184,6 +184,11 @@ export const transactionResources: ResourceDef[] = [
   
     // Sales with a return are tinted pink, like open registers in Users.
     rowClassName: (row) => (Number(row.returned) > 0 ? "row-returned" : ""),
+    // Footer breakdown: how many invoices have a return vs are simple.
+    footerSummary: (rows) => {
+      const returned = rows.filter((row) => Number(row.returned) > 0).length;
+      return `Return: ${returned} | Simple: ${rows.length - returned}`;
+    },
 
     // A posted sale can be deleted only while nothing was paid or returned;
     // paid sales must be corrected with a return (see onDelete for restock).

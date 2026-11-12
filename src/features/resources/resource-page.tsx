@@ -229,6 +229,7 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
         <DataTable
           columns={columns}
           rowClassName={def.rowClassName}
+          footerSummary={def.footerSummary}
           rows={rows}
           actions={rowActions}
           selected={selected}

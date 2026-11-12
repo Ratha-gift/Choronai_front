@@ -62,6 +62,8 @@ export type ResourceDef = {
   branchOf?: (row: Row) => unknown[];
   /** Highlight rows based on their current state. */
   rowClassName?: (row: Row) => string;
+  /** Extra count/summary shown in the list footer, from the filtered rows. */
+  footerSummary?: (rows: Row[]) => ReactNode;
   /** Fields of the add/edit modal. Omit for read-only lists. */
   fields?: FieldDef[];
   /** Open a full page instead of the modal to add records. */
