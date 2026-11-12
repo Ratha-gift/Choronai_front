@@ -657,6 +657,13 @@
   color: #c9d3df;
   font-style: normal;
 }
+.table-total-summary {
+  margin-left: 8px;
+  padding-left: 8px;
+  border-left: 1px solid #c9d3df;
+  color: #5b6b80;
+  font-variant-numeric: tabular-nums;
+}
 .table-pager {
   display: flex;
   flex-wrap: wrap;

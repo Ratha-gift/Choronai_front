@@ -135,6 +135,7 @@ export function DataTable<T extends { id: string }>({
   onRowClick,
   periodFilter,
   periodOpen = true,
+  footerSummary,
 }: {
   columns: Column<T>[];
   rows: T[];
@@ -158,6 +159,8 @@ export function DataTable<T extends { id: string }>({
   periodFilter?: { branchKey?: string; dateKey: string };
   /** False hides the period form (its dates still apply). */
   periodOpen?: boolean;
+  /** Extra count/summary shown in the footer, from the filtered rows. */
+  footerSummary?: (rows: T[]) => ReactNode;
 }) {
   const { l, t } = useLanguage();
   const [pageSize, setPageSize] = useState(footer === "filters" ? 10 : 25);
@@ -718,6 +721,11 @@ export function DataTable<T extends { id: string }>({
           {t.total}: <b>{formatNumber(total)}</b>
           <i aria-hidden="true">|</i>
           {total ? `${start + 1}–${start + pageRows.length}` : "0"}
+          {footerSummary && (
+            <span className="table-total-summary">
+              {footerSummary(filtered)}
+            </span>
+          )}
         </span>
         <div className="table-pager">
           <nav className="pagination" aria-label={t.pagination}>
