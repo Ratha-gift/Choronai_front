@@ -23,6 +23,7 @@ import {
 } from "@/features/products/store";
 import type { Category, Product } from "@/features/products/types";
 import { usePosCatalog } from "@/features/products/pos-catalog";
+import { activePrice, promotionActive } from "@/features/products/promotion";
 import { resources } from "@/features/resources";
 import {
   ResourceForm,
@@ -864,7 +865,14 @@ function PosScreen() {
                     <li key={product.id}>
                       <button onClick={() => addToCart(product)}>
                         {product.sku} - {product.name}{" "}
-                        <b>{formatMoney(product.price)}</b>
+                        {promotionActive(product) ? (
+                          <>
+                            <s>{formatMoney(product.price)}</s>{" "}
+                            <b>{formatMoney(activePrice(product))}</b>
+                          </>
+                        ) : (
+                          <b>{formatMoney(product.price)}</b>
+                        )}
                       </button>
                     </li>
                   ))
@@ -1203,7 +1211,12 @@ function PosScreen() {
                     <span className="pos-card-info">
                       <span className="pos-card-name">{product.name}</span>
                       <span className="pos-card-price">
-                        {formatMoney(product.price)}
+                        {promotionActive(product) && (
+                          <s className="pos-card-old-price">
+                            {formatMoney(product.price)}
+                          </s>
+                        )}{" "}
+                        {formatMoney(activePrice(product))}
                         {WEIGHT_UNITS.includes(productUnit(product))
                           ? `/${productUnit(product)}`
                           : ""}
@@ -1685,7 +1698,8 @@ function ProductSalePanel({
   const [replaceOnNextKey, setReplaceOnNextKey] = useState(true);
   const unit = product ? productUnit(product) : "";
   const quantityValue = toNumber(quantity);
-  const lineTotal = (product?.price ?? 0) * Math.max(0, quantityValue);
+  const lineTotal =
+    (product ? activePrice(product) : 0) * Math.max(0, quantityValue);
   const typedDiscount = Math.max(0, toNumber(productDiscount));
   // Riel off the line, never more than the line itself.
   const productDiscountValue = Math.min(
