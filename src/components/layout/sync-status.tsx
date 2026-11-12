@@ -28,12 +28,20 @@ export function SyncStatus() {
               ])}
         </strong>
         <p>
-          {state.status === "conflict"
-            ? l([
-                "Another device changed the shared data. Your pending work is kept on this device. Download it before loading the server version.",
-                "ឧបករណ៍ផ្សេងបានកែទិន្នន័យ។ ការងាររបស់អ្នកនៅរក្សាទុកក្នុងឧបករណ៍នេះ។",
-              ])
-            : state.error}
+          {state.status === "conflict" ? (
+            <>
+              {/* The real reason from the server (e.g. "Posted returns cannot
+                  be edited"), so the cashier knows what actually happened. */}
+              {state.error && <strong>{state.error}</strong>}
+              {state.error && <br />}
+              {l([
+                "Your pending work is kept on this device. Download it before loading the server version.",
+                "ការងាររបស់អ្នកនៅរក្សាទុកក្នុងឧបករណ៍នេះ។ សូមទាញយកវាមុនពេលទាញយកពីម៉ាស៊ីនមេ។",
+              ])}
+            </>
+          ) : (
+            state.error
+          )}
         </p>
         <span>
           {state.pending} {l(["pending updates", "ការកែប្រែកំពុងរង់ចាំ"])}
