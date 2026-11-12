@@ -181,6 +181,8 @@ export const transactionResources: ResourceDef[] = [
     id: "sales/pos-sales",
     collection: "sales",
     canDelete: () => false,
+    // Sales with a return are tinted pink, like open registers in Users.
+    rowClassName: (row) => (Number(row.returned) > 0 ? "row-returned" : ""),
     title: [
       "POS Sales (All Branches) (All Warehouses)",
       "ការលក់ POS (គ្រប់សាខា) (គ្រប់ឃ្លាំង)",

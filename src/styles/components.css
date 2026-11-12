@@ -431,6 +431,15 @@ input[type="checkbox"] {
 .data-table tbody tr.register-open td:first-child {
   box-shadow: inset 4px 0 #c43d35;
 }
+.data-table tbody tr.row-returned {
+  background: #fff1f0;
+}
+.data-table tbody tr.row-returned:hover {
+  background: #ffe0dd;
+}
+.data-table tbody tr.row-returned td:first-child {
+  box-shadow: inset 4px 0 #c43d35;
+}
 .data-table tbody tr.selected {
   background: #d9ebf7;
 }
