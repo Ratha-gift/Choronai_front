@@ -224,11 +224,8 @@ export const transactionResources: ResourceDef[] = [
       return `Return: ${returned} | Simple: ${rows.length - returned}`;
     },
 
-    // A posted sale can be deleted only while nothing was paid or returned;
-    // paid sales must be corrected with a return (see onDelete for restock).
-    canDelete: (row) =>
-      Number(row.paid) <= 0 && Number(row.returned ?? 0) <= 0,
- 
+    // Admins / owners may delete any sale (gated by the Delete permission);
+    // onDelete and the backend put the stock back and undo any linked returns.
     title: [
       "POS Sales (All Branches) (All Warehouses)",
       "ការលក់ POS (គ្រប់សាខា) (គ្រប់ឃ្លាំង)",
@@ -241,12 +238,29 @@ export const transactionResources: ResourceDef[] = [
     details,
     canEdit: false,
     onDelete: (row) => {
-      // A deleted sale returns its items to stock.
+      // Deleting a sale puts back what is still out: the sold quantity minus
+      // whatever a linked return already restocked. The backend does the same
+      // and also removes the linked returns.
+      const sale = row as Transaction;
+      const returnedByProduct = new Map<string, number>();
+      getRows("saleReturns")
+        .filter((ret) => ret.referenceTo === sale.reference)
+        .forEach((ret) =>
+          ((ret as Transaction).items ?? []).forEach((line) =>
+            returnedByProduct.set(
+              line.productId,
+              (returnedByProduct.get(line.productId) ?? 0) + line.quantity,
+            ),
+          ),
+        );
       adjustStock(
-        (row as Transaction).items.map((line) => ({
+        sale.items.map((line) => ({
           productId: line.productId,
-          delta: line.quantity,
-          location: row as Transaction,
+          delta: Math.max(
+            0,
+            line.quantity - (returnedByProduct.get(line.productId) ?? 0),
+          ),
+          location: sale,
         })),
       );
     },
