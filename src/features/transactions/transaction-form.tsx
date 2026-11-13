@@ -50,7 +50,7 @@ const round = (value: number) => Math.round(value * 1000) / 1000;
 const KEEP_TAX = "__saved";
 
 const currentStockLabel: Label = ["Current Stock", "ស្តុកបច្ចុប្បន្ន"];
-const stockAfterLabel: Label = ["Stock After", "ស្តុកក្រោយកែ"];
+const stockAfterLabel: Label = ["Excess / Short", "លើស / ខ្វះ"];
 
 export function TransactionForm({
   kind: kindId,
@@ -1055,20 +1055,24 @@ export function TransactionForm({
                       </td>
                     )}
                     {isAdjust && (
-                      <td className="cell-input qty-col">
-                        <NumberInput
-                          step="any"
-                          aria-label={l(stockAfterLabel)}
-                          value={newQoh(line)}
-                          onChange={(next) => {
-                            // Typing the counted stock works out the change.
-                            const diff = round(next - qoh(line.productId));
-                            change({
-                              type: diff < 0 ? "subtraction" : "addition",
-                              quantity: Math.abs(diff),
-                            });
-                          }}
-                        />
+                      <td className="align-right qty-col">
+                        {/* The change as excess (added) or short (removed). */}
+                        {line.quantity > 0 ? (
+                          <span
+                            className={
+                              line.type === "subtraction"
+                                ? "stock-short"
+                                : "stock-excess"
+                            }
+                          >
+                            {line.type === "subtraction"
+                              ? l(["Short", "ខ្វះ"])
+                              : l(["Excess", "លើស"])}{" "}
+                            {formatNumber(line.quantity, 3)}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                     )}
                     {kind.expiry && isAdjust && expiryCell}

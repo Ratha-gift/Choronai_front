@@ -1110,6 +1110,16 @@ label.btn.disabled {
 .qoh-cell {
   white-space: nowrap;
 }
+.stock-excess {
+  color: #1a7f37;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.stock-short {
+  color: #c43d35;
+  font-weight: 600;
+  white-space: nowrap;
+}
 
 /* Products: "All Warehouses" / one warehouse picker next to the search. */
 .warehouse-picker {
