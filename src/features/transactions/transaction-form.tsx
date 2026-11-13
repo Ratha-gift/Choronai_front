@@ -944,11 +944,7 @@ export function TransactionForm({
                     {priceLabel} ({currencySymbol()})
                   </th>
                 )}
-                <th>
-                  {isAdjust
-                    ? l(["Quantity (+ add / − remove)", "បរិមាណ (+ បន្ថែម / − ដក)"])
-                    : t.quantity}
-                </th>
+                <th>{t.quantity}</th>
                 {!isAdjust && <th>{t.subtotal}</th>}
                 {isAdjust && <th>{l(stockAfterLabel)}</th>}
                 {kind.expiry && isAdjust && <th>{t.expiryDate}</th>}
@@ -1003,8 +999,8 @@ export function TransactionForm({
                     )}
                     {isAdjust && (
                       <td className="align-right qoh-cell">
-                        {/* The stock the adjustment will leave (current ± qty). */}
-                        {formatNumber(newQoh(line), 3)}{" "}
+                        {/* The stock currently on hand (before this count). */}
+                        {formatNumber(qoh(line.productId), 3)}{" "}
                         <span className="unit">{line.unit}</span>
                       </td>
                     )}
@@ -1024,21 +1020,19 @@ export function TransactionForm({
                     )}
                     <td className="cell-input qty-col">
                       {isAdjust ? (
-                        // Signed: 5 adds 5, -5 removes 5 (no Type column).
+                        // Type the counted stock; Balance shows excess / short.
                         <NumberInput
+                          min="0"
                           step="any"
                           aria-label={t.quantity}
-                          value={
-                            line.type === "subtraction"
-                              ? -line.quantity
-                              : line.quantity
-                          }
-                          onChange={(next) =>
+                          value={newQoh(line)}
+                          onChange={(next) => {
+                            const delta = round(next - qoh(line.productId));
                             change({
-                              type: next < 0 ? "subtraction" : "addition",
-                              quantity: Math.abs(next),
-                            })
-                          }
+                              type: delta < 0 ? "subtraction" : "addition",
+                              quantity: Math.abs(delta),
+                            });
+                          }}
                         />
                       ) : (
                         <NumberInput
