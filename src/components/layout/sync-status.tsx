@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import {
   useSyncStatus,
   flush,
@@ -14,11 +15,26 @@ import { logout } from "@/lib/auth";
 export function SyncStatus() {
   const state = useSyncStatus();
   const { l } = useLanguage();
+  // Let the cashier hide the "waiting for connection" notice; it comes back
+  // when the status or the number of pending updates changes.
+  const [dismissed, setDismissed] = useState(false);
+  useEffect(() => setDismissed(false), [state.status, state.pending]);
   if (["idle", "synced"].includes(state.status)) return null;
   const blocked = ["conflict", "error"].includes(state.status);
+  if (!blocked && dismissed) return null;
   return (
     <div className={blocked ? "sync-blocker" : "sync-notice"} role="status">
       <div className="sync-panel">
+        {!blocked && (
+          <button
+            type="button"
+            className="sync-close"
+            aria-label={l(["Close", "បិទ"])}
+            onClick={() => setDismissed(true)}
+          >
+            ×
+          </button>
+        )}
         <strong>
           {blocked
             ? l(["Sync needs attention", "សូមពិនិត្យការធ្វើសមកាលកម្ម"])
