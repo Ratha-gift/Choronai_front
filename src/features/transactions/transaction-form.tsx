@@ -50,7 +50,7 @@ const round = (value: number) => Math.round(value * 1000) / 1000;
 const KEEP_TAX = "__saved";
 
 const currentStockLabel: Label = ["Current Stock", "ស្តុកបច្ចុប្បន្ន"];
-const stockAfterLabel: Label = ["Excess / Short", "លើស / ខ្វះ"];
+const stockAfterLabel: Label = ["Balance", "សមតុល្យ"];
 
 export function TransactionForm({
   kind: kindId,
@@ -1003,7 +1003,8 @@ export function TransactionForm({
                     )}
                     {isAdjust && (
                       <td className="align-right qoh-cell">
-                        {formatNumber(qoh(line.productId), 3)}{" "}
+                        {/* The stock the adjustment will leave (current ± qty). */}
+                        {formatNumber(newQoh(line), 3)}{" "}
                         <span className="unit">{line.unit}</span>
                       </td>
                     )}

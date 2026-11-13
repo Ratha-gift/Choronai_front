@@ -1112,12 +1112,12 @@ label.btn.disabled {
 }
 .stock-excess {
   color: #1a7f37;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
 }
 .stock-short {
   color: #c43d35;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
 }
 
