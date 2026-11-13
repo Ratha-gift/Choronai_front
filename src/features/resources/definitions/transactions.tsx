@@ -12,8 +12,11 @@ import type { ResourceDef } from "../types";
 import type { Label } from "@/i18n";
 import type { MenuItem } from "@/components/ui/action-menu";
 import { currentUsername } from "@/lib/auth";
-import { openPaymentDialog } from "@/features/sales/payments";
+import { openPaymentDialog, amountDue } from "@/features/sales/payments";
 import { openSaleReceipt } from "@/features/sales/sale-receipt";
+import { pick } from "@/i18n";
+import type { Language } from "@/i18n";
+import { readStored } from "@/lib/store";
 import { balanceOf, col } from "./helpers";
 import { getRows, setRows } from "@/data/collections";
 import { stockAt, getProducts } from "@/features/products/store";
@@ -22,6 +25,25 @@ import { canPerform } from "@/lib/permissions";
 import { usesLaravel } from "@/lib/sync";
 
 const details = (row: Row) => <TransactionDetails row={row} />;
+
+/** Resolve a label outside a React component (for toasts). */
+const tr = (label: Label) =>
+  pick(label, readStored<Language>("choronai-language", "en"));
+
+/** Only a fully paid invoice can be printed (a return counts as paid). */
+function printReceipt(row: Row) {
+  if (amountDue(row as Transaction) > 0) {
+    notify(
+      tr([
+        "Pay the invoice in full before printing the receipt.",
+        "សូមទូទាត់វិក្កយបត្រឱ្យគ្រប់ចំនួន មុននឹងបោះពុម្ពវិក្កយបត្រ។",
+      ]),
+      "error",
+    );
+    return;
+  }
+  openSaleReceipt(row.id);
+}
 
 /** Deleting a stock-moving record puts the stock back. */
 const reverseStock = (kind: TransactionKind) => (row: Row) => {
@@ -140,6 +162,18 @@ const balance = col("balance", "Balance", "នៅខ្វះ", "money", {
   total: true,
   value: balanceOf,
 });
+// On the POS Sales list a return refunds the customer, so show the money the
+// shop still holds (Paid − Returned) and what is still owed after it.
+const salePaid = col("paid", "Paid", "បានបង់", "money", {
+  total: true,
+  value: (row) =>
+    Math.max(0, Number(row.paid ?? 0) - Number(row.returned ?? 0)),
+});
+const saleBalance = col("balance", "Balance", "នៅខ្វះ", "money", {
+  total: true,
+  value: (row) =>
+    Math.max(0, Number(row.grandTotal ?? 0) - Number(row.paid ?? 0)),
+});
 const paymentStatus = col(
   "paymentStatus",
   "Payment Status",
@@ -216,14 +250,14 @@ export const transactionResources: ResourceDef[] = [
         })),
       );
     },
-    // Click a sale to see its receipt and print it again.
-    onRowClick: (row) => openSaleReceipt(row.id),
+    // Click a sale to see its receipt and print it again (only when paid).
+    onRowClick: (row) => printReceipt(row),
     // Same order as WeERP: details, payments, edit, return, delete.
     menuItems: (row, { navigate, l }) => [
       {
         icon: "print",
         label: l(["View / Print Receipt", "មើល / បោះពុម្ពវិក្កយបត្រ"]),
-        onClick: () => openSaleReceipt(row.id),
+        onClick: () => printReceipt(row),
       },
       {
         icon: "money",
@@ -273,9 +307,9 @@ export const transactionResources: ResourceDef[] = [
       col("customer", "Customer", "អតិថិជន"),
       grandTotal,
       returned,
-      paid,
+      salePaid,
       col("discount", "Discount", "បញ្ចុះតម្លៃ", "money", { total: true }),
-      balance,
+      saleBalance,
       paymentStatus,
       col("createdBy", "Created by", "បង្កើតដោយ"),
     ],
