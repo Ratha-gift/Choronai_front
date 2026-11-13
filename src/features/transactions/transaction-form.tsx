@@ -999,8 +999,8 @@ export function TransactionForm({
                     )}
                     {isAdjust && (
                       <td className="align-right qoh-cell">
-                        {/* The stock currently on hand (before this count). */}
-                        {formatNumber(qoh(line.productId), 3)}{" "}
+                        {/* The new stock after the count, updated live. */}
+                        {formatNumber(newQoh(line), 3)}{" "}
                         <span className="unit">{line.unit}</span>
                       </td>
                     )}
