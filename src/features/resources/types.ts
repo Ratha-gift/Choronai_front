@@ -76,7 +76,12 @@ export type ResourceDef = {
   /** Extra items for the Actions menu. */
   menuItems?: (
     row: Row,
-    context: { navigate: (href: string) => void; l: (label: Label) => string },
+    context: {
+      navigate: (href: string) => void;
+      l: (label: Label) => string;
+      /** The user's own branch, or null when they see all branches. */
+      branch: string | null;
+    },
   ) => MenuItem[];
   initialSort?: { key: string; desc?: boolean };
   /** Branch + Start/End Date bar above the table (POS Sales, like WeERP). */
