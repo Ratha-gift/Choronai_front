@@ -1003,7 +1003,8 @@ export function TransactionForm({
                     )}
                     {isAdjust && (
                       <td className="align-right qoh-cell">
-                        {formatNumber(qoh(line.productId), 3)}{" "}
+                        {/* The stock the adjustment will leave (current ± qty). */}
+                        {formatNumber(newQoh(line), 3)}{" "}
                         <span className="unit">{line.unit}</span>
                       </td>
                     )}
