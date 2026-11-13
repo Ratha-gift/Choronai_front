@@ -245,7 +245,6 @@ export function Select({
               <div className="select-search">
                 <Icon name="search" size={14} />
                 <input
-                  autoFocus
                   placeholder={searchPlaceholder}
                   aria-label={searchPlaceholder}
                   value={query}
