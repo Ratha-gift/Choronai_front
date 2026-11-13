@@ -68,8 +68,39 @@ function approve(
   kind: "stock-issue" | "adjustment",
   row: Transaction,
   l: (label: Label) => string,
+  receivingBranch = false,
 ) {
   const def = KINDS[kind];
+  // The receiving branch accepting its own incoming transfer completes it in
+  // one step. It cannot see the sending warehouse's stock, so skip that check
+  // and credit its own warehouse; the server moves both ends on sync.
+  if (receivingBranch) {
+    setRows(def.collection, (rows) =>
+      rows.map((item) =>
+        item.id === row.id
+          ? {
+              ...item,
+              status: "received",
+              stockApplied: true,
+              approvedBy: currentUsername(),
+              approvedAt: new Date().toISOString(),
+            }
+          : item,
+      ),
+    );
+    const destination = {
+      branch: String(row.toBranch ?? ""),
+      warehouse: String((row as Record<string, unknown>).toWarehouse ?? ""),
+    };
+    adjustStock(
+      row.items.map((line) => ({
+        productId: line.productId,
+        delta: line.quantity,
+        location: destination,
+      })),
+    );
+    return;
+  }
   const products = getProducts();
   const short = row.items.some((line) => {
     const product = products.find((item) => item.id === line.productId);
@@ -112,6 +143,7 @@ const approvalItems = (
   kind: "stock-issue" | "adjustment",
   row: Row,
   l: (label: Label) => string,
+  receivingBranch = false,
 ): MenuItem[] =>
   row.status === "pending" && canPerform("stock.approve")
     ? [
@@ -122,7 +154,7 @@ const approvalItems = (
               ? ["Approve", "អនុម័ត"]
               : ["Accept", "ទទួលយក"],
           ),
-          onClick: () => approve(kind, row as Transaction, l),
+          onClick: () => approve(kind, row as Transaction, l, receivingBranch),
         },
         {
           icon: "x",
@@ -396,9 +428,16 @@ export const transactionResources: ResourceDef[] = [
       !getRows("stockReceives").some(
         (receipt) => receipt.transferId === row.id,
       ),
-    menuItems: (row, { navigate, l }) =>
+    menuItems: (row, { navigate, l, branch }) =>
       row.status === "pending"
-        ? approvalItems("stock-issue", row, l)
+        ? approvalItems(
+            "stock-issue",
+            row,
+            l,
+            // The user's own branch receives this transfer but did not send it,
+            // so Accept completes it (dispatch + receive) in one step.
+            !!branch && row.toBranch === branch && row.branch !== branch,
+          )
         : canReceiveTransfer(row)
           ? [
               {

@@ -190,6 +190,7 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
           ...(def.menuItems?.(row, {
             navigate: (href) => router.push(href),
             l,
+            branch,
           }) ?? []),
           ...(canEdit && (def.canManageRow?.(row) ?? true)
             ? [
