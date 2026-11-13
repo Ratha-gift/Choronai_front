@@ -854,7 +854,19 @@ function PosScreen() {
               onKeyDown={(event) => {
                 if (event.key === "Enter" && matches[0]) {
                   event.preventDefault();
-                  addToCart(matches[0]);
+                  // An exact code match is a barcode scan: add it straight
+                  // away. A name/partial search opens the product popup.
+                  const scanned = matches.find(
+                    (product) =>
+                      String(product.sku).trim().toLowerCase() ===
+                      search.trim().toLowerCase(),
+                  );
+                  if (scanned) {
+                    addToCart(scanned);
+                  } else {
+                    setSelectedProduct(matches[0]);
+                    setSearch("");
+                  }
                 }
               }}
             />
@@ -863,7 +875,14 @@ function PosScreen() {
                 {matches.length ? (
                   matches.map((product) => (
                     <li key={product.id}>
-                      <button onClick={() => addToCart(product)}>
+                      <button
+                        onClick={() => {
+                          // Open the product popup (quantity, discount,
+                          // promotion, combo), like clicking its card.
+                          setSelectedProduct(product);
+                          setSearch("");
+                        }}
+                      >
                         {product.sku} - {product.name}{" "}
                         {promotionActive(product) ? (
                           <>
