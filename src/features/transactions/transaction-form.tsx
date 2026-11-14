@@ -239,7 +239,9 @@ export function TransactionForm({
               code: product.sku,
               name: product.name,
               unit: productUnit(product),
-              quantity: 1,
+              // An adjustment starts at no change, so the Quantity box shows the
+              // current stock to count from (not current + 1); other kinds add 1.
+              quantity: kind.price === "none" ? 0 : 1,
               price:
                 kind.price === "cost" ? productCost(product) : product.price,
               ...(kind.expiry ? { expiry: "" } : {}),
