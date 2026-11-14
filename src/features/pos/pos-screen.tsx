@@ -221,14 +221,18 @@ function PosScreen() {
     if (!term) return { cards: [], vipCustomers: [] };
     const customerByPhone = new Map(
       customers.rows.map((row) => [
-        String(row.phone ?? "").replace(/\s/g, "").toLowerCase(),
+        String(row.phone ?? "")
+          .replace(/\s/g, "")
+          .toLowerCase(),
         row,
       ]),
     );
     const cards = memberCards.rows
       .filter((row) => {
         const owner = customerByPhone.get(
-          String(row.customer ?? "").replace(/\s/g, "").toLowerCase(),
+          String(row.customer ?? "")
+            .replace(/\s/g, "")
+            .toLowerCase(),
         );
         return `${row.cardNo ?? ""} ${row.customer ?? ""} ${owner?.name ?? ""} ${owner?.code ?? ""}`
           .toLowerCase()
@@ -238,7 +242,9 @@ function PosScreen() {
     const vipCustomers = customers.rows
       .filter(
         (row) =>
-          String(row.customerGroup ?? "").trim().toLowerCase() === "vip" &&
+          String(row.customerGroup ?? "")
+            .trim()
+            .toLowerCase() === "vip" &&
           `${row.name ?? ""} ${row.code ?? ""} ${row.phone ?? ""}`
             .toLowerCase()
             .includes(term),
@@ -290,16 +296,27 @@ function PosScreen() {
     }
     const vip = customers.rows.find(
       (row) =>
-        String(row.customerGroup ?? "").trim().toLowerCase() === "vip" &&
+        String(row.customerGroup ?? "")
+          .trim()
+          .toLowerCase() === "vip" &&
         [row.code, row.phone, row.name].some(
-          (value) => String(value ?? "").trim().toLowerCase() === wanted,
+          (value) =>
+            String(value ?? "")
+              .trim()
+              .toLowerCase() === wanted,
         ),
     );
     if (vip) {
       selectVipCustomer(vip);
       return;
     }
-    notify(l(["Member card or VIP customer not found", "រកមិនឃើញកាតសមាជិក ឬអតិថិជន VIP"]), "error");
+    notify(
+      l([
+        "Member card or VIP customer not found",
+        "រកមិនឃើញកាតសមាជិក ឬអតិថិជន VIP",
+      ]),
+      "error",
+    );
   }
 
   function selectMemberCard(card: Row) {
@@ -320,12 +337,15 @@ function PosScreen() {
   function selectVipCustomer(vip: Row) {
     setCustomer(String(vip.name));
     setMemberCode("");
-    const phone = String(vip.phone ?? "").replace(/\s/g, "").toLowerCase();
+    const phone = String(vip.phone ?? "")
+      .replace(/\s/g, "")
+      .toLowerCase();
     const linkedCard = memberCards.rows.find(
       (card) =>
-        String(card.customer ?? "").replace(/\s/g, "").toLowerCase() === phone &&
-        (!card.expiry ||
-          String(card.expiry) >= localDateTime().slice(0, 10)),
+        String(card.customer ?? "")
+          .replace(/\s/g, "")
+          .toLowerCase() === phone &&
+        (!card.expiry || String(card.expiry) >= localDateTime().slice(0, 10)),
     );
     if (linkedCard) {
       applyCard(linkedCard);
@@ -705,8 +725,12 @@ function PosScreen() {
                 {memberMatches.cards.map((card) => {
                   const owner = customers.rows.find(
                     (row) =>
-                      String(row.phone ?? "").replace(/\s/g, "").toLowerCase() ===
-                      String(card.customer ?? "").replace(/\s/g, "").toLowerCase(),
+                      String(row.phone ?? "")
+                        .replace(/\s/g, "")
+                        .toLowerCase() ===
+                      String(card.customer ?? "")
+                        .replace(/\s/g, "")
+                        .toLowerCase(),
                   );
                   return (
                     <button
@@ -747,7 +771,12 @@ function PosScreen() {
                 ))}
                 {!memberMatches.cards.length &&
                   !memberMatches.vipCustomers.length && (
-                    <p>{l(["No member cards or VIP customers found", "រកមិនឃើញកាតសមាជិក ឬអតិថិជន VIP"])}</p>
+                    <p>
+                      {l([
+                        "No member cards or VIP customers found",
+                        "រកមិនឃើញកាតសមាជិក ឬអតិថិជន VIP",
+                      ])}
+                    </p>
                   )}
               </div>
             )}
@@ -829,9 +858,9 @@ function PosScreen() {
                 options={warehouses.rows
                   .filter((row) => !ownWarehouse || row.name === ownWarehouse)
                   .map((row) => ({
-                  value: String(row.name),
-                  label: String(row.name),
-                }))}
+                    value: String(row.name),
+                    label: String(row.name),
+                  }))}
               />
             </div>
           </div>
@@ -983,7 +1012,9 @@ function PosScreen() {
                       aria-label={l(["Quantity", "បរិមាណ"])}
                       value={line.quantity}
                       readOnly={isCashier}
-                      onChange={(next) => cart.setQuantity(line.productId, next)}
+                      onChange={(next) =>
+                        cart.setQuantity(line.productId, next)
+                      }
                     />
                     <button
                       type="button"
@@ -1078,9 +1109,7 @@ function PosScreen() {
           <div className="pos-payable">
             <span>{t.totalPayable}</span>
             <div>
-              <strong>
-                {formatMoney(cart.totals.payable)}
-              </strong>
+              <strong>{formatMoney(cart.totals.payable)}</strong>
             </div>
           </div>
           <div className="pos-actions">
@@ -1717,16 +1746,22 @@ function ProductSalePanel({
   const [replaceOnNextKey, setReplaceOnNextKey] = useState(true);
   const unit = product ? productUnit(product) : "";
   const quantityValue = toNumber(quantity);
-  const lineTotal =
-    (product ? activePrice(product) : 0) * Math.max(0, quantityValue);
+  const unitPrice = product ? activePrice(product) : 0;
+  const qty = Math.max(0, quantityValue);
   const typedDiscount = Math.max(0, toNumber(productDiscount));
-  // Riel off the line, never more than the line itself.
-  const productDiscountValue = Math.min(
-    lineTotal,
+  // The discount is taken off the original unit price, never off the small
+  // entered quantity: $1 off a $3.50 unit stays $1 off whether you buy 0.2 or
+  // 3. Capped at the unit price so a line can never go negative.
+  const unitDiscount = Math.min(
+    unitPrice,
     discountPercent
-      ? (lineTotal * Math.min(100, typedDiscount)) / 100
+      ? (unitPrice * Math.min(100, typedDiscount)) / 100
       : typedDiscount * money.rate,
   );
+  const discountedUnitPrice = Math.max(0, unitPrice - unitDiscount);
+  // Stored flat per line (the cart keeps money discounts per line): the
+  // per-unit discount times the quantity.
+  const productDiscountValue = unitDiscount * qty;
   const setActiveValue = (value: string) => {
     if (activeField === "quantity") setQuantity(value);
     else setProductDiscount(value);
@@ -1744,7 +1779,8 @@ function ProductSalePanel({
     } else if (key === "backspace") {
       setActiveValue(replaceOnNextKey ? "" : stored.slice(0, -1));
     } else if (key === ".") {
-      if (!current.includes(".")) setActiveValue(current ? `${current}.` : "0.");
+      if (!current.includes("."))
+        setActiveValue(current ? `${current}.` : "0.");
     } else {
       setActiveValue(current === "0" ? key : current + key);
     }
@@ -1861,10 +1897,10 @@ function ProductSalePanel({
       <div className="pos-discount-preview">
         <span>{l(["Product price", "តម្លៃទំនិញ"])}</span>
         <b>
-          {productDiscountValue > 0 && (
-            <s className="muted">{formatMoney(lineTotal)} </s>
+          {unitDiscount > 0 && (
+            <s className="muted">{formatMoney(unitPrice)} </s>
           )}
-          {formatMoney(lineTotal - productDiscountValue)}
+          {formatMoney(discountedUnitPrice)}
         </b>
       </div>
       <button
@@ -2113,9 +2149,7 @@ export function Receipt({
             {returns.length > 0 && (
               <>
                 <tr className="receipt-returned-head">
-                  <td colSpan={5}>
-                    {l(["Returned Items", "ទំនិញបានត្រឡប់"])}
-                  </td>
+                  <td colSpan={5}>{l(["Returned Items", "ទំនិញបានត្រឡប់"])}</td>
                 </tr>
                 {returns.map((line, i) => (
                   <tr key={`r${i}`} className="receipt-returned">
@@ -2216,20 +2250,20 @@ export function Receipt({
               <tr className="receipt-payment">
                 <td colSpan={5}>
                   <div className="receipt-payment-grid">
-                  <div>
-                    <span>{l(["Paid by", "បង់តាម"])}</span>
-                    <b>{paidBy || "—"}</b>
-                  </div>
-                  <div>
-                    <span>{l(["Amount", "ចំនួន"])}</span>
-                    <b>{formatUsd(record.paid, rate)}</b>
-                    <small>{riel(paidRiel)}</small>
-                  </div>
-                  <div>
-                    <span>{l(["Change", "ប្រាក់អាប់"])}</span>
-                    <b>{formatUsd(changeRiel > 0 ? change : 0, rate)}</b>
-                    <small>{riel(changeRiel)}</small>
-                  </div>
+                    <div>
+                      <span>{l(["Paid by", "បង់តាម"])}</span>
+                      <b>{paidBy || "—"}</b>
+                    </div>
+                    <div>
+                      <span>{l(["Amount", "ចំនួន"])}</span>
+                      <b>{formatUsd(record.paid, rate)}</b>
+                      <small>{riel(paidRiel)}</small>
+                    </div>
+                    <div>
+                      <span>{l(["Change", "ប្រាក់អាប់"])}</span>
+                      <b>{formatUsd(changeRiel > 0 ? change : 0, rate)}</b>
+                      <small>{riel(changeRiel)}</small>
+                    </div>
                   </div>
                 </td>
               </tr>
