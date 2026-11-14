@@ -514,7 +514,8 @@ export const transactionResources: ResourceDef[] = [
     periodFilter: { branchKey: "branch", dateKey: "date" },
     details,
     editHref: (row) => `/inventory/stock-adjustment/edit/${row.id}`,
-    menuItems: (row, { l }) => approvalItems("adjustment", row, l),
+    // Adjustments apply as soon as they are saved, so there is no Approve /
+    // Reject step; only Details, Edit and Delete remain.
     onDelete: reverseStock("adjustment"),
     branchOf: (row) => [row.branch],
     filterFrom: stockFilters,
