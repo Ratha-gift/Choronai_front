@@ -979,7 +979,15 @@ function PosScreen() {
                         {productDiscount.percent
                           ? `(${formatNumber(productDiscount.value, 2)}%)`
                           : ""}
-                        : -{formatMoney(productDiscountAmount)}
+                        {/* The discount per unit (what the cashier typed), not
+                            the line total, e.g. -$2.00/kg for 0.5 kg. */}
+                        : -
+                        {formatMoney(
+                          line.quantity > 0
+                            ? productDiscountAmount / line.quantity
+                            : productDiscountAmount,
+                        )}
+                        /{line.unit}
                       </small>
                     )}
                   </div>
