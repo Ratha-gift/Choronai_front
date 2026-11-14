@@ -92,13 +92,20 @@ function approve(
       branch: String(row.toBranch ?? ""),
       warehouse: String((row as Record<string, unknown>).toWarehouse ?? ""),
     };
-    adjustStock(
-      row.items.map((line) => ({
+    // A transfer moves stock both ways: take it out of the sending warehouse
+    // and put it into the receiving one, so each branch's balance is right.
+    adjustStock([
+      ...row.items.map((line) => ({
+        productId: line.productId,
+        delta: lineDelta(def, line),
+        location: row,
+      })),
+      ...row.items.map((line) => ({
         productId: line.productId,
         delta: line.quantity,
         location: destination,
       })),
-    );
+    ]);
     return;
   }
   const products = getProducts();
@@ -430,14 +437,21 @@ export const transactionResources: ResourceDef[] = [
       ),
     menuItems: (row, { navigate, l, branch }) =>
       row.status === "pending"
-        ? approvalItems(
-            "stock-issue",
-            row,
-            l,
-            // The user's own branch receives this transfer but did not send it,
-            // so Accept completes it (dispatch + receive) in one step.
-            !!branch && row.toBranch === branch && row.branch !== branch,
-          )
+        ? // A transfer (it has a destination branch) is accepted by the
+          // RECEIVING branch, which then deducts the sending branch's stock and
+          // takes it in, all in one step. The sending branch only waits (it can
+          // still cancel by deleting), so it gets no Accept button. A plain
+          // issue (no destination) is accepted by its own branch as before.
+          !!row.toBranch && !!branch && row.branch === branch
+          ? []
+          : approvalItems(
+              "stock-issue",
+              row,
+              l,
+              // Any transfer (it has a destination) is completed in one step by
+              // whoever accepts it here — the receiving branch or the owner.
+              !!row.toBranch,
+            )
         : canReceiveTransfer(row)
           ? [
               {
