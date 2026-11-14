@@ -51,6 +51,10 @@ export type Column<T> = {
 export type HeaderGroup = { label?: Label; span: number };
 
 const PAGE_SIZES = [10, 25, 50, 100];
+// "All" page size: a finite, large number so one page holds every row while
+// the paging maths (start = (page - 1) * size, slice(start, start + size))
+// stay valid — Infinity would make 0 * size NaN.
+const ALL_ROWS = Number.MAX_SAFE_INTEGER;
 
 /** 1 … 4 5 6 … 20 style page list. */
 function pageItems(current: number, pages: number): (number | "gap")[] {
@@ -456,6 +460,11 @@ export function DataTable<T extends { id: string }>({
           {canFilter ? String(size) : `${size} ${t.perPage}`}
         </option>
       ))}
+      <option value={ALL_ROWS}>
+        {canFilter
+          ? l(["All", "ទាំងអស់"])
+          : `${l(["All", "ទាំងអស់"])} ${t.perPage}`}
+      </option>
     </NativeSelect>
   );
 
