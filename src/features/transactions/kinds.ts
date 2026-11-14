@@ -96,8 +96,9 @@ export const KINDS: Record<TransactionKind, KindDef> = {
     stock: 1,
     price: "none",
     expiry: true,
-    // New adjustments are pending; Approve / Reject are in the list's actions.
-    statuses: ["pending", "approved", "rejected"],
+    // New adjustments apply at once (no approval step); "pending" / "rejected"
+    // stay in the list only so older records still open and edit.
+    statuses: ["approved", "pending", "rejected"],
   },
 };
 

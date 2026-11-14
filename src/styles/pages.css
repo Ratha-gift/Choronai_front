@@ -244,6 +244,13 @@
   color: #222;
   font-weight: 700;
 }
+/* Balance per line: green when stock went up (over), red when it went down. */
+.details-sheet .data-table td.bal-over {
+  background: #a9e6a9;
+}
+.details-sheet .data-table td.bal-loss {
+  background: #f3a6a6;
+}
 .details-sheet .details-note {
   margin-top: 14px;
   padding-top: 8px;

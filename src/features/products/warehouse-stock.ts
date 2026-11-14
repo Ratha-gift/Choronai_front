@@ -3,7 +3,12 @@ import { useMemo } from "react";
 import { useCollection } from "@/data/collections";
 import type { Transaction } from "@/data/types";
 import { useSettings } from "@/features/settings/store";
-import { KINDS, lineDelta, type KindDef } from "@/features/transactions/kinds";
+import {
+  appliedStock,
+  KINDS,
+  lineDelta,
+  type TransactionKind,
+} from "@/features/transactions/kinds";
 import { productStock, tracksStock, useProducts } from "./store";
 import type { Product } from "./types";
 
@@ -44,21 +49,23 @@ export function useWarehouseStock(warehouse: string) {
         else if (product && tracksStock(product))
           moved.set(productId, (moved.get(productId) ?? 0) + delta);
       };
-      const documents: [Transaction[], KindDef | null][] = [
-        [receives, KINDS["stock-receive"]],
-        [issues, KINDS["stock-issue"]],
-        [adjustments, KINDS.adjustment],
-        [saleReturns, KINDS["sale-return"]],
+      const documents: [Transaction[], TransactionKind | null][] = [
+        [receives, "stock-receive"],
+        [issues, "stock-issue"],
+        [adjustments, "adjustment"],
+        [saleReturns, "sale-return"],
         [sales, null],
       ];
-      for (const [rows, kind] of documents)
-        for (const row of rows)
-          if (row.warehouse === name)
-            for (const line of row.items)
-              add(
-                line.productId,
-                kind ? lineDelta(kind, line) : -line.quantity,
-              );
+      for (const [rows, kindId] of documents)
+        for (const row of rows) {
+          if (row.warehouse !== name) continue;
+          // Only documents that have actually moved stock: a pending or
+          // rejected transfer (or adjustment) has not, so it must not count.
+          if (kindId && !appliedStock(kindId, row)) continue;
+          const kind = kindId ? KINDS[kindId] : null;
+          for (const line of row.items)
+            add(line.productId, kind ? lineDelta(kind, line) : -line.quantity);
+        }
       return moved;
     };
 

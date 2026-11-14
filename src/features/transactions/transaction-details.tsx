@@ -118,7 +118,9 @@ export function TransactionDetails({ row }: { row: Row }) {
                     {formatNumber(counted, 3)}{" "}
                     <span className="unit">{line.unit}</span>
                   </td>
-                  <td className="align-right">
+                  <td
+                    className={`align-right ${signed > 0 ? "bal-over" : signed < 0 ? "bal-loss" : ""}`}
+                  >
                     {signed > 0 ? "+" : ""}
                     {formatNumber(signed, 3)}{" "}
                     <span className="unit">{line.unit}</span>
