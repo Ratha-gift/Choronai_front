@@ -16,6 +16,10 @@ export type LineItem = {
   expiry?: string;
   /** Quantity adjustments only. */
   type?: "addition" | "subtraction";
+  /** Stock adjustments: the stock on hand before this adjustment, captured
+   * when it was saved, so the detail/print can show Current → Quantity →
+   * Balance accurately even after later movements. */
+  currentStock?: number;
   /** Stock adjustments: why this line changed. */
   description?: string;
   /** Stock adjustments: reason code (see transactions/reasons.ts). */

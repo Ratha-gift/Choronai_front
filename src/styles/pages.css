@@ -219,6 +219,36 @@
 .details-note {
   margin: 10px 0 0;
 }
+/* Stock adjustment detail: a bordered "sheet" with full grid lines and a grey
+   header row, like the printed form. */
+.details-sheet {
+  border: 1.5px solid #333;
+  padding: 16px;
+}
+.details-sheet .details-grid {
+  padding-bottom: 14px;
+  margin-bottom: 0;
+  border-bottom: 1.5px solid #333;
+}
+.details-sheet .data-table {
+  margin-top: 14px;
+  border: 1px solid #8a8a8a;
+  border-collapse: collapse;
+}
+.details-sheet .data-table th,
+.details-sheet .data-table td {
+  border: 1px solid #8a8a8a;
+}
+.details-sheet .data-table thead th {
+  background: #c9c9c9;
+  color: #222;
+  font-weight: 700;
+}
+.details-sheet .details-note {
+  margin-top: 14px;
+  padding-top: 8px;
+  border-top: 1.5px solid #333;
+}
 .product-details {
   display: grid;
   grid-template-columns: 180px minmax(0, 1fr);
