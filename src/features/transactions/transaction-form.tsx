@@ -471,7 +471,15 @@ export function TransactionForm({
       (kindId === "stock-receive" && form.party && !form.transferId)
         ? { supplier: form.party }
         : {}),
-      items,
+      // Stock adjustments keep the stock on hand before this change, so the
+      // detail/print can show Current Stock → Quantity → Balance for good.
+      items:
+        kindId === "adjustment"
+          ? items.map((line) => ({
+              ...line,
+              currentStock: qoh(line.productId),
+            }))
+          : items,
       total,
       orderTax,
       discount,

@@ -237,7 +237,12 @@ export function ResourcePage({ def }: { def: ResourceDef }) {
           onSelectedChange={setSelected}
           initialSort={def.initialSort}
           headerGroups={def.headerGroups}
-          onRowClick={def.onRowClick}
+          onRowClick={
+            // Any list with a details view opens it on a row click; a resource
+            // with its own click handler (e.g. POS Sales → receipt) keeps it.
+            def.onRowClick ??
+            (def.details ? (row) => setViewing(row) : undefined)
+          }
           periodFilter={def.periodFilter}
           periodOpen={filterOpen}
         />

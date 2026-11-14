@@ -485,6 +485,7 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                 <NativeSelect
                   className="form-control"
                   required
+                  noSearch
                   value={form.category}
                   onChange={(event) =>
                     set({ category: event.target.value, subCategory: "" })
@@ -514,7 +515,10 @@ export function ProductFormPage({ productId }: { productId?: string }) {
               >
                 <option value="">
                   {!form.category
-                    ? l(["Please select category to load", "សូមជ្រើសប្រភេទជាមុន"])
+                    ? l([
+                        "Please select category to load",
+                        "សូមជ្រើសប្រភេទជាមុន",
+                      ])
                     : subCategories.length
                       ? l(["Select Sub Category", "ជ្រើសប្រភេទរង"])
                       : l(["No sub categories", "គ្មានប្រភេទរង"])}
@@ -840,10 +844,7 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                   <span className="field-label">
                     {l(["Add Product", "បន្ថែមមុខទំនិញ"])}{" "}
                     <small>
-                      {l([
-                        "(Standard products only)",
-                        "(តែទំនិញស្តង់ដារ)",
-                      ])}
+                      {l(["(Standard products only)", "(តែទំនិញស្តង់ដារ)"])}
                     </small>
                   </span>
                   <div className="autocomplete">

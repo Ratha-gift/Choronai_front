@@ -118,6 +118,9 @@ export function PaymentModal({
   // Dollar amounts are rounded up to the cent; less than a cent over is exact.
   const balance =
     paying > payable && paying - payable < rate / 100 ? 0 : paying - payable;
+  // A cash sale can only be finalised once the money covers the total (exact
+  // or more). "Not Paid" (credit) is a deliberate choice and stays allowed.
+  const canSubmit = notPaid || (paying > 0 && balance >= 0);
   // Quick Cash and Clear work on the last payment row.
   const last = rows.length - 1;
   const change = (index: number, patch: Partial<PayRow>) =>
@@ -145,7 +148,7 @@ export function PaymentModal({
       size="xl"
       title={l(["Finalize Sale", "បញ្ចប់ការលក់"])}
       onSubmit={() => {
-        if (paying <= 0 && !notPaid) return;
+        if (!canSubmit) return;
         const parts = notPaid ? [] : splitPayment(rows, rate, payable);
         onSubmit({
           date,
@@ -163,7 +166,11 @@ export function PaymentModal({
         });
       }}
       footer={
-        <button type="submit" className="btn btn-primary btn-block btn-lg">
+        <button
+          type="submit"
+          className="btn btn-primary btn-block btn-lg"
+          disabled={!canSubmit}
+        >
           {t.submit}
         </button>
       }

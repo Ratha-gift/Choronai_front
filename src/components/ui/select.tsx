@@ -48,6 +48,7 @@ export function Select({
   className = "",
   searchPlaceholder = "Search…",
   forceSearch,
+  noSearch,
   minListWidth = 0,
   footer,
 }: {
@@ -62,6 +63,9 @@ export function Select({
   searchPlaceholder?: string;
   /** Always show the search box, even for short lists. */
   forceSearch?: boolean;
+  /** Never show the search box, even for long lists (e.g. to avoid the
+   * on-screen keyboard opening on a touch device). Overrides forceSearch. */
+  noSearch?: boolean;
   /** The list can be wider than a narrow button (long option names). */
   minListWidth?: number;
   /** Extra row pinned under the options; receives a function that closes the list. */
@@ -76,7 +80,7 @@ export function Select({
   const typed = useRef({ text: "", at: 0 });
   const open = !!place;
   const selected = options.find((option) => option.value === value);
-  const searchable = forceSearch || options.length > SEARCH_FROM;
+  const searchable = !noSearch && (forceSearch || options.length > SEARCH_FROM);
 
   const shown = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -331,6 +335,7 @@ export function NativeSelect({
   className = "",
   "aria-label": ariaLabel,
   title,
+  noSearch,
 }: {
   value?: string | number;
   onChange?: (event: { target: { value: string } }) => void;
@@ -340,6 +345,8 @@ export function NativeSelect({
   className?: string;
   "aria-label"?: string;
   title?: string;
+  /** Never show the search box (e.g. to keep the keyboard closed on touch). */
+  noSearch?: boolean;
 }) {
   const options = readOptions(children);
   return (
@@ -351,6 +358,7 @@ export function NativeSelect({
         required={required}
         disabled={disabled}
         ariaLabel={ariaLabel}
+        noSearch={noSearch}
         className={className.replace(/\bform-control\b/, "").trim()}
       />
     </span>
