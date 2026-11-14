@@ -431,6 +431,14 @@ export function pendingBackup() {
   seal();
   return JSON.stringify({ username, revision, queue }, null, 2);
 }
+/** The queued (and in-progress) changes waiting to reach the server, for the
+ *  Offline-data modal. Each entry lists the collection keys it touches. */
+export function pendingItems(): { keys: string[] }[] {
+  const items = queue.map((commit) => ({ keys: Object.keys(commit.changes) }));
+  const draftKeys = Object.keys(draft);
+  if (draftKeys.length) items.push({ keys: draftKeys });
+  return items;
+}
 export function assertWritable() {
   if (!connected)
     throw new Error("Sign in to the server before changing shared data.");

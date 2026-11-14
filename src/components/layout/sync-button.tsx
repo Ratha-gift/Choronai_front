@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "@/components/icons";
 import { useLanguage, type Label } from "@/i18n";
 import { downloadText } from "@/lib/csv";
-import { flush, pendingBackup, useSyncStatus } from "@/lib/sync";
+import { flush, pendingBackup, pendingItems, useSyncStatus } from "@/lib/sync";
 
 /** Whether the browser has a network connection right now. */
 function useOnline() {
@@ -29,6 +29,23 @@ type Look = {
   note: Label;
 };
 
+/** Friendly names for the collections a pending change can touch. */
+const AREA: Record<string, Label> = {
+  sales: ["Sale", "ការលក់"],
+  saleReturns: ["Return", "ការត្រឡប់"],
+  registers: ["Register", "បញ្ជរ"],
+  customers: ["Customer", "អតិថិជន"],
+  suppliers: ["Supplier", "អ្នកផ្គត់ផ្គង់"],
+  "next-catalog": ["Product", "ផលិតផល"],
+  stockReceives: ["Stock Receive", "ទទួលស្តុក"],
+  stockIssues: ["Stock Issue", "បញ្ចេញស្តុក"],
+  adjustments: ["Stock Adjustment", "កែតម្រូវស្តុក"],
+  users: ["User", "អ្នកប្រើ"],
+  memberCards: ["Member Card", "កាតសមាជិក"],
+};
+const cleanKey = (key: string) =>
+  key.replace(/^choronai-/, "").replace(/-v\d+$/, "");
+
 /**
  * POS header button for data kept on this device. Changes are saved in the
  * browser first (src/lib/sync.ts) and sent to the server when online; this
@@ -43,37 +60,15 @@ export function SyncButton({
   const { l } = useLanguage();
   const state = useSyncStatus();
   const online = useOnline();
-  // Fixed to the window: the POS nav row scrolls and would clip it.
-  const [place, setPlace] = useState<{ top: number; right: number } | null>(
-    null,
-  );
-  const open = !!place;
-  const setOpen = (value: boolean | ((old: boolean) => boolean)) => {
-    const next = typeof value === "function" ? value(open) : value;
-    const rect = box.current?.getBoundingClientRect();
-    setPlace(
-      next && rect
-        ? { top: rect.bottom + 8, right: window.innerWidth - rect.right }
-        : null,
-    );
-  };
+  const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
-    const outside = (event: MouseEvent) => {
-      if (!box.current?.contains(event.target as Node)) setOpen(false);
-    };
     const escape = (event: KeyboardEvent) =>
       event.key === "Escape" && setOpen(false);
-    document.addEventListener("mousedown", outside);
     document.addEventListener("keydown", escape);
-    return () => {
-      document.removeEventListener("mousedown", outside);
-      document.removeEventListener("keydown", escape);
-    };
-    // Only re-run when it opens or closes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => document.removeEventListener("keydown", escape);
   }, [open]);
 
   const pending = state.pending;
@@ -151,45 +146,118 @@ export function SyncButton({
       </button>
       {open && (
         <div
-          className="sync-popover"
-          role="dialog"
-          aria-label={l(look.label)}
-          style={place ?? undefined}
+          className="sync-modal-overlay"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setOpen(false);
+          }}
         >
-          <b className="sync-title">
-            <Icon name={look.icon} size={16} /> {l(look.label)}
-          </b>
-          <p>{l(look.note)}</p>
-          <p className="sync-pending">
-            {pending > 0
-              ? l([
-                  `${pending} change(s) waiting on this device.`,
-                  `មានការកែប្រែ ${pending} កំពុងរង់ចាំក្នុងឧបករណ៍នេះ។`,
-                ])
-              : l(["Nothing is waiting.", "គ្មានអ្វីកំពុងរង់ចាំទេ។"])}
-          </p>
-          <div className="button-row">
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              disabled={!online || pending === 0 || look.tone === "error"}
-              onClick={() => void flush()}
-            >
-              <Icon name="upload" size={13} />{" "}
-              {l(["Send to server now", "បញ្ចូលទៅម៉ាស៊ីនមេឥឡូវ"])}
-              {pending > 0 && ` (${pending})`}
-            </button>
-            <button
-              type="button"
-              className="btn btn-default btn-sm"
-              disabled={pending === 0}
-              onClick={() =>
-                downloadText("choronai-pending.json", pendingBackup())
-              }
-            >
-              <Icon name="download" size={13} />{" "}
-              {l(["Download pending work", "ទាញយកការងាររង់ចាំ"])}
-            </button>
+          <div
+            className={`sync-modal ${look.tone}`}
+            role="dialog"
+            aria-modal="true"
+            aria-label={l(["Offline data", "ទិន្នន័យ Offline"])}
+          >
+            <div className="sync-modal-head">
+              <span className="sync-modal-ico">
+                <Icon name="database" size={20} />
+              </span>
+              <div className="sync-modal-titles">
+                <b>{l(["Offline data", "ទិន្នន័យ Offline"])}</b>
+                <span>{l(look.label)}</span>
+              </div>
+              <span className={`sync-badge ${online ? "on" : "off"}`}>
+                <i />
+                {online
+                  ? l(["Online", "កំពុងតភ្ជាប់"])
+                  : l(["Offline", "គ្មានអ៊ីនធឺណិត"])}
+              </span>
+              <button
+                type="button"
+                className="sync-modal-x"
+                aria-label={l(["Close", "បិទ"])}
+                onClick={() => setOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="sync-modal-body">
+              {pending > 0 ? (
+                <table className="sync-modal-table">
+                  <thead>
+                    <tr>
+                      <th>{l(["No.", "ល.រ"])}</th>
+                      <th>{l(["Type", "ប្រភេទ"])}</th>
+                      <th>{l(["Status", "ស្ថានភាព"])}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingItems().map((item, index) => (
+                      <tr key={index}>
+                        <td>{index + 1}</td>
+                        <td>
+                          {item.keys
+                            .map((key) => {
+                              const name = cleanKey(key);
+                              return AREA[name] ? l(AREA[name]) : name;
+                            })
+                            .join(", ")}
+                        </td>
+                        <td>
+                          <span className="sync-chip">
+                            {l(["Waiting", "កំពុងរង់ចាំ"])}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="sync-modal-empty">
+                  <span className="sync-modal-ico lg">
+                    <Icon name="database" size={28} />
+                  </span>
+                  <b>{l(["No offline data", "គ្មានទិន្នន័យ Offline"])}</b>
+                  <p>
+                    {l([
+                      "Everything has been sent to the server.",
+                      "ទិន្នន័យទាំងអស់បានផ្ញើទៅ Server រួចរាល់",
+                    ])}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="sync-modal-foot">
+              <button
+                type="button"
+                className="btn btn-default btn-sm"
+                disabled={pending === 0}
+                onClick={() =>
+                  downloadText("choronai-pending.json", pendingBackup())
+                }
+              >
+                <Icon name="download" size={13} /> {l(["Download", "ទាញយក"])}
+              </button>
+              <span className="sync-foot-spacer" />
+              <button
+                type="button"
+                className="btn btn-default btn-sm"
+                onClick={() => setOpen(false)}
+              >
+                {l(["Close", "បិទ"])}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                disabled={!online || pending === 0 || look.tone === "error"}
+                onClick={() => void flush()}
+              >
+                <Icon name="upload" size={13} />{" "}
+                {l(["Send to server", "ដាក់ទៅ Server"])}
+                {pending > 0 && ` (${pending})`}
+              </button>
+            </div>
           </div>
         </div>
       )}

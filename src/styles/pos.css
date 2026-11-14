@@ -1476,27 +1476,162 @@
 .sync-button.error .sync-title svg {
   color: #d93025;
 }
-.sync-popover {
+/* Offline-data modal (opened from the database button). */
+.sync-modal-overlay {
   position: fixed;
-  z-index: 70;
-  width: min(320px, calc(100vw - 24px));
-  padding: 12px 14px;
+  inset: 0;
+  z-index: 2200;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(8 15 30 / 55%);
+}
+.sync-modal {
+  width: min(460px, calc(100vw - 32px));
   background: #fff;
-  border: 1px solid #e3e8ef;
-  border-radius: 12px;
-  box-shadow: 0 14px 32px #0f254a2e;
   color: #1f2a37;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgb(8 15 30 / 35%);
+  overflow: hidden;
 }
-.sync-popover p {
-  margin: 6px 0 0;
-  font-size: 13px;
-  line-height: 1.45;
+.sync-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #eef1f6;
 }
-.sync-popover .sync-pending {
+.sync-modal-ico {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #eef2f8;
+  color: #46577a;
+  flex: none;
+}
+.sync-modal.offline .sync-modal-ico {
+  background: #fff3e0;
+  color: #c77c0e;
+}
+.sync-modal.error .sync-modal-ico {
+  background: #fdecea;
+  color: #d93025;
+}
+.sync-modal-titles {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.sync-modal-titles b {
+  font-size: 15px;
+}
+.sync-modal-titles span {
+  font-size: 12px;
   color: var(--muted);
 }
-.sync-popover .button-row {
-  margin-top: 10px;
+.sync-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.sync-badge i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.sync-badge.on {
+  color: #1e8e4a;
+  background: #e7f6ec;
+}
+.sync-badge.on i {
+  background: #2ecc71;
+}
+.sync-badge.off {
+  color: #c77c0e;
+  background: #fff3e0;
+}
+.sync-badge.off i {
+  background: #f0ad4e;
+}
+.sync-modal-x {
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  color: #8a94a6;
+  cursor: pointer;
+  padding: 0 4px;
+  flex: none;
+}
+.sync-modal-x:hover {
+  color: #1f2a37;
+}
+.sync-modal-body {
+  padding: 16px 18px;
+}
+.sync-modal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.sync-modal-table th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 6px 8px;
+  border-bottom: 1px solid #eef1f6;
+}
+.sync-modal-table td {
+  padding: 8px;
+  border-bottom: 1px solid #f4f6fa;
+}
+.sync-chip {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #c77c0e;
+  background: #fff3e0;
+}
+.sync-modal-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 26px 10px;
+}
+.sync-modal-ico.lg {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  margin-bottom: 4px;
+}
+.sync-modal-empty b {
+  font-size: 15px;
+}
+.sync-modal-empty p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.sync-modal-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px;
+  border-top: 1px solid #eef1f6;
+}
+.sync-foot-spacer {
+  flex: 1;
 }
 
 /* The POS nav row scrolls sideways, which clips anything below it: the
