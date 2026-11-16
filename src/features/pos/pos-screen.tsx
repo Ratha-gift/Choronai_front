@@ -2018,9 +2018,10 @@ export function Receipt({
   const change = record.paid - record.grandTotal;
   const paidInFull = record.paid >= record.grandTotal;
   // Cash in riel goes by the 100 ៛ note: change is rounded down, and what was
-  // paid in dollars is shown as the nearest riel a customer can hand over.
+  // paid is rounded up the same way the Grand Total (KHR) is, so a full
+  // payment shows the same riel on both lines (not 34,600 vs 34,700).
   const changeRiel = rielChange(Math.max(0, change));
-  const paidRiel = Math.round(record.paid / 100) * 100;
+  const paidRiel = rielDue(record.paid);
   const productDiscountAmount = (line: LineItem) => {
     const discount = line.productDiscount;
     if (!discount) return 0;
