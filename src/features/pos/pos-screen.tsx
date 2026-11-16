@@ -1,6 +1,7 @@
 "use client";
 import { postPoints, phoneKey, cardOwner } from "./loyalty";
 import { currentUsername, useSession } from "@/lib/auth";
+import { deviceCode } from "@/lib/device";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -503,12 +504,15 @@ function PosScreen() {
     const { totals } = cart;
     const date = new Date(payment.date).toISOString();
     const reference = nextReference(
-      // Each branch can number its invoices with its own prefix (INV8/...).
-      String(
+      // Each branch can number its invoices with its own prefix (INV8/...); a
+      // per-device code keeps the number unique so two tills offline never pick
+      // the same one (SALE/K3X9/2026/11/0001). Built here, in the sale handler,
+      // so it runs on the device only (no server/hydration mismatch).
+      `${String(
         branches.rows.find((row) => row.name === payment.branch)?.prefix ||
           getSetting("system", "salePrefix") ||
           "SALE",
-      ),
+      )}/${deviceCode()}`,
       sales.rows.length,
     );
     const sale: Omit<Transaction, "id"> = {
