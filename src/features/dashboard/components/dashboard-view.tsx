@@ -312,6 +312,16 @@ export function DashboardView() {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+  const presets: { label: Label; from: Date; to: Date }[] = [
+    { label: ["Today", "ថ្ងៃនេះ"], from: now, to: now },
+    { label: ["This Month", "ខែនេះ"], from: monthStart, to: now },
+    { label: ["Last Month", "ខែមុន"], from: lastMonthStart, to: lastMonthEnd },
+    {
+      label: ["All", "ទាំងអស់"],
+      from: new Date(2000, 0, 1),
+      to: new Date(now.getFullYear() + 1, 11, 31),
+    },
+  ];
 
   return (
     <>
@@ -337,39 +347,20 @@ export function DashboardView() {
           />
         </label>
         <div className="dashboard-filter-presets">
-          <button
-            type="button"
-            className="btn"
-            onClick={() => setRange(now, now)}
-          >
-            {l(["Today", "ថ្ងៃនេះ"])}
-          </button>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => setRange(monthStart, now)}
-          >
-            {l(["This Month", "ខែនេះ"])}
-          </button>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => setRange(lastMonthStart, lastMonthEnd)}
-          >
-            {l(["Last Month", "ខែមុន"])}
-          </button>
-          <button
-            type="button"
-            className="btn"
-            onClick={() =>
-              setRange(
-                new Date(2000, 0, 1),
-                new Date(now.getFullYear() + 1, 11, 31),
-              )
-            }
-          >
-            {l(["All", "ទាំងអស់"])}
-          </button>
+          {presets.map((preset) => {
+            const active = from === iso(preset.from) && to === iso(preset.to);
+            return (
+              <button
+                key={preset.label[0]}
+                type="button"
+                className={`btn${active ? " btn-primary" : ""}`}
+                aria-pressed={active}
+                onClick={() => setRange(preset.from, preset.to)}
+              >
+                {l(preset.label)}
+              </button>
+            );
+          })}
         </div>
       </div>
       <div className="tiles">
