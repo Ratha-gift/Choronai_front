@@ -9,7 +9,7 @@ import type { Payment, Transaction } from "@/data/types";
 import { METHODS } from "@/features/pos/payment-modal";
 import { useSettings } from "@/features/settings/store";
 import { useLanguage } from "@/i18n";
-import { currentUsername } from "@/lib/auth";
+import { currentUsername, isOwner } from "@/lib/auth";
 import {
   formatDate,
   formatMoney,
@@ -72,6 +72,34 @@ function ViewPayments({
 }) {
   const { l, t } = useLanguage();
   const payments = salePayments(sale);
+  // Who may change how a payment was taken (Cash → QR, …): the owner for any
+  // sale, a staff member only for their own sale. The amount never changes —
+  // only the method.
+  const mayEdit = isOwner() || sale.createdBy === currentUsername();
+  const methodOptions = (current: string) =>
+    (METHODS.includes(current) ? METHODS : [current, ...METHODS]).map(
+      (method) => ({ value: method, label: method }),
+    );
+  function changeMethod(paymentId: string, method: string) {
+    setRows("sales", (rows) =>
+      rows.map((row) => {
+        if (row.id !== sale.id) return row;
+        const record = row as Transaction;
+        const next = salePayments(record).map((payment) =>
+          payment.id === paymentId ? { ...payment, method } : payment,
+        );
+        return {
+          ...record,
+          payments: next,
+          // One-payment sales carry the method on the sale too (receipts,
+          // filters); a split sale keeps its "Mixed" headline.
+          paymentMethod:
+            next.length === 1 ? next[0].method : record.paymentMethod,
+        };
+      }),
+    );
+    notify(l(["Payment method updated.", "បានកែប្រភេទការទូទាត់។"]));
+  }
   return (
     <Modal
       open
@@ -113,7 +141,18 @@ function ViewPayments({
                   )}
                 </td>
                 <td className="align-right">{formatMoney(payment.amount)}</td>
-                <td>{payment.method}</td>
+                <td>
+                  {mayEdit ? (
+                    <Select
+                      ariaLabel={l(["Paid by", "បង់ដោយ"])}
+                      value={payment.method}
+                      options={methodOptions(payment.method)}
+                      onChange={(method) => changeMethod(payment.id, method)}
+                    />
+                  ) : (
+                    payment.method
+                  )}
+                </td>
                 <td>{payment.createdBy}</td>
               </tr>
             ))}

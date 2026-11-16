@@ -44,6 +44,11 @@ export function useSession() {
 export const currentUsername = () =>
   valid(readStored(SESSION_KEY, NO_SESSION))?.username ?? "system";
 
+/** The signed-in user is in the owner group (full rights, every branch). */
+export const isOwner = () =>
+  String(valid(readStored(SESSION_KEY, NO_SESSION))?.group).toLowerCase() ===
+  "owner";
+
 export type LoginResult = "ok" | "invalid" | "inactive" | "unavailable";
 
 export async function login(
