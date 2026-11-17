@@ -80,14 +80,35 @@ export function DashboardView() {
   const [tab, setTab] = useState<Tab>("sales");
   // Users without "See all branches" see their own branch's figures.
   const { branch } = usePermissions();
-  const mine = (rows: Transaction[]) =>
-    branch
+  // The figures are shown for a date range (default: this month), like a sales
+  // report; the tiles and the Latest Five tables all follow it.
+  const pad = (value: number) => String(value).padStart(2, "0");
+  const iso = (date: Date) =>
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  const now = new Date();
+  const [from, setFrom] = useState(
+    iso(new Date(now.getFullYear(), now.getMonth(), 1)),
+  );
+  const [to, setTo] = useState(iso(now));
+  const setRange = (start: Date, end: Date) => {
+    setFrom(iso(start));
+    setTo(iso(end));
+  };
+  const fromMs = new Date(`${from}T00:00:00`).getTime();
+  const toMs = new Date(`${to}T23:59:59.999`).getTime();
+  const inRange = (row: Transaction) => {
+    const stamp = new Date(row.date).getTime();
+    return !Number.isNaN(stamp) && stamp >= fromMs && stamp <= toMs;
+  };
+  const inScope = (rows: Transaction[]) =>
+    (branch
       ? rows.filter((row) => row.branch === branch || row.toBranch === branch)
-      : rows;
-  const sales = mine(useCollection<Transaction>("sales").rows);
-  const returns = mine(useCollection<Transaction>("saleReturns").rows);
-  const receives = mine(useCollection<Transaction>("stockReceives").rows);
-  const issues = mine(useCollection<Transaction>("stockIssues").rows);
+      : rows
+    ).filter(inRange);
+  const sales = inScope(useCollection<Transaction>("sales").rows);
+  const returns = inScope(useCollection<Transaction>("saleReturns").rows);
+  const receives = inScope(useCollection<Transaction>("stockReceives").rows);
+  const issues = inScope(useCollection<Transaction>("stockIssues").rows);
   const customers = useCollection("customers").rows;
   const suppliers = useCollection("suppliers").rows;
 
@@ -288,8 +309,60 @@ export function DashboardView() {
       </Box>
     );
 
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+  const presets: { label: Label; from: Date; to: Date }[] = [
+    { label: ["Today", "ថ្ងៃនេះ"], from: now, to: now },
+    { label: ["This Month", "ខែនេះ"], from: monthStart, to: now },
+    { label: ["Last Month", "ខែមុន"], from: lastMonthStart, to: lastMonthEnd },
+    {
+      label: ["All", "ទាំងអស់"],
+      from: new Date(2000, 0, 1),
+      to: new Date(now.getFullYear() + 1, 11, 31),
+    },
+  ];
+
   return (
     <>
+      <div className="dashboard-filter">
+        <label>
+          <span>{l(["From", "ពី"])}</span>
+          <input
+            type="date"
+            className="form-control"
+            value={from}
+            max={to}
+            onChange={(event) => setFrom(event.target.value)}
+          />
+        </label>
+        <label>
+          <span>{l(["To", "ដល់"])}</span>
+          <input
+            type="date"
+            className="form-control"
+            value={to}
+            min={from}
+            onChange={(event) => setTo(event.target.value)}
+          />
+        </label>
+        <div className="dashboard-filter-presets">
+          {presets.map((preset) => {
+            const active = from === iso(preset.from) && to === iso(preset.to);
+            return (
+              <button
+                key={preset.label[0]}
+                type="button"
+                className={`btn${active ? " btn-primary" : ""}`}
+                aria-pressed={active}
+                onClick={() => setRange(preset.from, preset.to)}
+              >
+                {l(preset.label)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
       <div className="tiles">
         {tiles.map((tile) => (
           <StatTile
