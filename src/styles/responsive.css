@@ -203,3 +203,24 @@
     display: none;
   }
 }
+/* Back-office list tables on phones: tighter cells fit more columns at once,
+   and a smooth touch swipe reaches the rest without the page itself moving. */
+@media (max-width: 640px) {
+  .data-table-wrap .table-responsive {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    overscroll-behavior-x: contain;
+  }
+  .data-table-wrap .data-table {
+    font-size: 12px;
+  }
+  .data-table-wrap .data-table th,
+  .data-table-wrap .data-table td {
+    padding: 7px 8px;
+  }
+  /* The select column gives its width back to the data. */
+  .data-table-wrap .check-col {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+}
