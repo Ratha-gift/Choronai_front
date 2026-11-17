@@ -11,7 +11,7 @@ import type { Row, Transaction } from "@/data/types";
 import type { ResourceDef } from "../types";
 import type { Label } from "@/i18n";
 import type { MenuItem } from "@/components/ui/action-menu";
-import { currentUsername } from "@/lib/auth";
+import { currentUsername, isOwner } from "@/lib/auth";
 import { openPaymentDialog, amountDue } from "@/features/sales/payments";
 import { openSaleReceipt } from "@/features/sales/sale-receipt";
 import { pick } from "@/i18n";
@@ -327,8 +327,12 @@ export const transactionResources: ResourceDef[] = [
             },
           ]
         : []),
-      // Laravel keeps posted sales as they are (correct them with a return).
-      ...(canPerform("sales.edit") && !usesLaravel()
+      // The owner may re-cut any posted sale (the server reverses its stock and
+      // re-applies the edit, keeping the invoice number); everyone else corrects
+      // a posted sale with a return. A sale that already has a return is too
+      // tangled to re-cut, so it is left to Return Sale.
+      ...((isOwner() || (canPerform("sales.edit") && !usesLaravel())) &&
+      !(Number(row.returned) > 0)
         ? [
             {
               icon: "edit" as const,
