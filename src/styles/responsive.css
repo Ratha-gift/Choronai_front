@@ -213,10 +213,22 @@
   }
   .data-table-wrap .data-table {
     font-size: 12px;
+    /* Size to content instead of cramming every column into the screen, so
+       the columns keep their width and the wrap scrolls sideways to the rest
+       (swipe through the full row like a spreadsheet). */
+    width: auto;
+    min-width: 100%;
   }
   .data-table-wrap .data-table th,
   .data-table-wrap .data-table td {
     padding: 7px 8px;
+    /* Keep each cell on one line so columns do not collapse into tall,
+       wrapped text; the row scrolls horizontally instead. */
+    white-space: nowrap;
+  }
+  /* Pivot/report row labels still wrap — they have no horizontal room. */
+  .data-table-wrap .data-table th.row-head {
+    white-space: normal;
   }
   /* The select column gives its width back to the data. */
   .data-table-wrap .check-col {
