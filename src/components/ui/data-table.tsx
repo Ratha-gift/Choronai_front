@@ -167,7 +167,7 @@ export function DataTable<T extends { id: string }>({
   footerSummary?: (rows: T[]) => ReactNode;
 }) {
   const { l, t } = useLanguage();
-  const [pageSize, setPageSize] = useState(footer === "filters" ? 10 : 25);
+  const [pageSize, setPageSize] = useState(footer === "filters" ? 50 : 25);
   const [goTo, setGoTo] = useState("");
   const [page, setPage] = useState(1);
   const [query, setQuery] = useState("");
