@@ -135,33 +135,41 @@ export function useCart(cashier: string) {
       (sum, line) => sum + line.price * line.quantity,
       0,
     );
-    const productDiscount = items.reduce((sum, line) => {
-      const adjustment = productDiscounts[line.productId];
-      if (!adjustment) return sum;
-      const subtotal = line.price * line.quantity;
-      const amount = adjustment.percent
-        ? (subtotal * toNumber(adjustment.value)) / 100
-        : toNumber(adjustment.value);
-      return sum + Math.min(subtotal, Math.max(0, amount));
-    }, 0);
+    // Money is whole riel. A percentage discount/tax can work out fractional,
+    // so every amount the sale stores is rounded — the backend rejects a
+    // non-integer discount/tax/shipping ("must be an integer").
+    const productDiscount = Math.round(
+      items.reduce((sum, line) => {
+        const adjustment = productDiscounts[line.productId];
+        if (!adjustment) return sum;
+        const subtotal = line.price * line.quantity;
+        const amount = adjustment.percent
+          ? (subtotal * toNumber(adjustment.value)) / 100
+          : toNumber(adjustment.value);
+        return sum + Math.min(subtotal, Math.max(0, amount));
+      }, 0),
+    );
     const orderSubtotal = Math.max(0, total - productDiscount);
-    const orderDiscount = Math.min(
-      orderSubtotal,
-      Math.max(
-        0,
-        adjustments.discountPercent
-          ? (orderSubtotal * toNumber(adjustments.discount)) / 100
-          : toNumber(adjustments.discount),
+    const orderDiscount = Math.round(
+      Math.min(
+        orderSubtotal,
+        Math.max(
+          0,
+          adjustments.discountPercent
+            ? (orderSubtotal * toNumber(adjustments.discount)) / 100
+            : toNumber(adjustments.discount),
+        ),
       ),
     );
     const discount = productDiscount + orderDiscount;
     const taxable = Math.max(0, orderSubtotal - orderDiscount);
-    const orderTax = adjustments.taxPercent
-      ? (taxable * toNumber(adjustments.taxRate)) / 100
-      : toNumber(adjustments.taxRate);
-    const payable = Math.round(
-      taxable + orderTax + toNumber(adjustments.shipping),
+    const orderTax = Math.round(
+      adjustments.taxPercent
+        ? (taxable * toNumber(adjustments.taxRate)) / 100
+        : toNumber(adjustments.taxRate),
     );
+    const shipping = Math.round(toNumber(adjustments.shipping));
+    const payable = Math.round(taxable + orderTax + shipping);
     return {
       count: items.length,
       quantity: items.reduce((sum, line) => sum + line.quantity, 0),
@@ -170,7 +178,7 @@ export function useCart(cashier: string) {
       orderDiscount,
       discount,
       orderTax,
-      shipping: toNumber(adjustments.shipping),
+      shipping,
       payable,
     };
   }, [items, adjustments, productDiscounts]);
