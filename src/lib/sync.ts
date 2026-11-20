@@ -183,10 +183,19 @@ export async function flush() {
   try {
     while (queue.length) {
       emit("syncing");
+      const commit = queue[0];
+      // Delta sync: once the shared data lives in Laravel, upload only the
+      // rows this commit touched (ops) instead of the whole collection — the
+      // server rebuilds it from its own data. Fall back to the full `changes`
+      // when there is no ops (first import, or an outbox from before this).
+      const body =
+        commit.ops && usesLaravel()
+          ? { id: commit.id, revision: commit.revision, ops: commit.ops }
+          : commit;
       const response = await fetch("/api/workspace", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(queue[0]),
+        body: JSON.stringify(body),
       });
       const result = await response.json().catch(() => ({}));
       // Server down or restarting (5xx): keep the work and retry later,
