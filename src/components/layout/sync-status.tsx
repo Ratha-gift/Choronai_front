@@ -18,10 +18,24 @@ export function SyncStatus() {
   // Let the cashier hide the "waiting for connection" notice; it comes back
   // when the status or the number of pending updates changes.
   const [dismissed, setDismissed] = useState(false);
+  // A normal save finishes syncing in well under a second; showing the
+  // waiting panel for that flash looks like a failure next to "saved". Only
+  // reveal the (non-error) notice once the sync is still unresolved after a
+  // short grace period. Errors and conflicts still show at once.
+  const [delayed, setDelayed] = useState(false);
   useEffect(() => setDismissed(false), [state.status, state.pending]);
-  if (["idle", "synced"].includes(state.status)) return null;
+  const active = !["idle", "synced"].includes(state.status);
   const blocked = ["conflict", "error"].includes(state.status);
-  if (!blocked && dismissed) return null;
+  useEffect(() => {
+    if (!active || blocked) {
+      setDelayed(false);
+      return;
+    }
+    const timer = setTimeout(() => setDelayed(true), 2000);
+    return () => clearTimeout(timer);
+  }, [active, blocked]);
+  if (!active) return null;
+  if (!blocked && (dismissed || !delayed)) return null;
   return (
     <div className={blocked ? "sync-blocker" : "sync-notice"} role="status">
       <div className="sync-panel">
