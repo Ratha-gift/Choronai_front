@@ -3,6 +3,7 @@ import { makeId } from "./format";
 import { useSyncExternalStore } from "react";
 import { SEED } from "@/data/seed";
 import { applyRemote } from "./store";
+import { notify } from "./toast";
 
 type Changes = Record<string, unknown>;
 type Row = Record<string, unknown> & { id: unknown };
@@ -125,11 +126,27 @@ function outboxKey() {
   }
   return `choronai-outbox-${username}-${client}`;
 }
+let storageWarned = false;
 function persist() {
-  localStorage.setItem(
-    outboxKey(),
-    JSON.stringify({ revision, queue, draft, draftBase }),
-  );
+  try {
+    localStorage.setItem(
+      outboxKey(),
+      JSON.stringify({ revision, queue, draft, draftBase }),
+    );
+    storageWarned = false;
+  } catch {
+    // Browser storage is full (usually large product images bloating the
+    // outbox). Never let this crash a sale: keep the work in memory so the
+    // commit still flushes to the server. It only risks being lost if the
+    // page reloads while storage stays full, so say so once.
+    if (!storageWarned) {
+      storageWarned = true;
+      notify(
+        "Browser storage is full: this sale is kept in memory and will still sync, but unsent work could be lost on reload. Remove large product images. / ទំហំផ្ទុកពេញ៖ ការលក់រក្សាក្នុងអង្គចងចាំ នៅតែ sync បាន តែការងារមិនទាន់ផ្ញើអាចបាត់ពេល reload។ សូមលុបរូបភាពផលិតផលធំៗ។",
+        "error",
+      );
+    }
+  }
 }
 export function queueChange(key: string, value: unknown, old?: unknown) {
   if (!isSharedKey(key)) return;
